@@ -1,60 +1,24 @@
 // background.js
 
 import { startLoop, stopLoop, openNextTabInLoop } from './looper.js';
+import { SUBMISSION_FOUND_URL } from './constants.js';
 
-// The tabs.onUpdated listener that injected scripts has been removed.
-
-chrome.runtime.onMessage.addListener((msg, sender) => {
-  switch (msg.action) {
-    case 'inspectionResult':
-      // This message now comes from the smart content.js
-      if (!sender.tab || !sender.tab.id) return;
-
-      if (msg.found) {
-        // Keyword was found. The content script handles highlighting.
-        // We just need to focus the tab and let it stay open.
-        // The content script will have already sent other notifications.
-        chrome.tabs.update(sender.tab.id, { active: true });
-        stopLoop();
-      } else {
-        // Keyword not found. Close tab and continue loop.
-        chrome.tabs.remove(sender.tab.id).catch(e => {});
-        openNextTabInLoop();
-      }
-      break;
-    
-    // --- Other message handlers ---
-    case 'focusTab': // This is now only used by highlighter logic in content.js
-      if (sender.tab?.id) {
-        chrome.tabs.update(sender.tab.id, { active: true });
-      }
-      break;
-    case 'addNames':
-      chrome.storage.local.get({ foundEntries: [] }, data => {
-        const map = new Map(data.foundEntries.map(e => [e.name, e]));
-        msg.entries.forEach(e => map.set(e.name, e));
-        chrome.storage.local.set({ foundEntries: Array.from(map.values()) });
-      });
-      break;
-    case 'runFlow':
-      chrome.storage.local.get('extensionState', data => {
-        if (data.extensionState === 'on') {
-          triggerPowerAutomate(msg.payload);
-        }
-      });
-      break;
+// --- THIS IS THE NEW PART ---
+// Listen for the keyboard shortcut command
+chrome.commands.onCommand.addListener((command) => {
+  // The _execute_action command is triggered by the shortcut
+  if (command === '_execute_action') {
+    // Set a flag in storage that the popup will check for on launch.
+    // This tells the popup to perform a special action.
+    chrome.storage.local.set({ openAction: 'focusMasterSearch' });
   }
 });
 
 
-// ---- Supporting Functions and Listeners (Unchanged from your working version) ----
-
-const FLOW_URL =
-  "https://prod-10.westus.logic.azure.com:443/workflows/a9e08bd1329c40ffb9bf28bbc35e710a/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=cR_TUW8U-2foOb1XEAPmKxbK-2PLMK_IntYpxd2WOSo";
-
+// All other functions and listeners remain the same.
 async function triggerPowerAutomate(payload) {
   try {
-    const resp = await fetch(FLOW_URL, {
+    const resp = await fetch(SUBMISSION_FOUND_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload)
@@ -108,3 +72,46 @@ chrome.storage.onChanged.addListener((changes) => {
 
 updateBadge();
 chrome.storage.local.get('extensionState', data => handleStateChange(data.extensionState));
+
+chrome.runtime.onMessage.addListener((msg, sender) => {
+  switch (msg.action) {
+    case 'inspectionResult':
+      if (!sender.tab || !sender.tab.id) return;
+      if (msg.found) {
+        stopLoop({ keepTabOpen: true });
+        chrome.scripting.executeScript({
+            target: { tabId: sender.tab.id },
+            files: ['highlighter.js']
+        });
+      } else {
+        chrome.tabs.remove(sender.tab.id).catch(e => {});
+        openNextTabInLoop();
+      }
+      break;
+    case 'highlightingComplete':
+        if (sender.tab?.id) {
+          chrome.tabs.remove(sender.tab.id).catch(e => {});
+        }
+        openNextTabInLoop();
+        break;
+    case 'focusTab':
+      if (sender.tab?.id) {
+        chrome.tabs.update(sender.tab.id, { active: true });
+      }
+      break;
+    case 'addNames':
+      chrome.storage.local.get({ foundEntries: [] }, data => {
+        const map = new Map(data.foundEntries.map(e => [e.name, e]));
+        msg.entries.forEach(e => map.set(e.name, e));
+        chrome.storage.local.set({ foundEntries: Array.from(map.values()) });
+      });
+      break;
+    case 'runFlow':
+      chrome.storage.local.get('extensionState', data => {
+        if (data.extensionState === 'on') {
+          triggerPowerAutomate(msg.payload);
+        }
+      });
+      break;
+  }
+});

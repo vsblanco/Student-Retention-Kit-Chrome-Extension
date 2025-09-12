@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Date-Keyword Highlighter",
-  "version": "2.1",
+  "version": "3.1",
   "description": "Highlights today’s date, triggers flows, manages Found & Master lists",
   "permissions": [
     "storage",
@@ -21,10 +21,24 @@
       "matches": ["https://nuc.instructure.com/courses/*"],
       "js": ["content.js"],
       "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://nuc.instructure.com/courses/*/grades/*"],
+      "js": ["gradebook_injector.js"],
+      "run_at": "document_idle"
     }
   ],
   "action": {
     "default_popup": "popup.html",
     "default_icon": "icon.png"
+  },
+  "commands": {
+    "_execute_action": {
+      "suggested_key": {
+        "default": "Alt+S",
+        "mac": "Alt+S"
+      },
+      "description": "Open the popup and focus Master List search."
+    }
   }
 }

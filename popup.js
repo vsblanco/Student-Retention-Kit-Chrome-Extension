@@ -1,9 +1,7 @@
 // popup.js
 
-const MASTER_FLOW_URL =
-  "https://prod-10.westus.logic.azure.com:443/workflows/a9e08bd1329c40ffb9bf28bbc35e710a/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=cR_TUW8U-2foOb1XEAPmKxbK-2PLMK_IntYpxd2WOSo";
+import { MASTER_LIST_URL } from './constants.js';
 
-// Helper to render the Found list
 function renderFoundList(entries) {
   const list = document.getElementById('foundList');
   list.innerHTML = '';
@@ -20,52 +18,55 @@ function renderFoundList(entries) {
       window.close();
     });
     li.appendChild(a);
-    li.appendChild(document.createTextNode(`  ${time}`));
+    if (time) {
+        const timeBadge = document.createElement('span');
+        timeBadge.className = 'pill-badge align-right'; 
+        timeBadge.textContent = time;
+        li.appendChild(timeBadge);
+    }
     list.appendChild(li);
   });
 }
 
-// --- THIS FUNCTION IS UPDATED ---
-// Helper to render the Master list with phone numbers
 function renderMasterList(entries) {
   const list = document.getElementById('masterList');
   list.innerHTML = '';
-  entries.forEach(({ name, time, url, phone }) => { // Destructure the new 'phone' property
+  entries.forEach(({ name, time, url, phone }) => { 
     const li = document.createElement('li');
-    const a  = document.createElement('a');
-    a.textContent = name;
-    a.href = '#';
-    a.style.color = 'var(--accent-color)';
-    a.style.textDecoration = 'none';
-    a.addEventListener('click', e => {
-      e.preventDefault();
-      chrome.tabs.create({ url });
-      window.close();
-    });
-    li.appendChild(a);
-
-    // If a phone number exists, create and append a styled span for it
+    if (url && url !== '#N/A' && url.startsWith('http')) {
+      const a  = document.createElement('a');
+      a.textContent = name;
+      a.href = url;
+      a.style.color = 'var(--accent-color)';
+      a.style.textDecoration = 'none';
+      a.addEventListener('click', e => {
+        e.preventDefault();
+        chrome.tabs.create({ url });
+        window.close();
+      });
+      li.appendChild(a);
+    } else {
+      const nameSpan = document.createElement('span');
+      nameSpan.textContent = name;
+      nameSpan.style.color = '#888';
+      nameSpan.title = 'Invalid URL. Please update on the master list.';
+      li.appendChild(nameSpan);
+    }
     if (phone) {
         const phoneSpan = document.createElement('span');
-        phoneSpan.className = 'phone-number'; // Use the new CSS class
+        phoneSpan.className = 'pill-badge';
         phoneSpan.textContent = phone;
         li.appendChild(phoneSpan);
-    }
-    
-    // The 'time' property is likely unused for the master list, but we'll leave it
-    if (time) {
-        li.appendChild(document.createTextNode(`  ${time}`));
     }
     list.appendChild(li);
   });
 }
 
-// --- THIS FUNCTION IS UPDATED ---
 async function updateMaster() {
   const list = document.getElementById('masterList');
   list.innerHTML = '<li>Loading…</li>';
   try {
-    const resp = await fetch(MASTER_FLOW_URL, {
+    const resp = await fetch(MASTER_LIST_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: '{}'  
@@ -73,65 +74,128 @@ async function updateMaster() {
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
     const data = await resp.json();
     const students = data.students || [];
-
-    // Map the new 'phone' property from the response to our storage format
     const entries = students.map(s => ({
-      name: s.name,
-      time: s.time || '',
-      url:  s.url,
-      phone: s.phone || '' // Add the phone number property
+      name: s.name, time: s.time || '', url:  s.url, phone: s.phone || ''
     }));
-
-    await new Promise(res => chrome.storage.local.set({ masterEntries: entries }, res));
-    document.querySelector('.tab-button[data-tab="master"] .count')
-      .textContent = entries.length;
+    const now = new Date();
+    const timestampStr = now.toLocaleDateString('en-US', {
+        month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true
+    }).replace(',', '');
+    await new Promise(res => chrome.storage.local.set({ masterEntries: entries, lastUpdated: timestampStr }, res));
+    const badge = document.querySelector('.tab-button[data-tab="master"] .count');
+    if(badge) badge.textContent = entries.length;
     renderMasterList(entries);
+    const lastUpdatedSpan = document.getElementById('lastUpdatedTime');
+    if(lastUpdatedSpan) lastUpdatedSpan.textContent = `Last updated: ${timestampStr}`;
   } catch (e) {
     console.error('Failed to update master list', e);
     list.innerHTML = '<li>Error loading list</li>';
   }
 }
 
+function createRipple(event) {
+    const button = event.currentTarget;
+    const rect = button.getBoundingClientRect();
+    const ripple = document.createElement("span");
+    ripple.className = 'ripple';
+    ripple.style.height = ripple.style.width = Math.max(rect.width, rect.height) + "px";
+    const x = event.clientX - rect.left - ripple.offsetWidth / 2;
+    const y = event.clientY - rect.top - ripple.offsetHeight / 2;
+    ripple.style.left = `${x}px`;
+    ripple.style.top = `${y}px`;
+    button.appendChild(ripple);
+    setTimeout(() => {
+      ripple.remove();
+    }, 600);
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   let isStarted; 
   const manifest = chrome.runtime.getManifest();
   document.getElementById('version-display').textContent = `Version ${manifest.version}`;
-  const now = new Date();
-  const opts = { month: 'short', day: 'numeric' };
-  document.getElementById('keyword').textContent =
-    now.toLocaleDateString('en-US', opts).replace(',', '') + ' at';
+  const keywordDisplay = document.getElementById('keyword');
 
-  // --- Functions below this line are unchanged ---
-  chrome.storage.local.get({ foundEntries: [] }, data => {
-    document.querySelector('.tab-button[data-tab="found"] .count')
-      .textContent = data.foundEntries.length;
-    if (data.foundEntries.length) renderFoundList(data.foundEntries);
-    else {
-      document.getElementById('foundList').innerHTML = '<li>None yet</li>';
-    }
-  });
-  chrome.storage.local.get({ masterEntries: [] }, data => {
-    const badge = document.querySelector('.tab-button[data-tab="master"] .count');
-    badge.textContent = data.masterEntries.length;
-    if (data.masterEntries.length) renderMasterList(data.masterEntries);
-    else {
-      document.getElementById('masterList').innerHTML = '<li>None yet</li>';
-    }
-  });
-  document.getElementById('clearBtn')
-    .addEventListener('click', () => {
-      chrome.storage.local.set({ foundEntries: [] }, () => location.reload());
+  function updateKeywordDisplay() {
+    chrome.storage.local.get({ customKeyword: '' }, (data) => {
+        if (data.customKeyword) {
+            keywordDisplay.textContent = data.customKeyword;
+        } else {
+            const now = new Date();
+            const opts = { month: 'short', day: 'numeric' };
+            keywordDisplay.textContent = now.toLocaleDateString('en-US', opts).replace(',', '') + ' at';
+        }
     });
-  document.getElementById('updateMasterBtn')
-    .addEventListener('click', updateMaster);
+  }
+  updateKeywordDisplay();
+
+  chrome.storage.local.get({ foundEntries: [] }, data => {
+    const badge = document.querySelector('.tab-button[data-tab="found"] .count');
+    if(badge) badge.textContent = data.foundEntries.length;
+    if (data.foundEntries.length) renderFoundList(data.foundEntries);
+    else { document.getElementById('foundList').innerHTML = '<li>None yet</li>'; }
+  });
+
+  chrome.storage.local.get(['masterEntries', 'lastUpdated'], data => {
+    const badge = document.querySelector('.tab-button[data-tab="master"] .count');
+    if(badge) badge.textContent = data.masterEntries?.length || 0;
+    if (data.masterEntries?.length) { renderMasterList(data.masterEntries); }
+    else { document.getElementById('masterList').innerHTML = '<li>None yet</li>'; }
+    const lastUpdatedSpan = document.getElementById('lastUpdatedTime');
+    if (lastUpdatedSpan && data.lastUpdated) { lastUpdatedSpan.textContent = `Last updated: ${data.lastUpdated}`; }
+  });
+
+  document.getElementById('clearBtn').addEventListener('click', () => {
+    chrome.storage.local.set({ foundEntries: [] }, () => location.reload());
+  });
+
+  document.getElementById('updateMasterBtn').addEventListener('click', (event) => {
+    createRipple(event);
+    updateMaster();
+  });
+
   const tabs = document.querySelectorAll('.tab-button');
   const panes = document.querySelectorAll('.tab-content');
   tabs.forEach(btn => {
     btn.addEventListener('click', () => {
-      tabs.forEach(b => b.classList.toggle('active', b === btn));
-      panes.forEach(p => p.classList.toggle('active', p.id === btn.dataset.tab));
+      tabs.forEach(b => b.classList.remove('active'));
+      panes.forEach(p => p.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById(btn.dataset.tab).classList.add('active');
     });
   });
+
+  const embedToggle = document.getElementById('embedToggle');
+  const colorPicker = document.getElementById('colorPicker');
+  const customKeywordInput = document.getElementById('customKeywordInput');
+  const sharepointBtn = document.getElementById('sharepointBtn');
+
+  if (embedToggle) {
+    chrome.storage.local.get({ embedInCanvas: true }, (data) => {
+      embedToggle.checked = data.embedInCanvas;
+    });
+    embedToggle.addEventListener('change', (event) => {
+      chrome.storage.local.set({ embedInCanvas: event.target.checked });
+    });
+  }
+  if (colorPicker) {
+    chrome.storage.local.get({ highlightColor: '#ffff00' }, (data) => { colorPicker.value = data.highlightColor; });
+    colorPicker.addEventListener('input', (event) => { chrome.storage.local.set({ highlightColor: event.target.value }); });
+  }
+  if (customKeywordInput) {
+    chrome.storage.local.get({ customKeyword: '' }, (data) => { customKeywordInput.value = data.customKeyword; });
+    customKeywordInput.addEventListener('input', (event) => {
+        const newKeyword = event.target.value.trim();
+        chrome.storage.local.set({ customKeyword: newKeyword }, () => { updateKeywordDisplay(); });
+    });
+  }
+  if (sharepointBtn) {
+    sharepointBtn.addEventListener('click', (event) => {
+        createRipple(event);
+        chrome.tabs.create({ url: "https://edukgroup365.sharepoint.com/sites/SM-StudentServices/SitePages/CollabHome.aspx" });
+        window.close();
+    });
+  }
+
   const startBtn = document.getElementById('startBtn');
   const startBtnText = document.getElementById('startBtnText');
   function updateButtonState(state) {
@@ -145,22 +209,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
   if (startBtn && startBtnText) {
-    chrome.storage.local.get({ extensionState: 'off' }, data => {
-      updateButtonState(data.extensionState);
-    });
+    chrome.storage.local.get({ extensionState: 'off' }, data => { updateButtonState(data.extensionState); });
     startBtn.addEventListener('click', (event) => {
-      const rect = startBtn.getBoundingClientRect();
-      const ripple = document.createElement("span");
-      ripple.className = 'ripple';
-      ripple.style.height = ripple.style.width = Math.max(rect.width, rect.height) + "px";
-      const x = event.clientX - rect.left - ripple.offsetWidth / 2;
-      const y = event.clientY - rect.top - ripple.offsetHeight / 2;
-      ripple.style.left = `${x}px`;
-      ripple.style.top = `${y}px`;
-      startBtn.appendChild(ripple);
-      setTimeout(() => {
-        ripple.remove();
-      }, 600);
+      createRipple(event);
       const newState = !isStarted ? 'on' : 'off';
       chrome.storage.local.set({ extensionState: newState });
       updateButtonState(newState);
