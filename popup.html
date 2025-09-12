@@ -13,10 +13,31 @@
       --text-color: #333333;
       --accent-color: #0052cc; 
       --light-accent-color: #4c9aff;
+      --border-color: #ccc;
+      --input-bg-color: #fff;
+      --pill-bg-color: #e9ecef;
+      --pill-text-color: #495057;
+      --header-text-color: var(--primary-color);
+      --found-list-item-bg: #fafafa;
       --border-radius: 8px;
       --shadow: 0 2px 6px rgba(0,0,0,0.1);
       --spacing: 12px;
       --badge-size: 20px;
+    }
+    body.debug-mode {
+        --bg-color: #33373a;
+        --card-bg: #212529;
+        --primary-color: #8ab4f8;
+        --text-color: #e8eaed;
+        --accent-color: #8ab4f8;
+        --light-accent-color: #5c83b8;
+        --border-color: #5f6368;
+        --input-bg-color: #3a3f42;
+        --pill-bg-color: #3a3f42;
+        --pill-text-color: #e8eaed;
+        --header-text-color: var(--primary-color);
+        --found-list-item-bg: #2a2e32;
+        --shadow: 0 4px 8px rgba(0,0,0,0.25);
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -25,12 +46,14 @@
       color: var(--text-color);
       padding: var(--spacing);
       min-width: 390px;
+      transition: background-color 0.4s ease;
     }
     .container {
       background: var(--card-bg);
       border-radius: var(--border-radius);
       box-shadow: var(--shadow);
       padding: calc(var(--spacing) * 1.5);
+      transition: background-color 0.4s ease, box-shadow 0.4s ease;
     }
     .header {
       display: flex;
@@ -42,13 +65,23 @@
     .header h2 {
       font-size: 1.4em;
       font-weight: 700;
-      color: var(--primary-color);
+      color: var(--header-text-color);
       margin-bottom: 2px;
+      transition: color 0.4s ease;
     }
     #version-display {
-      font-size: 0.75em;
+      font-size: 1em;
       color: #888;
       font-weight: 400;
+    }
+    #loop-counter {
+      text-align: center;
+      margin-top: -8px;
+      margin-bottom: 12px;
+      font-size: 0.9em;
+      color: var(--text-color);
+      display: none; /* Hidden by default */
+      transition: color 0.4s ease;
     }
     #startBtn {
       position: relative; 
@@ -80,11 +113,13 @@
       font-size: 1.1em;
       font-weight: 500;
       color: var(--accent-color);
+      transition: color 0.4s ease;
     }
     .tabs {
       display: flex;
-      border-bottom: 1px solid #ccc;
+      border-bottom: 1px solid var(--border-color);
       margin-bottom: var(--spacing);
+      transition: border-color 0.4s ease;
     }
     .tab-button {
       position: relative;
@@ -139,20 +174,22 @@
     }
     .found-list li {
       padding: 6px 10px;
-      background: #fafafa;
-      border: 1px solid #e0e0e0;
+      background: var(--found-list-item-bg);
+      border: 1px solid var(--border-color);
       border-radius: var(--border-radius);
       margin-bottom: 6px;
       display: flex;
       align-items: center;
+      transition: background-color 0.4s ease, border-color 0.4s ease;
     }
     .pill-badge {
-        background-color: #e9ecef;
-        color: #495057;
+        background-color: var(--pill-bg-color);
+        color: var(--pill-text-color);
         font-size: 0.8em;
         padding: 3px 8px;
         border-radius: 12px;
         margin-left: 8px;
+        transition: background-color 0.4s ease, color 0.4s ease;
     }
     .align-right {
         margin-left: auto;
@@ -174,14 +211,24 @@
       transition: background 0.3s;
     }
     #clearBtn:hover, #updateMasterBtn:hover { background: #003d99; }
-    #newItemInput {
+    
+    /* --- THIS IS THE CHANGE --- */
+    /* Style both search inputs with the same rules */
+    #newItemInput, #searchFoundListInput, #concurrentTabsInput {
       display: block;
       width: 100%;
       margin-top: var(--spacing);
       padding: 8px;
       font-size: 0.95em;
-      border: 1px solid #ccc;
+      border: 1px solid var(--border-color);
+      background-color: var(--input-bg-color);
+      color: var(--text-color);
       border-radius: var(--border-radius);
+      transition: background-color 0.4s ease, color 0.4s ease, border-color 0.4s ease;
+    }
+
+    #concurrentTabsInput {
+        width: 100px; /* Smaller width for the number input */
     }
     .setting-item {
         display: flex;
@@ -189,19 +236,24 @@
         justify-content: space-between;
         margin-top: 15px;
         padding-top: 15px;
-        border-top: 1px solid #eee;
+        border-top: 1px solid var(--border-color);
+        transition: border-color 0.4s ease;
     }
     #colorPicker {
-        border: 1px solid #ccc;
+        border: 1px solid var(--border-color);
         padding: 2px;
         cursor: pointer;
         width: 100px;
+        transition: border-color 0.4s ease;
     }
     #customKeywordInput {
-        border: 1px solid #ccc;
+        border: 1px solid var(--border-color);
+        background-color: var(--input-bg-color);
+        color: var(--text-color);
         border-radius: var(--border-radius);
         padding: 6px;
         width: 100px;
+        transition: background-color 0.4s ease, color 0.4s ease, border-color 0.4s ease;
     }
     .switch {
       position: relative;
@@ -235,7 +287,6 @@
     .slider.round { border-radius: 34px; }
     .slider.round:before { border-radius: 50%; }
 
-    /* --- New Style for SharePoint link --- */
     .footer-link {
       background: none;
       border: none;
@@ -266,6 +317,8 @@
       </button>
     </div>
     
+    <div id="loop-counter"></div>
+    
     <div class="keyword-section">
       Looking for: <span id="keyword">…</span>
     </div>
@@ -285,6 +338,7 @@
     <div id="found" class="tab-content active">
       <div class="section">
         <h3>Found</h3>
+        <input type="text" id="searchFoundListInput" placeholder="Search Found List...">
         <ul id="foundList" class="found-list"></ul>
       </div>
       <button id="clearBtn">Clear All</button>
@@ -305,6 +359,10 @@
       <div class="section">
         <h3>Settings</h3>
         <div class="setting-item">
+            <label for="concurrentTabsInput">Concurrent Tabs (1-10)</label>
+            <input type="number" id="concurrentTabsInput" min="1" max="10">
+        </div>
+        <div class="setting-item">
             <label for="embedToggle">Embed in Canvas</label>
             <label class="switch">
               <input type="checkbox" id="embedToggle">
@@ -319,12 +377,19 @@
             <label for="customKeywordInput">Custom Keyword</label>
             <input type="text" id="customKeywordInput" placeholder="Default: Today's Date">
         </div>
+        <div class="setting-item">
+            <label for="debugToggle">Debug Mode</label>
+            <label class="switch">
+              <input type="checkbox" id="debugToggle">
+              <span class="slider round"></span>
+            </label>
+        </div>
       </div>
       <button id="sharepointBtn" class="footer-link">SharePoint</button>
     </div>
 
   </div>
   <script src="popup.js" type="module"></script>
-  <script src="popupSearch.js"></script>
+  <script src="popupSearch.js" type="module"></script>
 </body>
 </html>

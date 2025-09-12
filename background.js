@@ -1,30 +1,30 @@
 // background.js
 
-import { startLoop, stopLoop, openNextTabInLoop } from './looper.js';
+import { startLoop, stopLoop, processNextInQueue, addToFoundUrlCache } from './looper.js';
 import { SUBMISSION_FOUND_URL } from './constants.js';
 
-// --- THIS IS THE NEW PART ---
-// Listen for the keyboard shortcut command
 chrome.commands.onCommand.addListener((command) => {
-  // The _execute_action command is triggered by the shortcut
   if (command === '_execute_action') {
-    // Set a flag in storage that the popup will check for on launch.
-    // This tells the popup to perform a special action.
     chrome.storage.local.set({ openAction: 'focusMasterSearch' });
   }
 });
 
-
-// All other functions and listeners remain the same.
 async function triggerPowerAutomate(payload) {
   try {
+    const { debugMode = false } = await chrome.storage.local.get('debugMode');
+    const bodyPayload = { ...payload };
+
+    if (debugMode) {
+      bodyPayload.debug = true;
+    }
+
     const resp = await fetch(SUBMISSION_FOUND_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
+      body: JSON.stringify(bodyPayload)
     });
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-    console.log("Flow triggered successfully. Status:", resp.status);
+    console.log("Flow triggered successfully. Status:", resp.status, "Payload:", bodyPayload);
   } catch (e) {
     console.error("Flow error", e);
   }
@@ -56,6 +56,18 @@ function handleStateChange(state) {
     }
 }
 
+async function addStudentToFoundList(entry) {
+    const { foundEntries = [] } = await chrome.storage.local.get('foundEntries');
+    const map = new Map(foundEntries.map(e => [e.url, e]));
+    
+    map.set(entry.url, entry);
+    
+    // Update the live URL cache in the looper immediately.
+    addToFoundUrlCache(entry.url);
+    
+    await chrome.storage.local.set({ foundEntries: Array.from(map.values()) });
+}
+
 chrome.runtime.onStartup.addListener(() => {
   updateBadge();
   chrome.storage.local.get('extensionState', data => handleStateChange(data.extensionState));
@@ -73,45 +85,19 @@ chrome.storage.onChanged.addListener((changes) => {
 updateBadge();
 chrome.storage.local.get('extensionState', data => handleStateChange(data.extensionState));
 
-chrome.runtime.onMessage.addListener((msg, sender) => {
-  switch (msg.action) {
-    case 'inspectionResult':
-      if (!sender.tab || !sender.tab.id) return;
-      if (msg.found) {
-        stopLoop({ keepTabOpen: true });
-        chrome.scripting.executeScript({
-            target: { tabId: sender.tab.id },
-            files: ['highlighter.js']
-        });
-      } else {
+chrome.runtime.onMessage.addListener(async (msg, sender) => {
+  if (msg.action === 'inspectionResult') {
+    if (msg.found && msg.entry) {
+        // We use the entry's URL as the unique key now.
+        await addStudentToFoundList(msg.entry);
+
+        const { name, url, timestamp } = msg.entry;
+        triggerPowerAutomate({ name, url, timestamp });
+    }
+
+    if (sender.tab?.id) {
         chrome.tabs.remove(sender.tab.id).catch(e => {});
-        openNextTabInLoop();
-      }
-      break;
-    case 'highlightingComplete':
-        if (sender.tab?.id) {
-          chrome.tabs.remove(sender.tab.id).catch(e => {});
-        }
-        openNextTabInLoop();
-        break;
-    case 'focusTab':
-      if (sender.tab?.id) {
-        chrome.tabs.update(sender.tab.id, { active: true });
-      }
-      break;
-    case 'addNames':
-      chrome.storage.local.get({ foundEntries: [] }, data => {
-        const map = new Map(data.foundEntries.map(e => [e.name, e]));
-        msg.entries.forEach(e => map.set(e.name, e));
-        chrome.storage.local.set({ foundEntries: Array.from(map.values()) });
-      });
-      break;
-    case 'runFlow':
-      chrome.storage.local.get('extensionState', data => {
-        if (data.extensionState === 'on') {
-          triggerPowerAutomate(msg.payload);
-        }
-      });
-      break;
+        processNextInQueue(sender.tab.id);
+    }
   }
 });

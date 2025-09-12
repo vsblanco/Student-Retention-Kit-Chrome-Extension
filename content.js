@@ -10,6 +10,7 @@
   
   const isLooperRun = new URLSearchParams(window.location.search).has('looper');
   let keywordFound = false;
+  let foundEntry = null;
 
   // Decide which keyword to use: the custom one, or the default date.
   let todayStr;
@@ -61,13 +62,23 @@
 
     if (isLooperRun) {
       console.log('Keyword FOUND on a looper-opened tab.');
-      const studentName = getFirstStudentName();
+      
+      // --- THE FIX ---
+      // Normalize the name found on the page.
+      const studentName = getFirstStudentName().trim();
       const timeStr = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-      const url = window.location.href;
+      
+      const urlObject = new URL(window.location.href);
+      urlObject.searchParams.delete('looper');
+      const cleanUrl = urlObject.href;
 
-      chrome.runtime.sendMessage({ action: 'addNames', entries: [{ name: studentName, time: timeStr, url }] });
-      chrome.runtime.sendMessage({ action: 'runFlow', payload: { name: studentName, url, timestamp: new Date().toISOString() } });
-      chrome.runtime.sendMessage({ action: 'focusTab' });
+      // Prepare one object with all the clean data.
+      foundEntry = {
+          name: studentName,
+          time: timeStr,
+          url: cleanUrl,
+          timestamp: new Date().toISOString()
+      };
     }
   }
 
@@ -91,7 +102,8 @@
 
   function finishCheck() {
     if (isLooperRun) {
-        chrome.runtime.sendMessage({ action: 'inspectionResult', found: keywordFound });
+        // We now send ONE message with the complete result.
+        chrome.runtime.sendMessage({ action: 'inspectionResult', found: keywordFound, entry: foundEntry });
     }
   }
 

@@ -2,9 +2,23 @@
 
 import { MASTER_LIST_URL } from './constants.js';
 
-function renderFoundList(entries) {
+// --- THIS IS THE CHANGE ---
+// We now sort the list before displaying it.
+export function renderFoundList(entries) {
   const list = document.getElementById('foundList');
   list.innerHTML = '';
+  if (!entries || entries.length === 0) {
+      list.innerHTML = '<li>None yet</li>';
+      return;
+  }
+
+  // Sort the entries array by timestamp, newest to oldest.
+  entries.sort((a, b) => {
+    // A robust sort that handles potential missing timestamps
+    if (!a.timestamp || !b.timestamp) return 0;
+    return b.timestamp.localeCompare(a.timestamp);
+  });
+
   entries.forEach(({ name, time, url }) => {
     const li = document.createElement('li');
     const a  = document.createElement('a');
@@ -28,7 +42,7 @@ function renderFoundList(entries) {
   });
 }
 
-function renderMasterList(entries) {
+export function renderMasterList(entries) {
   const list = document.getElementById('masterList');
   list.innerHTML = '';
   entries.forEach(({ name, time, url, phone }) => { 
@@ -75,7 +89,8 @@ async function updateMaster() {
     const data = await resp.json();
     const students = data.students || [];
     const entries = students.map(s => ({
-      name: s.name, time: s.time || '', url:  s.url, phone: s.phone || ''
+      name: s.name, 
+      time: s.time || '', url:  s.url, phone: s.phone || ''
     }));
     const now = new Date();
     const timestampStr = now.toLocaleDateString('en-US', {
@@ -114,6 +129,22 @@ document.addEventListener('DOMContentLoaded', () => {
   const manifest = chrome.runtime.getManifest();
   document.getElementById('version-display').textContent = `Version ${manifest.version}`;
   const keywordDisplay = document.getElementById('keyword');
+  const loopCounterDisplay = document.getElementById('loop-counter');
+
+  function applyDebugModeStyles(enabled) {
+      document.body.classList.toggle('debug-mode', enabled);
+  }
+
+  function updateLoopCounter() {
+    chrome.storage.local.get(['loopStatus', 'extensionState'], ({ loopStatus, extensionState }) => {
+        if (extensionState === 'on' && loopStatus && loopStatus.total > 0) {
+            loopCounterDisplay.textContent = `${loopStatus.current} / ${loopStatus.total}`;
+            loopCounterDisplay.style.display = 'block';
+        } else {
+            loopCounterDisplay.style.display = 'none';
+        }
+    });
+  }
 
   function updateKeywordDisplay() {
     chrome.storage.local.get({ customKeyword: '' }, (data) => {
@@ -128,11 +159,14 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   updateKeywordDisplay();
 
+  // Initial call to set the counter state when the popup opens.
+  updateLoopCounter();
+
+  // Initial load of the lists
   chrome.storage.local.get({ foundEntries: [] }, data => {
     const badge = document.querySelector('.tab-button[data-tab="found"] .count');
     if(badge) badge.textContent = data.foundEntries.length;
-    if (data.foundEntries.length) renderFoundList(data.foundEntries);
-    else { document.getElementById('foundList').innerHTML = '<li>None yet</li>'; }
+    renderFoundList(data.foundEntries);
   });
 
   chrome.storage.local.get(['masterEntries', 'lastUpdated'], data => {
@@ -143,6 +177,27 @@ document.addEventListener('DOMContentLoaded', () => {
     const lastUpdatedSpan = document.getElementById('lastUpdatedTime');
     if (lastUpdatedSpan && data.lastUpdated) { lastUpdatedSpan.textContent = `Last updated: ${data.lastUpdated}`; }
   });
+
+  chrome.storage.onChanged.addListener((changes, namespace) => {
+    if (changes.foundEntries) {
+      const newEntries = changes.foundEntries.newValue || [];
+      console.log('Found list updated in real-time.', newEntries);
+      
+      // Re-render the list in the UI
+      renderFoundList(newEntries);
+      
+      // Update the badge count on the "Found" tab
+      const badge = document.querySelector('.tab-button[data-tab="found"] .count');
+      if (badge) {
+        badge.textContent = newEntries.length;
+      }
+    }
+    // Listen for changes to the loop status or extension state to update the counter.
+    if (changes.loopStatus || changes.extensionState) {
+        updateLoopCounter();
+    }
+  });
+
 
   document.getElementById('clearBtn').addEventListener('click', () => {
     chrome.storage.local.set({ foundEntries: [] }, () => location.reload());
@@ -164,11 +219,25 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
+  const concurrentTabsInput = document.getElementById('concurrentTabsInput');
   const embedToggle = document.getElementById('embedToggle');
   const colorPicker = document.getElementById('colorPicker');
   const customKeywordInput = document.getElementById('customKeywordInput');
+  const debugToggle = document.getElementById('debugToggle');
   const sharepointBtn = document.getElementById('sharepointBtn');
 
+  if (concurrentTabsInput) {
+    chrome.storage.local.get({ concurrentTabs: 3 }, (data) => {
+        concurrentTabsInput.value = data.concurrentTabs;
+    });
+    concurrentTabsInput.addEventListener('change', (event) => {
+        let value = parseInt(event.target.value, 10);
+        if (isNaN(value) || value < 1) value = 1;
+        if (value > 10) value = 10;
+        event.target.value = value; // Correct the input field if necessary
+        chrome.storage.local.set({ concurrentTabs: value });
+    });
+  }
   if (embedToggle) {
     chrome.storage.local.get({ embedInCanvas: true }, (data) => {
       embedToggle.checked = data.embedInCanvas;
@@ -186,6 +255,17 @@ document.addEventListener('DOMContentLoaded', () => {
     customKeywordInput.addEventListener('input', (event) => {
         const newKeyword = event.target.value.trim();
         chrome.storage.local.set({ customKeyword: newKeyword }, () => { updateKeywordDisplay(); });
+    });
+  }
+  if (debugToggle) {
+    chrome.storage.local.get({ debugMode: false }, (data) => {
+      debugToggle.checked = data.debugMode;
+      applyDebugModeStyles(data.debugMode);
+    });
+    debugToggle.addEventListener('change', (event) => {
+      const isEnabled = event.target.checked;
+      chrome.storage.local.set({ debugMode: isEnabled });
+      applyDebugModeStyles(isEnabled);
     });
   }
   if (sharepointBtn) {
@@ -207,6 +287,8 @@ document.addEventListener('DOMContentLoaded', () => {
       startBtn.style.backgroundColor = 'var(--accent-color)';
       startBtnText.textContent = 'Start';
     }
+    // Also update the counter visibility when the button state changes.
+    updateLoopCounter(); 
   }
   if (startBtn && startBtnText) {
     chrome.storage.local.get({ extensionState: 'off' }, data => { updateButtonState(data.extensionState); });
