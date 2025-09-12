@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Submission Checker",
-  "version": "6.0",
+  "version": "7.0",
   "description": "Highlights today’s date, triggers flows, manages Found & Master lists in the side panel.",
   "icons": {
     "16": "icon.png",
@@ -16,8 +16,7 @@
     "clipboardRead"
   ],
   "host_permissions": [
-    "https://prod-12.westus.logic.azure.com/*",
-    "https://prod-10.westus.logic.azure.com/*"
+    "<all_urls>"
   ],
   "background": {
     "service_worker": "background.js",
@@ -47,8 +46,10 @@
       "resources": [
         "liquid-glass.css",
         "assets/pictures/powericon.png",
+        "assets/pictures/pusher-icon.png",
         "assets/pictures/background.png",
-        "icon.png"
+        "icon.png",
+        "pusher.min.js"
       ],
       "matches": ["<all_urls>"]
     }
@@ -63,3 +64,4 @@
     }
   }
 }
+

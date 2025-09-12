@@ -1,34 +1,6 @@
 // popup.js
 
-// MASTER_LIST_URL is no longer needed and has been removed.
-
-function getDaysOutStyle(daysout) {
-    if (daysout == null) return {};
-
-    if (daysout >= 10) {
-        return {
-            backgroundColor: 'hsl(0, 85%, 55%)',
-            color: 'white',
-            fontWeight: 'bold'
-        };
-    }
-    
-    if (daysout >= 5) {
-        return {
-            backgroundColor: 'hsl(35, 95%, 55%)',
-            color: 'white',
-            fontWeight: 'bold'
-        };
-    }
-
-    return {
-        backgroundColor: 'hsl(130, 65%, 90%)',
-        color: 'hsl(130, 40%, 25%)',
-        border: '1px solid hsl(130, 40%, 80%)'
-    };
-}
-
-
+// --- RENDER FUNCTIONS ---
 export function renderFoundList(entries) {
   const list = document.getElementById('foundList');
   list.innerHTML = '';
@@ -42,13 +14,14 @@ export function renderFoundList(entries) {
     return b.timestamp.localeCompare(a.timestamp);
   });
 
-  entries.forEach(({ name, time, url }) => {
+  entries.forEach(entry => {
+    const { name, time, url } = entry;
     const li = document.createElement('li');
+    li.dataset.entry = JSON.stringify(entry); // Store data on the entire list item
+    
     const a  = document.createElement('a');
     a.textContent = name;
     a.href = '#';
-    a.style.color = 'var(--accent-color)';
-    a.style.textDecoration = 'none';
     a.addEventListener('click', e => {
       e.preventDefault();
       chrome.tabs.create({ url });
@@ -67,14 +40,15 @@ export function renderFoundList(entries) {
 export function renderMasterList(entries, showPhones) {
   const list = document.getElementById('masterList');
   list.innerHTML = '';
-  entries.forEach(({ name, time, url, phone, daysout }) => {
+  entries.forEach((entry) => {
+    const { name, url, phone, daysout } = entry;
     const li = document.createElement('li');
+    li.dataset.entry = JSON.stringify(entry); // Store data on the entire list item
+
     if (url && url !== '#N/A' && url.startsWith('http')) {
       const a  = document.createElement('a');
       a.textContent = name;
       a.href = url;
-      a.style.color = 'var(--accent-color)';
-      a.style.textDecoration = 'none';
       a.addEventListener('click', e => {
         e.preventDefault();
         chrome.tabs.create({ url });
@@ -111,103 +85,109 @@ export function renderMasterList(entries, showPhones) {
   });
 }
 
-/**
- * --- NEW FUNCTION ---
- * Reads JSON from the clipboard to update the master list.
- */
-async function updateMasterFromClipboard() {
-  const updateBtn = document.getElementById('updateMasterBtn');
-  const list = document.getElementById('masterList');
-  
-  // Reset button state and provide user feedback
-  updateBtn.classList.remove('btn-success', 'btn-error');
-  updateBtn.textContent = 'Processing...';
-  list.innerHTML = '<li>Reading from clipboard...</li>';
+function renderConnectionsList(connections = []) {
+    const list = document.getElementById('connectionsList');
+    list.innerHTML = '';
 
-  try {
-    const clipboardText = await navigator.clipboard.readText();
-    if (!clipboardText) {
-      throw new Error("Clipboard is empty.");
-    }
-    
-    const data = JSON.parse(clipboardText);
-
-    if (!Array.isArray(data)) {
-      throw new Error("Clipboard data is not a valid JSON array.");
+    if (connections.length === 0) {
+        list.innerHTML = '<li>No connections configured.</li>';
+        return;
     }
 
-    // Map the new clipboard format to the extension's internal format
-    const entries = data.map(s => {
-        if (!s.StudentName || !s.GradeBook) {
-            console.warn("Skipping invalid entry:", s);
-            return null;
+    connections.forEach((conn, index) => {
+        const li = document.createElement('li');
+        
+        const icon = document.createElement('img');
+        icon.className = 'connection-icon';
+        
+        const infoDiv = document.createElement('div');
+        infoDiv.className = 'connection-info';
+
+        const typeSpan = document.createElement('span');
+        typeSpan.className = 'connection-type';
+        
+        const detailSpan = document.createElement('span');
+        detailSpan.className = 'connection-detail';
+
+        if (conn.type === 'power-automate') {
+            icon.src = 'assets/pictures/power-automate-icon.png';
+            typeSpan.textContent = 'Power Automate';
+            detailSpan.textContent = conn.name;
+        } else if (conn.type === 'pusher') {
+            icon.src = 'assets/pictures/pusher-icon.png';
+            typeSpan.textContent = 'Pusher';
+            detailSpan.textContent = conn.name;
         }
-        return {
-          name: s.StudentName,
-          url: s.GradeBook,
-          daysout: s.DaysOut,
-          // Add other fields from your JSON for future use if needed
-          lda: s.LDA,
-          grade: s.Grade,
-          // Ensure old fields have default values
-          phone: '', 
-          time: ''
-        };
-    }).filter(Boolean); // Filter out any null entries that were skipped
 
-    const now = new Date();
-    const timestampStr = now.toLocaleDateString('en-US', {
-        month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true
-    }).replace(',', '');
-    
-    await new Promise(res => chrome.storage.local.set({ masterEntries: entries, lastUpdated: timestampStr }, res));
-    
-    displayMasterList(); // Refresh the list in the UI
-    
-    const lastUpdatedSpan = document.getElementById('lastUpdatedTime');
-    if(lastUpdatedSpan) lastUpdatedSpan.textContent = `Last updated: ${timestampStr}`;
+        li.appendChild(icon);
+        infoDiv.appendChild(typeSpan);
+        infoDiv.appendChild(detailSpan);
+        li.appendChild(infoDiv);
 
-    // Success visual cue
-    updateBtn.classList.add('btn-success');
-    updateBtn.textContent = `Success! ${entries.length} students loaded.`;
+        const actionsDiv = document.createElement('div');
+        actionsDiv.className = 'connection-actions';
 
-  } catch (e) {
-    console.error('Failed to update master list from clipboard', e);
-    
-    // Error visual cue
-    updateBtn.classList.add('btn-error');
-    updateBtn.textContent = 'Error: Invalid clipboard data.';
-    list.innerHTML = '<li>Error loading list. Please copy the correct JSON data and try again.</li>';
-  } finally {
-    // Reset button text after a delay to allow user to see the status
-    setTimeout(() => {
-        updateBtn.classList.remove('btn-success', 'btn-error');
-        updateBtn.textContent = 'Update Master List';
-    }, 4000);
-  }
+        const menuBtn = document.createElement('button');
+        menuBtn.className = 'connection-actions-btn';
+        menuBtn.title = 'Actions';
+        menuBtn.innerHTML = `<svg viewBox="0 0 24 24"><path d="M12,16A2,2 0 0,1 14,18A2,2 0 0,1 12,20A2,2 0 0,1 10,18A2,2 0 0,1 12,16M12,10A2,2 0 0,1 14,12A2,2 0 0,1 12,14A2,2 0 0,1 10,12A2,2 0 0,1 12,10M12,4A2,2 0 0,1 14,6A2,2 0 0,1 12,8A2,2 0 0,1 10,6A2,2 0 0,1 12,4Z" /></svg>`;
+
+        const menu = document.createElement('div');
+        menu.className = 'connection-menu';
+
+        const editBtn = document.createElement('button');
+        editBtn.textContent = 'Edit';
+        editBtn.addEventListener('click', () => {
+            openEditConnectionModal(conn, index);
+            menu.classList.remove('active');
+        });
+
+        const exportBtn = document.createElement('button');
+        exportBtn.textContent = 'Export';
+        exportBtn.addEventListener('click', () => {
+            connectionToExport = conn;
+            document.getElementById('exportIncludeSecretToggle').checked = false;
+            updateExportView();
+            openModal('export-modal');
+            menu.classList.remove('active');
+        });
+
+        const deleteBtn = document.createElement('button');
+        deleteBtn.textContent = 'Delete';
+        deleteBtn.className = 'delete-action';
+        deleteBtn.addEventListener('click', () => {
+            connectionToDelete = conn.id;
+            openModal('delete-confirm-modal');
+            menu.classList.remove('active');
+        });
+
+        menu.appendChild(editBtn);
+        menu.appendChild(exportBtn);
+        menu.appendChild(deleteBtn);
+        actionsDiv.appendChild(menuBtn);
+        actionsDiv.appendChild(menu);
+        li.appendChild(actionsDiv);
+
+        menuBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const listContainer = document.getElementById('connectionsList');
+            document.querySelectorAll('.connection-menu.active').forEach(m => {
+                if (m !== menu) m.classList.remove('active');
+            });
+            menu.classList.toggle('active');
+            listContainer.classList.toggle('overflow-visible', menu.classList.contains('active'));
+        });
+
+        list.appendChild(li);
+    });
 }
 
 
-function createRipple(event) {
-    const button = event.currentTarget;
-    const rect = button.getBoundingClientRect();
-    const ripple = document.createElement("span");
-    ripple.className = 'ripple';
-    ripple.style.height = ripple.style.width = Math.max(rect.width, rect.height) + "px";
-    const x = event.clientX - rect.left - ripple.offsetWidth / 2;
-    const y = event.clientY - rect.top - ripple.offsetHeight / 2;
-    ripple.style.left = `${x}px`;
-    ripple.style.top = `${y}px`;
-    button.appendChild(ripple);
-    setTimeout(() => {
-      ripple.remove();
-    }, 600);
-}
+// --- DATA & STATE MANAGEMENT ---
 
-let activeSort = {
-    criterion: 'none',
-    direction: 'none'
-};
+let activeSort = { criterion: 'none', direction: 'none' };
+let connectionToDelete = null;
+let connectionToExport = null;
 
 async function displayMasterList() {
     const { masterEntries = [] } = await chrome.storage.local.get(['masterEntries']);
@@ -264,47 +244,244 @@ async function displayMasterList() {
         });
     }
 
-    renderMasterList(finalEntries, false); // Always pass false for showPhones
+    renderMasterList(finalEntries, false);
 
     const badge = document.querySelector('.tab-button[data-tab="master"] .count');
     if (badge) badge.textContent = finalEntries.length;
 }
 
-function switchTab(tabName) {
-    const tabs = document.querySelectorAll('.tab-button');
-    const panes = document.querySelectorAll('.tab-content');
-    
-    tabs.forEach(btn => {
-        const isActive = btn.dataset.tab === tabName;
-        btn.classList.toggle('active', isActive);
-    });
+async function updateMasterFromClipboard() {
+  const updateBtn = document.getElementById('updateMasterBtn');
+  const list = document.getElementById('masterList');
+  
+  updateBtn.classList.remove('btn-success', 'btn-error');
+  updateBtn.textContent = 'Processing...';
+  list.innerHTML = '<li>Reading from clipboard...</li>';
 
-    panes.forEach(pane => {
-        const isActive = pane.id === tabName;
-        if (isActive) {
-            pane.style.display = 'flex';
-            pane.classList.add('active');
-        } else {
-            pane.style.display = 'none';
-            pane.classList.remove('active');
+  try {
+    const clipboardText = await navigator.clipboard.readText();
+    if (!clipboardText) throw new Error("Clipboard is empty.");
+    
+    const data = JSON.parse(clipboardText);
+    if (!Array.isArray(data)) throw new Error("Clipboard data is not a valid JSON array.");
+
+    const entries = data.map(s => {
+        if (!s.StudentName || !s.GradeBook) {
+            console.warn("Skipping invalid entry:", s);
+            return null;
         }
+        return {
+          name: s.StudentName,
+          url: s.GradeBook,
+          daysout: s.DaysOut,
+          lda: s.LDA,
+          grade: s.Grade,
+          phone: '', 
+          time: ''
+        };
+    }).filter(Boolean);
+
+    const now = new Date();
+    const timestampStr = now.toLocaleDateString('en-US', {
+        month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true
+    }).replace(',', '');
+    
+    await chrome.storage.local.set({ masterEntries: entries, lastUpdated: timestampStr });
+    
+    displayMasterList();
+    
+    const lastUpdatedSpan = document.getElementById('lastUpdatedTime');
+    if(lastUpdatedSpan) lastUpdatedSpan.textContent = `Last updated: ${timestampStr}`;
+
+    updateBtn.classList.add('btn-success');
+    updateBtn.textContent = `Success! ${entries.length} students loaded.`;
+
+  } catch (e) {
+    console.error('Failed to update master list from clipboard', e);
+    updateBtn.classList.add('btn-error');
+    updateBtn.textContent = 'Error: Invalid clipboard data.';
+    list.innerHTML = '<li>Error loading list. Please copy the correct JSON data and try again.</li>';
+  } finally {
+    setTimeout(() => {
+        updateBtn.classList.remove('btn-success', 'btn-error');
+        updateBtn.textContent = 'Update Master List';
+    }, 4000);
+  }
+}
+
+// --- UI HELPER FUNCTIONS ---
+
+function getDaysOutStyle(daysout) {
+    if (daysout == null) return {};
+    if (daysout >= 10) return { backgroundColor: 'hsl(0, 85%, 55%)', color: 'white', fontWeight: 'bold' };
+    if (daysout >= 5) return { backgroundColor: 'hsl(35, 95%, 55%)', color: 'white', fontWeight: 'bold' };
+    return { backgroundColor: 'hsl(130, 65%, 90%)', color: 'hsl(130, 40%, 25%)', border: '1px solid hsl(130, 40%, 80%)' };
+}
+
+function createRipple(event) {
+    const button = event.currentTarget;
+    const rect = button.getBoundingClientRect();
+    const ripple = document.createElement("span");
+    ripple.className = 'ripple';
+    ripple.style.height = ripple.style.width = Math.max(rect.width, rect.height) + "px";
+    const x = event.clientX - rect.left - ripple.offsetWidth / 2;
+    const y = event.clientY - rect.top - ripple.offsetHeight / 2;
+    ripple.style.left = `${x}px`;
+    ripple.style.top = `${y}px`;
+    button.appendChild(ripple);
+    setTimeout(() => ripple.remove(), 600);
+}
+
+function switchTab(tabName) {
+    document.querySelectorAll('.tab-button').forEach(btn => btn.classList.toggle('active', btn.dataset.tab === tabName));
+    document.querySelectorAll('.tab-content').forEach(pane => {
+        const isActive = pane.id === tabName;
+        pane.style.display = isActive ? 'flex' : 'none';
+        pane.classList.toggle('active', isActive);
     });
 }
 
+function updateExportView() {
+    if (!connectionToExport) return;
+    
+    const includeSecretToggle = document.getElementById('exportIncludeSecretToggle');
+    const includeSecret = includeSecretToggle.checked;
+    const exportableConn = { ...connectionToExport };
+
+    if (!includeSecret) {
+        if (exportableConn.secret) {
+            exportableConn.secret = '';
+        }
+        if (exportableConn.type === 'power-automate' && exportableConn.url) {
+            exportableConn.url = ''; 
+        }
+    }
+    
+    document.getElementById('exportJsonContent').textContent = JSON.stringify(exportableConn, null, 2);
+}
+
+// --- MODAL FUNCTIONS ---
+function openModal(modalId) {
+    const modal = document.getElementById(modalId);
+    if (modal) modal.style.display = 'flex';
+}
+
+function closeModal(modalId) {
+    const modal = document.getElementById(modalId);
+    if (modal) modal.style.display = 'none';
+
+    if (modalId === 'connections-modal') {
+        document.getElementById('connection-chooser').style.display = 'block';
+        document.getElementById('connection-form-container').style.display = 'none';
+        document.querySelectorAll('.connection-form').forEach(f => {
+            f.style.display = 'none';
+            f.reset();
+            const status = f.querySelector('.test-status');
+            if (status) {
+                status.textContent = '';
+                status.className = 'test-status';
+            }
+            delete f.dataset.editingId;
+        });
+        document.querySelectorAll('.connection-choice-btn').forEach(btn => {
+            btn.classList.remove('clipboard-match');
+        });
+    }
+}
+
+function openEditConnectionModal(connection, index) {
+  openModal('connections-modal');
+  document.getElementById('connection-chooser').style.display = 'none';
+  document.getElementById('connection-form-container').style.display = 'block';
+  
+  const form = document.getElementById(`${connection.type}-form`);
+  form.style.display = 'block';
+  form.dataset.editingId = connection.id;
+
+  if (connection.type === 'power-automate') {
+      document.getElementById('pa-name').value = connection.name;
+      document.getElementById('pa-url').value = connection.url;
+  } else if (connection.type === 'pusher') {
+      document.getElementById('pusher-name').value = connection.name;
+      document.getElementById('pusher-key').value = connection.key;
+      document.getElementById('pusher-cluster').value = connection.cluster;
+      document.getElementById('pusher-secret').value = connection.secret;
+      document.getElementById('pusher-channel').value = connection.channel.replace('private-', '');
+      document.getElementById('pusher-event').value = connection.event.replace('client-', '');
+  }
+}
+
+// --- Clipboard Auto-Detect ---
+async function checkClipboardForConnection() {
+    try {
+        const text = await navigator.clipboard.readText();
+        const data = JSON.parse(text);
+
+        const paBtn = document.querySelector('.connection-choice-btn[data-type="power-automate"]');
+        const pusherBtn = document.querySelector('.connection-choice-btn[data-type="pusher"]');
+
+        paBtn.classList.remove('clipboard-match');
+        pusherBtn.classList.remove('clipboard-match');
+
+        if (data.type === 'power-automate' && data.name && data.url) {
+            paBtn.classList.add('clipboard-match');
+        } else if (data.type === 'pusher' && data.name && data.key && data.cluster && data.secret && data.channel && data.event) {
+            pusherBtn.classList.add('clipboard-match');
+        }
+    } catch (e) {
+        // Silently fail if clipboard is empty or not valid JSON
+    }
+}
+
+function autoFillForm(type) {
+    navigator.clipboard.readText().then(text => {
+        const data = JSON.parse(text);
+        const form = document.getElementById(`${type}-form`);
+        
+        document.getElementById('connection-chooser').style.display = 'none';
+        document.getElementById('connection-form-container').style.display = 'block';
+        form.style.display = 'block';
+        
+        const inputsToHighlight = [];
+
+        if (type === 'power-automate') {
+            document.getElementById('pa-name').value = data.name;
+            document.getElementById('pa-url').value = data.url;
+            inputsToHighlight.push(document.getElementById('pa-name'), document.getElementById('pa-url'));
+        } else if (type === 'pusher') {
+            document.getElementById('pusher-name').value = data.name;
+            document.getElementById('pusher-key').value = data.key;
+            document.getElementById('pusher-cluster').value = data.cluster;
+            document.getElementById('pusher-secret').value = data.secret;
+            document.getElementById('pusher-channel').value = data.channel.replace('private-', '');
+            document.getElementById('pusher-event').value = data.event.replace('client-', '');
+            inputsToHighlight.push(
+                document.getElementById('pusher-name'),
+                document.getElementById('pusher-key'),
+                document.getElementById('pusher-cluster'),
+                document.getElementById('pusher-secret'),
+                form.querySelector('#pusher-channel'),
+                form.querySelector('#pusher-event')
+            );
+        }
+
+        inputsToHighlight.forEach(input => {
+            input.classList.add('auto-filled');
+            setTimeout(() => input.classList.remove('auto-filled'), 2500);
+        });
+    }).catch(err => {
+        console.error("Failed to auto-fill from clipboard:", err);
+    });
+}
+
+// --- DOMContentLoaded: MAIN SETUP ---
 
 document.addEventListener('DOMContentLoaded', () => {
-  let isStarted;
   const manifest = chrome.runtime.getManifest();
   document.getElementById('version-display').textContent = `Version ${manifest.version}`;
   const keywordDisplay = document.getElementById('keyword');
   const loopCounterDisplay = document.getElementById('loop-counter');
-
-  const daysOutSortBtn = document.getElementById('daysOutSortBtn');
-  const nameSortBtn = document.getElementById('nameSortBtn');
-
-  function applyDebugModeStyles(enabled) {
-      document.body.classList.toggle('debug-mode', enabled);
-  }
+  let contextMenuEntry = null;
 
   function updateLoopCounter() {
     chrome.storage.local.get(['loopStatus', 'extensionState'], ({ loopStatus, extensionState }) => {
@@ -329,82 +506,39 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
   
-  function updateSortButtons() {
-    daysOutSortBtn.classList.remove('active');
-    nameSortBtn.classList.remove('active');
-    daysOutSortBtn.textContent = 'Sort by Days Out';
-    nameSortBtn.textContent = 'Sort by Name';
-
-    if (activeSort.criterion === 'daysout') {
-        daysOutSortBtn.classList.add('active');
-        daysOutSortBtn.textContent = activeSort.direction === 'desc' ? 'Days Out (High-Low)' : 'Days Out (Low-High)';
-    } else if (activeSort.criterion === 'name') {
-        nameSortBtn.classList.add('active');
-        nameSortBtn.textContent = activeSort.direction === 'asc' ? 'Name (A-Z)' : 'Name (Z-A)';
-    }
-  }
-
+  // Initial Loads
   updateKeywordDisplay();
   updateLoopCounter();
-
+  displayMasterList();
   chrome.storage.local.get({ foundEntries: [] }, data => {
     const badge = document.querySelector('.tab-button[data-tab="found"] .count');
     if(badge) badge.textContent = data.foundEntries.length;
     renderFoundList(data.foundEntries);
   });
-
   chrome.storage.local.get(['lastUpdated'], data => {
     const lastUpdatedSpan = document.getElementById('lastUpdatedTime');
     if (lastUpdatedSpan && data.lastUpdated) { lastUpdatedSpan.textContent = `Last updated: ${data.lastUpdated}`; }
   });
-  
-  displayMasterList();
-  
-  const searchMasterInput = document.getElementById('newItemInput');
-  if (searchMasterInput) {
-      searchMasterInput.addEventListener('input', displayMasterList);
-  }
+  chrome.storage.local.get({ connections: [] }, data => {
+      renderConnectionsList(data.connections);
+  });
 
-  if (daysOutSortBtn) {
-      daysOutSortBtn.addEventListener('click', () => {
-          if (activeSort.criterion !== 'daysout') {
-              activeSort.criterion = 'daysout';
-              activeSort.direction = 'desc';
-          } else {
-              activeSort.direction = activeSort.direction === 'desc' ? 'asc' : 'desc';
-          }
-          updateSortButtons();
-          displayMasterList();
-      });
-  }
-  if (nameSortBtn) {
-      nameSortBtn.addEventListener('click', () => {
-          if (activeSort.criterion !== 'name') {
-              activeSort.criterion = 'name';
-              activeSort.direction = 'asc';
-          } else {
-              activeSort.direction = activeSort.direction === 'asc' ? 'desc' : 'asc';
-          }
-          updateSortButtons();
-          displayMasterList();
-      });
-  }
-
-  chrome.storage.onChanged.addListener((changes, namespace) => {
+  // Event Listeners
+  chrome.storage.onChanged.addListener((changes) => {
     if (changes.foundEntries) {
       const newEntries = changes.foundEntries.newValue || [];
       renderFoundList(newEntries);
       const badge = document.querySelector('.tab-button[data-tab="found"] .count');
-      if (badge) {
-        badge.textContent = newEntries.length;
-      }
+      if (badge) badge.textContent = newEntries.length;
     }
-    if (changes.loopStatus || changes.extensionState) {
-        updateLoopCounter();
-    }
-    if (changes.masterEntries) {
-        displayMasterList();
-    }
+    if (changes.loopStatus || changes.extensionState) updateLoopCounter();
+    if (changes.masterEntries) displayMasterList();
+    if (changes.connections) renderConnectionsList(changes.connections.newValue);
+  });
+
+  document.querySelector('.tabs').addEventListener('click', (event) => {
+      const tabButton = event.target.closest('.tab-button');
+      if (tabButton && tabButton.dataset.tab) switchTab(tabButton.dataset.tab);
   });
 
   document.getElementById('clearBtn').addEventListener('click', () => {
@@ -416,131 +550,421 @@ document.addEventListener('DOMContentLoaded', () => {
     updateMasterFromClipboard();
   });
 
-  const tabContainer = document.querySelector('.tabs');
-  if (tabContainer) {
-      tabContainer.addEventListener('click', (event) => {
-          const tabButton = event.target.closest('.tab-button');
-          if (tabButton && tabButton.dataset.tab) {
-              switchTab(tabButton.dataset.tab);
-          }
-      });
-  }
+  document.getElementById('newItemInput').addEventListener('input', displayMasterList);
 
-  // --- Modal Logic ---
-  const modal = document.getElementById('json-modal');
-  const showJsonBtn = document.getElementById('showJsonExampleBtn');
-  const closeBtn = document.querySelector('.modal-close');
-
-  if(showJsonBtn) {
-    showJsonBtn.addEventListener('click', () => {
-      if(modal) modal.style.display = 'flex';
-    });
-  }
-  if(closeBtn) {
-    closeBtn.addEventListener('click', () => {
-      if(modal) modal.style.display = 'none';
-    });
-  }
-  window.addEventListener('click', (event) => {
-    if (event.target == modal) {
-      modal.style.display = 'none';
+  // Sorting
+  const daysOutSortBtn = document.getElementById('daysOutSortBtn');
+  const nameSortBtn = document.getElementById('nameSortBtn');
+  function updateSortButtons() {
+    daysOutSortBtn.classList.remove('active');
+    nameSortBtn.classList.remove('active');
+    daysOutSortBtn.textContent = 'Sort by Days Out';
+    nameSortBtn.textContent = 'Sort by Name';
+    if (activeSort.criterion === 'daysout') {
+        daysOutSortBtn.classList.add('active');
+        daysOutSortBtn.textContent = activeSort.direction === 'desc' ? 'Days Out (High-Low)' : 'Days Out (Low-High)';
+    } else if (activeSort.criterion === 'name') {
+        nameSortBtn.classList.add('active');
+        nameSortBtn.textContent = activeSort.direction === 'asc' ? 'Name (A-Z)' : 'Name (Z-A)';
     }
+  }
+  daysOutSortBtn.addEventListener('click', () => {
+      if (activeSort.criterion !== 'daysout') {
+          activeSort.criterion = 'daysout';
+          activeSort.direction = 'desc';
+      } else {
+          activeSort.direction = activeSort.direction === 'desc' ? 'asc' : 'desc';
+      }
+      updateSortButtons();
+      displayMasterList();
   });
-  // --- End Modal Logic ---
+  nameSortBtn.addEventListener('click', () => {
+      if (activeSort.criterion !== 'name') {
+          activeSort.criterion = 'name';
+          activeSort.direction = 'asc';
+      } else {
+          activeSort.direction = activeSort.direction === 'asc' ? 'desc' : 'asc';
+      }
+      updateSortButtons();
+      displayMasterList();
+  });
 
-  const concurrentTabsInput = document.getElementById('concurrentTabsInput');
-  const looperDaysOutFilterInput = document.getElementById('looperDaysOutFilterInput');
-  const embedToggle = document.getElementById('embedToggle');
-  const colorPicker = document.getElementById('colorPicker');
-  const customKeywordInput = document.getElementById('customKeywordInput');
-  const debugToggle = document.getElementById('debugToggle');
-  const sharepointBtn = document.getElementById('sharepointBtn');
-
-  if (concurrentTabsInput) {
-    chrome.storage.local.get({ concurrentTabs: 3 }, data => {
-        concurrentTabsInput.value = data.concurrentTabs;
-    });
-    concurrentTabsInput.addEventListener('change', (event) => {
-        let value = parseInt(event.target.value, 10);
-        if (isNaN(value) || value < 1) value = 1;
-        if (value > 10) value = 10;
-        event.target.value = value;
-        chrome.storage.local.set({ concurrentTabs: value });
-    });
-  }
-  
-  if (looperDaysOutFilterInput) {
-      chrome.storage.local.get({ looperDaysOutFilter: 'all' }, (data) => {
-          looperDaysOutFilterInput.value = data.looperDaysOutFilter === 'all' ? '' : data.looperDaysOutFilter;
-      });
-      looperDaysOutFilterInput.addEventListener('change', (event) => {
-          const value = event.target.value.trim();
-          chrome.storage.local.set({ looperDaysOutFilter: value });
-      });
-  }
-
-  if (embedToggle) {
-    chrome.storage.local.get({ embedInCanvas: true }, (data) => {
-      embedToggle.checked = data.embedInCanvas;
-    });
-    embedToggle.addEventListener('change', (event) => {
-      chrome.storage.local.set({ embedInCanvas: event.target.checked });
-    });
-  }
-
-  if (colorPicker) {
-    chrome.storage.local.get({ highlightColor: '#ffff00' }, (data) => { colorPicker.value = data.highlightColor; });
-    colorPicker.addEventListener('input', (event) => { chrome.storage.local.set({ highlightColor: event.target.value }); });
-  }
-  if (customKeywordInput) {
-    chrome.storage.local.get({ customKeyword: '' }, (data) => { customKeywordInput.value = data.customKeyword; });
-    customKeywordInput.addEventListener('input', (event) => {
-        const newKeyword = event.target.value.trim();
-        chrome.storage.local.set({ customKeyword: newKeyword }, () => { updateKeywordDisplay(); });
-    });
-  }
-  if (debugToggle) {
-    chrome.storage.local.get({ debugMode: false }, (data) => {
-      debugToggle.checked = data.debugMode;
-      applyDebugModeStyles(data.debugMode);
-    });
-    debugToggle.addEventListener('change', (event) => {
-      const isEnabled = event.target.checked;
-      chrome.storage.local.set({ debugMode: isEnabled });
-      applyDebugModeStyles(isEnabled);
-    });
-  }
-  if (sharepointBtn) {
-    sharepointBtn.addEventListener('click', (event) => {
-        createRipple(event);
-        chrome.tabs.create({ url: "https://edukgroup365.sharepoint.com/sites/SM-StudentServices/SitePages/CollabHome.aspx" });
-    });
-  }
-
+  // --- Start/Stop Button ---
   const startBtn = document.getElementById('startBtn');
   const startBtnText = document.getElementById('startBtnText');
-  
+  let isStarted;
   function updateButtonState(state) {
     isStarted = (state === 'on');
-    if (isStarted) {
-      startBtn.classList.add('active');
-      startBtnText.textContent = 'Stop';
-    } else {
-      startBtn.classList.remove('active');
-      startBtnText.textContent = 'Start';
-    }
+    startBtn.classList.toggle('active', isStarted);
+    startBtnText.textContent = isStarted ? 'Stop' : 'Start';
     updateLoopCounter();
   }
+  chrome.storage.local.get({ extensionState: 'off' }, data => updateButtonState(data.extensionState));
+  startBtn.addEventListener('click', (event) => {
+    createRipple(event);
+    const newState = !isStarted ? 'on' : 'off';
+    chrome.storage.local.set({ extensionState: newState });
+    updateButtonState(newState);
+  });
 
-  if (startBtn && startBtnText) {
-    chrome.storage.local.get({ extensionState: 'off' }, data => { updateButtonState(data.extensionState); });
-    startBtn.addEventListener('click', (event) => {
-      createRipple(event);
-      const newState = !isStarted ? 'on' : 'off';
-      chrome.storage.local.set({ extensionState: newState });
-      updateButtonState(newState);
-    });
+  // --- Modals Logic ---
+  document.getElementById('showJsonExampleBtn').addEventListener('click', () => openModal('json-modal'));
+  document.getElementById('payloadExampleBtn').addEventListener('click', () => openModal('payload-modal'));
+  document.getElementById('createConnectionBtn').addEventListener('click', () => {
+      openModal('connections-modal');
+      checkClipboardForConnection();
+  });
+  document.getElementById('confirmDeleteBtn').addEventListener('click', async () => {
+      if (connectionToDelete) {
+          const { connections: currentConnections = [] } = await chrome.storage.local.get('connections');
+          const updatedConnections = currentConnections.filter(c => c.id !== connectionToDelete);
+          await chrome.storage.local.set({ connections: updatedConnections });
+          connectionToDelete = null;
+          closeModal('delete-confirm-modal');
+      }
+  });
+  document.getElementById('cancelDeleteBtn').addEventListener('click', () => closeModal('delete-confirm-modal'));
+  document.getElementById('copyExportBtn').addEventListener('click', (event) => {
+    const text = document.getElementById('exportJsonContent').textContent;
+    navigator.clipboard.writeText(text);
+    const btn = event.target;
+    btn.textContent = 'Copied!';
+    setTimeout(() => { btn.textContent = 'Copy to Clipboard'; }, 2000);
+  });
+  document.getElementById('exportIncludeSecretToggle').addEventListener('change', updateExportView);
+
+
+  document.querySelectorAll('.modal-close').forEach(btn => {
+      btn.addEventListener('click', () => closeModal(btn.dataset.modalId));
+  });
+  window.addEventListener('click', (event) => {
+      if (event.target.classList.contains('modal-overlay')) {
+          closeModal(event.target.id);
+      }
+      if (!event.target.closest('.connection-actions')) {
+        document.querySelectorAll('.connection-menu.active').forEach(menu => {
+            menu.classList.remove('active');
+            menu.closest('li').querySelector('.connections-list')?.classList.remove('overflow-visible');
+        });
+      }
+      if (!event.target.closest('#list-context-menu')) {
+          document.getElementById('list-context-menu').style.display = 'none';
+      }
+  });
+  
+  // --- Connections Modal Specific Logic ---
+  document.querySelectorAll('.connection-choice-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+          const type = btn.dataset.type;
+          if (btn.classList.contains('clipboard-match')) {
+              autoFillForm(type);
+          } else {
+              document.getElementById('connection-chooser').style.display = 'none';
+              document.getElementById('connection-form-container').style.display = 'block';
+              document.getElementById(`${type}-form`).style.display = 'block';
+          }
+      });
+  });
+
+  document.querySelectorAll('.form-cancel-btn').forEach(btn => {
+      btn.addEventListener('click', () => closeModal('connections-modal'));
+  });
+
+  document.getElementById('power-automate-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const form = e.target;
+      const editingId = form.dataset.editingId;
+      const { connections = [] } = await chrome.storage.local.get('connections');
+      
+      const connectionData = {
+          type: 'power-automate',
+          name: document.getElementById('pa-name').value,
+          url: document.getElementById('pa-url').value
+      };
+
+      if (editingId) {
+          const updatedConnections = connections.map(conn => conn.id === editingId ? { ...conn, ...connectionData } : conn);
+          await chrome.storage.local.set({ connections: updatedConnections });
+      } else {
+          const newConnection = { id: `conn_${Date.now()}`, ...connectionData };
+          await chrome.storage.local.set({ connections: [...connections, newConnection] });
+      }
+      closeModal('connections-modal');
+  });
+
+  document.getElementById('pusher-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const form = e.target;
+      const editingId = form.dataset.editingId;
+      const { connections = [] } = await chrome.storage.local.get('connections');
+      
+      const connectionData = {
+          type: 'pusher',
+          name: document.getElementById('pusher-name').value,
+          key: document.getElementById('pusher-key').value,
+          cluster: document.getElementById('pusher-cluster').value,
+          secret: document.getElementById('pusher-secret').value,
+          channel: 'private-' + document.getElementById('pusher-channel').value,
+          event: 'client-' + document.getElementById('pusher-event').value
+      };
+
+      if (editingId) {
+          const updatedConnections = connections.map(conn => conn.id === editingId ? { ...conn, ...connectionData } : conn);
+          await chrome.storage.local.set({ connections: updatedConnections });
+      } else {
+          const newConnection = { id: `conn_${Date.now()}`, ...connectionData };
+          await chrome.storage.local.set({ connections: [...connections, newConnection] });
+      }
+      closeModal('connections-modal');
+  });
+
+  // --- Connection Test & Pusher Logic ---
+  function str2ab(str) {
+    const buf = new ArrayBuffer(str.length);
+    const bufView = new Uint8Array(buf);
+    for (let i = 0, strLen = str.length; i < strLen; i++) {
+        bufView[i] = str.charCodeAt(i);
+    }
+    return buf;
   }
 
+  async function triggerPusher(connection, payload) {
+    try {
+        const pusher = new Pusher(connection.key, {
+            cluster: connection.cluster,
+            authorizer: (channel, options) => {
+                return {
+                    authorize: async (socketId, callback) => {
+                        try {
+                            const stringToSign = `${socketId}:${connection.channel}`;
+                            const cryptoKey = await crypto.subtle.importKey(
+                                "raw", str2ab(connection.secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]
+                            );
+                            const signature = await crypto.subtle.sign("HMAC", cryptoKey, str2ab(stringToSign));
+                            const signatureHex = Array.from(new Uint8Array(signature)).map(b => b.toString(16).padStart(2, '0')).join('');
+                            callback(null, { auth: `${connection.key}:${signatureHex}` });
+                        } catch (err) {
+                            const errorMsg = "Failed to sign auth request. Check App Secret.";
+                            console.error(errorMsg, err);
+                            callback(new Error(errorMsg), null);
+                        }
+                    }
+                };
+            }
+        });
+
+        const channel = pusher.subscribe(connection.channel);
+        await new Promise((resolve, reject) => {
+            channel.bind('pusher:subscription_succeeded', () => {
+                channel.trigger(connection.event, payload);
+                console.log("Pusher event triggered from popup.");
+                setTimeout(() => {
+                    pusher.disconnect();
+                    resolve();
+                }, 500);
+            });
+            channel.bind('pusher:subscription_error', (status) => {
+                console.error("Pusher subscription error:", JSON.stringify(status, null, 2));
+                pusher.disconnect();
+                reject(new Error(`Subscription failed with status: ${status.status}`));
+            });
+        });
+        return { success: true };
+    } catch (e) {
+        console.error("Pusher error:", e);
+        return { success: false, error: e.message };
+    }
+  }
+
+  document.querySelector('#power-automate-form .form-test-btn').addEventListener('click', async () => {
+      const url = document.getElementById('pa-url').value;
+      const statusEl = document.getElementById('pa-test-status');
+      if (!url) {
+          statusEl.textContent = 'URL is required.';
+          statusEl.className = 'test-status error';
+          return;
+      }
+      statusEl.textContent = 'Testing...';
+      statusEl.className = 'test-status';
+      const testPayload = {
+        name: "Jane Doe (PA Test)",
+        grade: "95%",
+        timestamp: new Date().toISOString(),
+        url: "#test-url",
+        test: true
+      };
+      chrome.runtime.sendMessage({
+          type: 'test-connection-pa',
+          connection: { type: 'power-automate', url },
+          payload: testPayload
+      });
+  });
+
+  document.querySelector('#pusher-form .form-test-btn').addEventListener('click', async () => {
+      const statusEl = document.getElementById('pusher-test-status');
+      
+      const connection = {
+          name: document.getElementById('pusher-name').value,
+          key: document.getElementById('pusher-key').value,
+          cluster: document.getElementById('pusher-cluster').value,
+          secret: document.getElementById('pusher-secret').value,
+          channel: 'private-' + document.getElementById('pusher-channel').value,
+          event: 'client-' + document.getElementById('pusher-event').value
+      };
+
+      if (!connection.name || !connection.key || !connection.cluster || !connection.secret || !connection.channel || !connection.event) {
+          statusEl.textContent = 'All fields are required.';
+          statusEl.className = 'test-status error';
+          return;
+      }
+      statusEl.textContent = 'Testing...';
+      statusEl.className = 'test-status';
+      const testPayload = {
+          name: "Jane Doe (Test Submission)",
+          grade: "95%",
+          timestamp: new Date().toISOString(),
+          url: "#test-url",
+          test: true 
+      };
+      const result = await triggerPusher(connection, testPayload);
+
+      if (result.success) {
+          statusEl.textContent = 'Success! Test event sent.';
+          statusEl.className = 'test-status success';
+      } else {
+          statusEl.textContent = `Failed: ${result.error}`;
+          statusEl.className = 'test-status error';
+      }
+  });
+
+  chrome.runtime.onMessage.addListener(async (message) => {
+      if (message.type === 'connection-test-result' && message.connectionType === 'power-automate') {
+          const { success, error } = message;
+          const statusEl = document.getElementById('pa-test-status');
+          if (success) {
+              statusEl.textContent = 'Success! Connection is working.';
+              statusEl.className = 'test-status success';
+          } else {
+              statusEl.textContent = `Failed: ${error}`;
+              statusEl.className = 'test-status error';
+          }
+      } else if (message.type === 'trigger-pusher') {
+          await triggerPusher(message.connection, message.payload);
+      }
+  });
+
+
+  // --- Settings Inputs ---
+  const settingsInputs = {
+    concurrentTabsInput: { key: 'concurrentTabs', default: 3, type: 'number' },
+    looperDaysOutFilterInput: { key: 'looperDaysOutFilter', default: 'all', type: 'text' },
+    customKeywordInput: { key: 'customKeyword', default: '', type: 'text' },
+  };
+  Object.entries(settingsInputs).forEach(([id, { key, default: def, type }]) => {
+    const input = document.getElementById(id);
+    if (!input) return;
+    chrome.storage.local.get({ [key]: def }, data => {
+        input.value = (key === 'looperDaysOutFilter' && data[key] === 'all') ? '' : data[key];
+    });
+    input.addEventListener('change', (event) => {
+        let value = event.target.value.trim();
+        if (type === 'number') {
+            value = parseInt(value, 10);
+            if (isNaN(value) || value < 1) value = 1;
+            if (value > 10) value = 10;
+            event.target.value = value;
+        }
+        chrome.storage.local.set({ [key]: value });
+        if (key === 'customKeyword') updateKeywordDisplay();
+    });
+  });
+  
+  const colorPicker = document.getElementById('colorPicker');
+  chrome.storage.local.get({ highlightColor: '#ffff00' }, data => { colorPicker.value = data.highlightColor; });
+  colorPicker.addEventListener('input', (event) => { chrome.storage.local.set({ highlightColor: event.target.value }); });
+
+  const debugToggle = document.getElementById('debugToggle');
+  function applyDebugModeStyles(enabled) { document.body.classList.toggle('debug-mode', enabled); }
+  chrome.storage.local.get({ debugMode: false }, data => {
+    debugToggle.checked = data.debugMode;
+    applyDebugModeStyles(data.debugMode);
+  });
+  debugToggle.addEventListener('change', (event) => {
+    const isEnabled = event.target.checked;
+    chrome.storage.local.set({ debugMode: isEnabled });
+    applyDebugModeStyles(isEnabled);
+  });
+
+  document.getElementById('sharepointBtn').addEventListener('click', (event) => {
+      createRipple(event);
+      chrome.tabs.create({ url: "https://edukgroup3_sharepoint.com/sites/SM-StudentServices/SitePages/CollabHome.aspx" });
+  });
+
+  // --- Tooltip & Context Menu Logic ---
+  document.addEventListener('mouseover', event => {
+      const icon = event.target.closest('.info-icon');
+      if (icon) {
+          const tooltip = icon.querySelector('::after');
+          const rect = icon.getBoundingClientRect();
+          const containerRect = document.querySelector('.container').getBoundingClientRect();
+          
+          icon.classList.remove('tooltip-left', 'tooltip-right');
+
+          if (rect.left < containerRect.left + 10) {
+              icon.classList.add('tooltip-right');
+          } else if (rect.right > containerRect.right - 10) {
+              icon.classList.add('tooltip-left');
+          }
+      }
+  });
+  
+  const showContextMenu = (e) => {
+      const listItem = e.target.closest('li');
+      if (listItem && listItem.dataset.entry) {
+          e.preventDefault();
+          contextMenuEntry = JSON.parse(listItem.dataset.entry);
+          
+          const menu = document.getElementById('list-context-menu');
+          const copyUrlBtn = document.getElementById('copyUrlBtn');
+          const debugSendBtn = document.getElementById('debugSendBtn');
+          
+          const hasValidUrl = contextMenuEntry.url && contextMenuEntry.url.startsWith('http');
+          copyUrlBtn.disabled = !hasValidUrl;
+          debugSendBtn.disabled = !hasValidUrl;
+
+          menu.style.display = 'block';
+          menu.style.left = `${e.clientX}px`;
+          menu.style.top = `${e.clientY}px`;
+      }
+  };
+
+  document.getElementById('foundList').addEventListener('contextmenu', showContextMenu);
+  document.getElementById('masterList').addEventListener('contextmenu', showContextMenu);
+
+  document.getElementById('copyNameBtn').addEventListener('click', () => {
+    if (contextMenuEntry && contextMenuEntry.name) {
+        navigator.clipboard.writeText(contextMenuEntry.name);
+    }
+    document.getElementById('list-context-menu').style.display = 'none';
+  });
+  
+  document.getElementById('copyUrlBtn').addEventListener('click', () => {
+    if (contextMenuEntry && contextMenuEntry.url) {
+        navigator.clipboard.writeText(contextMenuEntry.url);
+    }
+    document.getElementById('list-context-menu').style.display = 'none';
+  });
+
+  document.getElementById('debugSendBtn').addEventListener('click', () => {
+    if (contextMenuEntry) {
+        const payload = { ...contextMenuEntry, debug: true };
+        chrome.runtime.sendMessage({ type: 'send-debug-payload', payload });
+        console.log("Sent debug payload:", payload);
+    }
+    document.getElementById('list-context-menu').style.display = 'none';
+  });
+
+  // Final setup
   switchTab('found');
 });
+

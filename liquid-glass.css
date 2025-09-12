@@ -186,7 +186,7 @@ h3 {
     color: #1a202c;
 }
 
-.found-list {
+.found-list, .connections-list {
     list-style: none;
     margin-top: 12px;
     overflow-y: auto;
@@ -194,7 +194,7 @@ h3 {
     flex-grow: 1;
 }
 
-.found-list li {
+.found-list li, .connections-list li {
     padding: 8px 12px;
     background: rgba(0, 0, 0, 0.02);
     border: 1px solid rgba(0, 0, 0, 0.05);
@@ -203,9 +203,10 @@ h3 {
     display: flex;
     align-items: center;
     transition: background-color 0.3s, border-color 0.3s;
+    position: relative; /* Needed for menu positioning */
 }
 
-.found-list li:hover {
+.found-list li:hover, .connections-list li:hover {
     background: rgba(0, 0, 0, 0.04);
 }
 
@@ -229,7 +230,7 @@ h3 {
     margin-left: auto;
 }
 
-#clearBtn, #updateMasterBtn {
+#clearBtn, #updateMasterBtn, #createConnectionBtn {
     position: relative;
     overflow: hidden;
     display: block;
@@ -243,15 +244,14 @@ h3 {
     border: 1px solid rgba(0, 0, 0, 0.08);
     border-radius: 0.75rem;
     cursor: pointer;
-    transition: background-color 0.3s, color 0.3s; /* MODIFIED */
+    transition: background-color 0.3s, color 0.3s;
     flex-shrink: 0;
 }
 
-#clearBtn:hover, #updateMasterBtn:hover {
+#clearBtn:hover, #updateMasterBtn:hover, #createConnectionBtn:hover {
     background: rgba(0, 0, 0, 0.06);
 }
 
-/* --- NEW: VISUAL CUES FOR UPDATE BUTTON --- */
 #updateMasterBtn.btn-success {
     background-color: rgba(4, 120, 87, 0.7) !important;
     color: white !important;
@@ -339,6 +339,15 @@ h3 {
     padding-right: 10px; /* Space for scrollbar */
     flex-grow: 1;
 }
+
+/* NEW: Allow menu to overflow when active */
+.settings-scroll-container.overflow-visible {
+    overflow: visible;
+}
+.connections-list.overflow-visible {
+    overflow: visible;
+}
+
 
 .setting-item {
     display: flex;
@@ -438,6 +447,98 @@ input:checked + .slider:before { transform: translateX(20px); }
 
 @keyframes ripple { to { transform: scale(4); opacity: 0; } }
 
+/* --- Connections & Modal Styles --- */
+.connections-list .connection-info {
+    flex-grow: 1;
+    overflow: hidden;
+    margin-left: 12px;
+}
+
+.connection-icon {
+    width: 24px;
+    height: 24px;
+    flex-shrink: 0;
+}
+
+.connections-list .connection-type {
+    font-weight: 500;
+    color: #1a202c;
+    display: block;
+}
+
+.connections-list .connection-detail {
+    font-size: 0.9em;
+    color: #6b7280;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: block;
+}
+
+.connection-actions {
+    position: relative;
+    margin-left: auto;
+}
+
+.connection-actions-btn {
+    background: none;
+    border: none;
+    padding: 8px;
+    cursor: pointer;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.2s;
+}
+
+.connection-actions-btn:hover {
+    background-color: rgba(0, 0, 0, 0.08);
+}
+
+.connection-actions-btn svg {
+    width: 20px;
+    height: 20px;
+    fill: #6b7280;
+}
+
+.connection-menu {
+    display: none;
+    position: absolute;
+    top: 35px;
+    right: 0;
+    background-color: white;
+    border-radius: 0.75rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    z-index: 100;
+    overflow: hidden;
+    min-width: 120px;
+}
+
+.connection-menu.active {
+    display: block;
+}
+
+.connection-menu button {
+    display: block;
+    width: 100%;
+    padding: 10px 15px;
+    background: none;
+    border: none;
+    text-align: left;
+    cursor: pointer;
+    font-size: 0.9em;
+    color: #333;
+}
+
+.connection-menu button:hover {
+    background-color: #f0f0f0;
+}
+
+.connection-menu .delete-action {
+    color: #dc2626;
+}
+
 /* Modal Styles */
 .modal-overlay {
     position: fixed;
@@ -476,6 +577,107 @@ input:checked + .slider:before { transform: translateX(20px); }
     font-weight: bold;
 }
 
+.modal-content code {
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 0.9em;
+    color: #333;
+}
+
+/* --- Connection Form Header --- */
+.connection-form-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 15px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid rgba(0,0,0,0.1);
+}
+
+.connection-form-header img {
+    width: 28px;
+    height: 28px;
+}
+
+.connection-form-header a {
+    text-decoration: none;
+    color: inherit;
+}
+
+.connection-form-header a:hover h3 {
+    text-decoration: underline;
+    color: #005A9C;
+}
+
+.connection-form-header h3 {
+    margin: 0;
+    font-size: 1.2em;
+    transition: color 0.2s;
+}
+
+
+/* --- UPDATED STYLES for Connection Choice Modal --- */
+#connection-chooser h3 {
+    text-align: center;
+    font-size: 1.2em;
+    margin-bottom: 8px;
+}
+
+#connection-chooser p {
+    text-align: center;
+    margin-top: 0;
+    color: #6b7280;
+}
+
+.connection-options {
+    margin: 20px 0;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+}
+
+.connection-choice-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 15px;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    background-color: rgba(0, 0, 0, 0.02);
+    border-radius: 0.75rem;
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+    position: relative;
+    overflow: hidden; /* Important for the glow effect */
+}
+
+.connection-choice-btn:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.07);
+    border-color: rgba(0, 90, 156, 0.6);
+}
+
+.connection-choice-btn img {
+    width: 28px;
+    height: 28px;
+}
+
+.connection-choice-text {
+    text-align: left;
+}
+
+.connection-choice-title {
+    font-size: 1em;
+    font-weight: 500;
+    color: #333;
+    display: block;
+}
+
+.connection-choice-desc {
+    font-size: 0.85em;
+    color: #6b7280;
+    display: block;
+}
+
 .modal-close:hover,
 .modal-close:focus {
     color: black;
@@ -492,8 +694,360 @@ input:checked + .slider:before { transform: translateX(20px); }
     word-wrap: break-word;
 }
 
-.modal-content code {
-    font-family: 'Courier New', Courier, monospace;
+/* --- Custom Context Menu for Found List --- */
+#list-context-menu {
+    display: none;
+    position: fixed;
+    z-index: 2100; /* Higher than modal overlay */
+    background: rgba(255, 255, 255, 0.85);
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+    border-radius: 0.75rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    overflow: hidden;
+    min-width: 200px;
+    padding: 5px;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+#list-context-menu button {
+    display: block;
+    width: 100%;
+    padding: 10px 15px;
+    background: none;
+    border: none;
+    text-align: left;
+    cursor: pointer;
     font-size: 0.9em;
     color: #333;
+    border-radius: 0.5rem;
 }
+
+#list-context-menu button:hover:not(:disabled) {
+    background-color: rgba(0, 90, 156, 0.1);
+    color: #005A9C;
+}
+
+#list-context-menu button:disabled {
+    color: #aaa;
+    cursor: not-allowed;
+}
+
+#list-context-menu hr {
+    border: none;
+    border-top: 1px solid rgba(0, 0, 0, 0.1);
+    margin: 4px 8px;
+}
+
+
+/* --- Delete & Export Modal --- */
+.modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+.modal-actions button {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 0.75rem;
+    font-size: 0.95em;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.2s, transform 0.2s;
+}
+
+.modal-actions .btn-danger {
+    background-color: #dc2626;
+    color: white;
+}
+.modal-actions .btn-danger:hover {
+    background-color: #b91c1c;
+    transform: translateY(-1px);
+}
+
+.modal-actions .btn-secondary {
+    background-color: #e5e7eb;
+    color: #374151;
+    border: 1px solid #d1d5db;
+}
+.modal-actions .btn-secondary:hover {
+    background-color: #d1d5db;
+    transform: translateY(-1px);
+}
+
+.modal-actions .btn-primary {
+    background-color: #005A9C;
+    color: white;
+}
+.modal-actions .btn-primary:hover {
+    background-color: #004a7c;
+    transform: translateY(-1px);
+}
+
+
+/* --- Modern Connection Form Styles --- */
+.connection-form .setting-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+    border-top: none; 
+    margin-top: 0;
+    padding: 15px 0;
+    position: relative;
+}
+
+.connection-form .setting-item:first-of-type {
+    padding-top: 0;
+}
+
+.connection-form .setting-item:last-of-type {
+    border-bottom: none;
+}
+
+.connection-form .setting-item label {
+    font-size: 0.9em;
+    font-weight: 500;
+    color: #4a5568;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.connection-form .setting-item input[type="text"],
+.connection-form .setting-item input[type="url"],
+.connection-form .setting-item input[type="password"] {
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
+    margin-top: 0;
+    padding: 10px;
+    font-size: 0.95em;
+    border: 1px solid rgba(0, 0, 0, 0.15);
+    background-color: rgba(255, 255, 255, 0.6);
+    color: #333333;
+    border-radius: 0.5rem;
+    transition: border-color 0.2s, box-shadow 0.2s, background-color 0.3s;
+}
+
+.connection-form .setting-item input[type="text"]:focus,
+.connection-form .setting-item input[type="url"]:focus,
+.connection-form .setting-item input[type="password"]:focus {
+    outline: none;
+    border-color: #005A9C;
+    background-color: white;
+    box-shadow: 0 0 0 3px rgba(0, 90, 156, 0.15);
+}
+
+.form-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 15px;
+    padding-top: 15px;
+    border-top: 1px solid rgba(0,0,0,0.1);
+}
+
+.form-actions button {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 0.5rem;
+    font-size: 0.9em;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.2s, transform 0.2s;
+}
+
+.form-actions button:hover {
+    transform: translateY(-1px);
+}
+
+.form-actions button[type="submit"] {
+    background-color: #005A9C;
+    color: white;
+}
+.form-actions button[type="submit"]:hover {
+    background-color: #004a7c;
+}
+
+.form-actions .form-cancel-btn,
+.form-actions .form-test-btn {
+    background-color: #e5e7eb;
+    color: #374151;
+    border: 1px solid #d1d5db;
+}
+
+.form-actions .form-cancel-btn:hover,
+.form-actions .form-test-btn:hover {
+    background-color: #d1d5db;
+}
+
+.test-status {
+    font-size: 0.85em;
+    margin-right: auto;
+    display: flex;
+    align-items: center;
+}
+.test-status.success {
+    color: #059669;
+}
+.test-status.error {
+    color: #dc2626;
+}
+
+/* --- Tooltip Styles --- */
+.info-icon {
+    display: inline-flex; /* Use flex to center content */
+    align-items: center;
+    justify-content: center;
+    width: 14px;
+    height: 14px;
+    background-color: #cbd5e1;
+    color: white;
+    border-radius: 50%;
+    font-style: italic;
+    font-family: serif; /* Use a font with a distinct 'i' */
+    font-weight: bold;
+    font-size: 11px;
+    line-height: 14px; /* Explicitly set line-height */
+    cursor: help;
+    position: relative;
+    -webkit-user-select: none; /* Prevent text selection */
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+}
+
+
+.info-icon::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: 150%;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: #2d3748;
+    color: white;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-family: 'Roboto', sans-serif; /* Reset font for tooltip */
+    font-style: normal;
+    font-weight: 400;
+    font-size: 0.85em;
+    line-height: 1.4;
+    width: 220px;
+    text-align: left;
+    white-space: normal;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.2s ease, visibility 0.2s ease;
+    z-index: 10;
+}
+
+.info-icon:hover::after {
+    opacity: 1;
+    visibility: visible;
+}
+
+/* New classes for dynamic tooltip positioning */
+.info-icon.tooltip-left::after {
+    left: auto;
+    right: 0;
+    transform: translateX(0);
+}
+
+.info-icon.tooltip-right::after {
+    left: 0;
+    right: auto;
+    transform: translateX(0);
+}
+
+/* --- Prefixed Input Styles --- */
+.prefixed-input-wrapper {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    box-sizing: border-box;
+    border: 1px solid rgba(0, 0, 0, 0.15);
+    background-color: rgba(255, 255, 255, 0.6);
+    border-radius: 0.5rem;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    padding-left: 10px;
+}
+
+.prefixed-input-wrapper:focus-within {
+    outline: none;
+    border-color: #005A9C;
+    background-color: white;
+    box-shadow: 0 0 0 3px rgba(0, 90, 156, 0.15);
+}
+
+.input-prefix {
+    font-weight: bold;
+    color: #4a5568;
+    user-select: none; /* Can't select the prefix text */
+}
+
+.prefixed-input-wrapper input {
+    border: none !important;
+    background-color: transparent !important;
+    box-shadow: none !important;
+    flex-grow: 1;
+    width: auto;
+    padding-left: 4px; /* Small space between prefix and input */
+}
+
+/* --- Rainbow Glow Animation with BLUR --- */
+@property --angle {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
+}
+
+@keyframes rainbow-border-spin {
+  to {
+    --angle: 360deg;
+  }
+}
+
+.connection-choice-btn.clipboard-match {
+    border-color: transparent;
+}
+
+.connection-choice-btn.clipboard-match::before {
+    content: '';
+    position: absolute;
+    top: -8px;
+    left: -8px;
+    right: -8px;
+    bottom: -8px;
+    z-index: -1;
+    background: conic-gradient(
+      from var(--angle),
+      #ff0000, #ff8000, #ffff00, #80ff00, #00ff80, #00ffff, #0080ff, #8000ff, #ff00ff, #ff0000
+    );
+    filter: blur(45px);
+    animation: rainbow-border-spin 3s linear infinite;
+    border-radius: inherit; /* Match the parent's radius */
+}
+
+
+
+/* --- NEW: Auto-fill Highlight Animation --- */
+@keyframes auto-fill-highlight {
+    0% { background-color: rgba(255, 255, 0, 0.4); }
+    100% { background-color: rgba(255, 255, 255, 0.6); }
+}
+
+.connection-form .setting-item input.auto-filled {
+    animation: auto-fill-highlight 2.5s ease-out forwards;
+}
+
+#export-secret-toggle-container {
+    border-top: none;
+    padding-top: 0;
+    margin-bottom: 15px;
+}
+
