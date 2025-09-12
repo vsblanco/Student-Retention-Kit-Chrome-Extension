@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LDA Submission Checker</title>
+  <!-- Google Font -->
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-color: #f5f7fa;
+      --card-bg: #ffffff;
+      --primary-color: #0052cc;
+      --text-color: #333333;
+      --accent-color: #0052cc;
+      --border-radius: 8px;
+      --shadow: 0 2px 6px rgba(0,0,0,0.1);
+      --spacing: 12px;
+    }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      font-family: 'Roboto', sans-serif;
+      background: var(--bg-color);
+      color: var(--text-color);
+      padding: var(--spacing);
+      min-width: 260px;
+    }
+    .container {
+      background: var(--card-bg);
+      border-radius: var(--border-radius);
+      box-shadow: var(--shadow);
+      padding: calc(var(--spacing) * 1.5);
+    }
+    h2 {
+      font-size: 1.4em;
+      font-weight: 700;
+      color: var(--primary-color);
+      margin-bottom: var(--spacing);
+      text-align: center;
+    }
+    .section {
+      margin-top: var(--spacing);
+    }
+    #keyword {
+      font-weight: 500;
+      font-size: 1.1em;
+      color: var(--accent-color);
+    }
+    .found-list {
+      list-style: none;
+      margin-top: var(--spacing);
+    }
+    .found-list li {
+      padding: 6px 10px;
+      background: #fafafa;
+      border: 1px solid #e0e0e0;
+      border-radius: var(--border-radius);
+      margin-bottom: 6px;
+    }
+    #clearBtn {
+      display: block;
+      width: 100%;
+      margin-top: var(--spacing);
+      padding: 10px;
+      font-size: 0.95em;
+      font-weight: 500;
+      color: #ffffff;
+      background: var(--primary-color);
+      border: none;
+      border-radius: var(--border-radius);
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+    #clearBtn:hover {
+      background: #003d99;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>LDA Submission Checker</h2>
+    <div class="section">
+      <p>Looking for: <span id="keyword">…</span></p>
+    </div>
+    <div class="section">
+      <h3>Found</h3>
+      <ul id="foundList" class="found-list">
+        <li>…</li>
+      </ul>
+    </div>
+    <button id="clearBtn">Clear All</button>
+  </div>
+  <script src="popup.js"></script>
+</body>
+</html>
