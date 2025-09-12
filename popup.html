@@ -11,7 +11,7 @@
       --card-bg: #ffffff;
       --primary-color: #0052cc;
       --text-color: #333333;
-      --accent-color: #0052cc; 
+      --accent-color: #0052cc;
       --light-accent-color: #4c9aff;
       --border-color: #ccc;
       --input-bg-color: #fff;
@@ -84,11 +84,11 @@
       transition: color 0.4s ease;
     }
     #startBtn {
-      position: relative; 
-      overflow: hidden; 
+      position: relative;
+      overflow: hidden;
       display: flex;
       align-items: center;
-      background: var(--accent-color); 
+      background: var(--accent-color);
       color: #fff;
       border: none;
       border-radius: var(--border-radius);
@@ -211,9 +211,6 @@
       transition: background 0.3s;
     }
     #clearBtn:hover, #updateMasterBtn:hover { background: #003d99; }
-    
-    /* --- THIS IS THE CHANGE --- */
-    /* Style both search inputs with the same rules */
     #newItemInput, #searchFoundListInput, #concurrentTabsInput {
       display: block;
       width: 100%;
@@ -226,9 +223,28 @@
       border-radius: var(--border-radius);
       transition: background-color 0.4s ease, color 0.4s ease, border-color 0.4s ease;
     }
-
     #concurrentTabsInput {
-        width: 100px; /* Smaller width for the number input */
+        width: 100px;
+    }
+    .filter-section {
+        margin-top: 8px;
+        display: flex;
+        gap: 8px;
+    }
+    .filter-button {
+        padding: 4px 10px;
+        font-size: 0.9em;
+        background-color: var(--pill-bg-color);
+        color: var(--pill-text-color);
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+        cursor: pointer;
+        transition: background-color 0.3s, color 0.3s;
+    }
+    .filter-button.active {
+        background-color: var(--primary-color);
+        color: white;
+        border-color: var(--primary-color);
     }
     .setting-item {
         display: flex;
@@ -246,13 +262,14 @@
         width: 100px;
         transition: border-color 0.4s ease;
     }
-    #customKeywordInput {
+    /* --- UPDATED STYLE TO INCLUDE NEW INPUT --- */
+    #customKeywordInput, #looperDaysOutFilterInput {
         border: 1px solid var(--border-color);
         background-color: var(--input-bg-color);
         color: var(--text-color);
         border-radius: var(--border-radius);
         padding: 6px;
-        width: 100px;
+        width: 150px; /* Wider to show placeholder text */
         transition: background-color 0.4s ease, color 0.4s ease, border-color 0.4s ease;
     }
     .switch {
@@ -346,6 +363,10 @@
     <div id="master" class="tab-content">
       <button id="updateMasterBtn">Update Master List</button>
       <input type="text" id="newItemInput" placeholder="Search Name or Phone..." />
+      <div class="filter-section">
+          <button id="nameSortBtn" class="filter-button">Sort by Name</button>
+          <button id="daysOutSortBtn" class="filter-button">Sort by Days Out</button>
+      </div>
       <div class="section">
         <div class="list-header">
           <h3>Master List</h3>
@@ -363,9 +384,20 @@
             <input type="number" id="concurrentTabsInput" min="1" max="10">
         </div>
         <div class="setting-item">
+            <label for="looperDaysOutFilterInput">Loop Filter: Days Out</label>
+            <input type="text" id="looperDaysOutFilterInput" placeholder="e.g., >=5 or all">
+        </div>
+        <div class="setting-item">
             <label for="embedToggle">Embed in Canvas</label>
             <label class="switch">
               <input type="checkbox" id="embedToggle">
+              <span class="slider round"></span>
+            </label>
+        </div>
+        <div class="setting-item">
+            <label for="showPhoneToggle">Show Phone Numbers</label>
+            <label class="switch">
+              <input type="checkbox" id="showPhoneToggle">
               <span class="slider round"></span>
             </label>
         </div>

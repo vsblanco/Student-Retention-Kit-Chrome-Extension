@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Date-Keyword Highlighter",
-  "version": "3.2",
+  "version": "4.0",
   "description": "Highlights today’s date, triggers flows, manages Found & Master lists",
   "permissions": [
     "storage",

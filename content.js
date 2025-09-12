@@ -63,8 +63,6 @@
     if (isLooperRun) {
       console.log('Keyword FOUND on a looper-opened tab.');
       
-      // --- THE FIX ---
-      // Normalize the name found on the page.
       const studentName = getFirstStudentName().trim();
       const timeStr = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
       
@@ -72,7 +70,6 @@
       urlObject.searchParams.delete('looper');
       const cleanUrl = urlObject.href;
 
-      // Prepare one object with all the clean data.
       foundEntry = {
           name: studentName,
           time: timeStr,
@@ -82,27 +79,22 @@
     }
   }
 
+  // --- REVISED FUNCTION TO AVOID BACKGROUND THROTTLING ---
+  // This version uses a single, synchronous loop instead of setTimeout,
+  // which ensures it runs at full speed even in background tabs.
   function walkTheDOM(root) {
     const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
     let node;
-    function processChunk() {
-        let count = 0;
-        while ((node = walker.nextNode()) && count < 200) {
-            highlightAndNotify(node);
-            count++;
-        }
-        if (node) {
-            setTimeout(processChunk, 50);
-        } else {
-            finishCheck();
-        }
+    while (!keywordFound && (node = walker.nextNode())) {
+        highlightAndNotify(node);
     }
-    processChunk();
+    // After the loop is done (either by finding the keyword or finishing the page),
+    // call finishCheck.
+    finishCheck();
   }
 
   function finishCheck() {
     if (isLooperRun) {
-        // We now send ONE message with the complete result.
         chrome.runtime.sendMessage({ action: 'inspectionResult', found: keywordFound, entry: foundEntry });
     }
   }

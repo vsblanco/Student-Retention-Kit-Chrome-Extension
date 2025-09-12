@@ -7,7 +7,6 @@ let foundUrlCache = new Set(); // Using URLs for checking duplicates.
 let activeTabs = new Map();
 let maxConcurrentTabs = 3;
 
-// Allows the background script to update our URL cache in real-time.
 export function addToFoundUrlCache(url) {
   if (!foundUrlCache.has(url)) {
     console.log(`Adding ${url} to the found cache to prevent re-checks.`);
@@ -20,9 +19,8 @@ async function loadSettings() {
     maxConcurrentTabs = concurrentTabs;
 }
 
-// --- FIX 1 of 3: Add a 'force' parameter to the function signature ---
+// --- THIS IS THE UPDATED FUNCTION ---
 export async function startLoop(force = false) {
-  // --- FIX 2 of 3: Modify the check to respect the 'force' parameter ---
   if (isLooping && !force) return;
 
   console.log('START command received.');
@@ -32,10 +30,9 @@ export async function startLoop(force = false) {
 
   await loadSettings();
   
-  const { masterEntries, foundEntries = [] } = await chrome.storage.local.get(['masterEntries', 'foundEntries']);
+  // Fetch master list, found entries, AND the new filter setting
+  const { masterEntries, foundEntries = [], looperDaysOutFilter = 'all' } = await chrome.storage.local.get(['masterEntries', 'foundEntries', 'looperDaysOutFilter']);
   
-  // Create a Set of URLs from the found list for fast lookups.
-  // We filter out any entries that might not have a valid URL.
   foundUrlCache = new Set(foundEntries.map(e => e.url).filter(Boolean));
   if (foundUrlCache.size > 0) {
     console.log(`${foundUrlCache.size} URLs already in 'Found' list will be skipped.`);
@@ -46,9 +43,41 @@ export async function startLoop(force = false) {
     stopLoop();
     return;
   }
-  masterListCache = masterEntries;
   
-  // Store the initial state of the loop for the UI.
+  // --- NEW FILTERING LOGIC ---
+  let filteredMasterList = masterEntries;
+  const filterText = looperDaysOutFilter.trim().toLowerCase();
+
+  if (filterText !== 'all' && filterText !== '') {
+    const advancedFilterRegex = /^\s*([><]=?|=)\s*(\d+)\s*$/;
+    const match = filterText.match(advancedFilterRegex);
+
+    if (match) {
+        filteredMasterList = masterEntries.filter(entry => {
+            const operator = match[1];
+            const value = parseInt(match[2], 10);
+            const daysout = entry.daysout;
+
+            if (daysout == null) return false;
+
+            switch (operator) {
+                case '>':  return daysout > value;
+                case '<':  return daysout < value;
+                case '>=': return daysout >= value;
+                case '<=': return daysout <= value;
+                case '=':  return daysout === value;
+                default:   return false;
+            }
+        });
+        console.log(`Looper will run on a filtered list of ${filteredMasterList.length} students (condition: ${filterText}).`);
+    } else {
+        console.warn(`Invalid looper filter format: "${filterText}". Running on all ${masterEntries.length} students.`);
+    }
+  }
+  // --- END OF NEW LOGIC ---
+
+  masterListCache = filteredMasterList; // Use the (potentially) filtered list
+  
   chrome.storage.local.set({ loopStatus: { current: 0, total: masterListCache.length } });
   
   for (let i = 0; i < maxConcurrentTabs; i++) {
@@ -61,7 +90,6 @@ export function stopLoop() {
   console.log('STOP command received.');
   isLooping = false;
   
-  // Clear the loop status from storage when stopped.
   chrome.storage.local.remove('loopStatus');
   
   for (const tabId of activeTabs.keys()) {
@@ -80,10 +108,8 @@ export function processNextInQueue(finishedTabId = null) {
 
   if (currentLoopIndex >= masterListCache.length && activeTabs.size === 0) {
     console.log('Looped through entire list. Starting over.');
-    // Resetting the counter for the new loop.
     chrome.storage.local.set({ loopStatus: { current: 0, total: masterListCache.length } }); 
     
-    // --- FIX 3 of 3: Force the loop to restart ---
     startLoop(true);
     return;
   }
@@ -92,10 +118,8 @@ export function processNextInQueue(finishedTabId = null) {
     const entry = masterListCache[currentLoopIndex];
     currentLoopIndex++;
     
-    // Update the current index in storage for the UI to read.
     chrome.storage.local.set({ loopStatus: { current: currentLoopIndex, total: masterListCache.length } });
     
-    // --- THE NEW CHECK, NOW USING URL ---
     if (foundUrlCache.has(entry.url)) {
       console.log(`Skipping already found URL: ${entry.url}`);
       setTimeout(() => processNextInQueue(), 0);

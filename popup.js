@@ -2,8 +2,33 @@
 
 import { MASTER_LIST_URL } from './constants.js';
 
-// --- THIS IS THE CHANGE ---
-// We now sort the list before displaying it.
+function getDaysOutStyle(daysout) {
+    if (daysout == null) return {};
+
+    if (daysout >= 10) {
+        return {
+            backgroundColor: 'hsl(0, 85%, 55%)',
+            color: 'white',
+            fontWeight: 'bold'
+        };
+    }
+    
+    if (daysout >= 5) {
+        return {
+            backgroundColor: 'hsl(35, 95%, 55%)',
+            color: 'white',
+            fontWeight: 'bold'
+        };
+    }
+
+    return {
+        backgroundColor: 'hsl(130, 65%, 90%)',
+        color: 'hsl(130, 40%, 25%)',
+        border: '1px solid hsl(130, 40%, 80%)'
+    };
+}
+
+
 export function renderFoundList(entries) {
   const list = document.getElementById('foundList');
   list.innerHTML = '';
@@ -12,9 +37,7 @@ export function renderFoundList(entries) {
       return;
   }
 
-  // Sort the entries array by timestamp, newest to oldest.
   entries.sort((a, b) => {
-    // A robust sort that handles potential missing timestamps
     if (!a.timestamp || !b.timestamp) return 0;
     return b.timestamp.localeCompare(a.timestamp);
   });
@@ -34,7 +57,7 @@ export function renderFoundList(entries) {
     li.appendChild(a);
     if (time) {
         const timeBadge = document.createElement('span');
-        timeBadge.className = 'pill-badge align-right'; 
+        timeBadge.className = 'pill-badge align-right';
         timeBadge.textContent = time;
         li.appendChild(timeBadge);
     }
@@ -42,10 +65,10 @@ export function renderFoundList(entries) {
   });
 }
 
-export function renderMasterList(entries) {
+export function renderMasterList(entries, showPhones) {
   const list = document.getElementById('masterList');
   list.innerHTML = '';
-  entries.forEach(({ name, time, url, phone }) => { 
+  entries.forEach(({ name, time, url, phone, daysout }) => {
     const li = document.createElement('li');
     if (url && url !== '#N/A' && url.startsWith('http')) {
       const a  = document.createElement('a');
@@ -66,7 +89,21 @@ export function renderMasterList(entries) {
       nameSpan.title = 'Invalid URL. Please update on the master list.';
       li.appendChild(nameSpan);
     }
-    if (phone) {
+
+    if (daysout != null) {
+        const daysoutSpan = document.createElement('span');
+        daysoutSpan.className = 'pill-badge';
+        daysoutSpan.textContent = daysout;
+        
+        const styles = getDaysOutStyle(daysout);
+        Object.assign(daysoutSpan.style, styles);
+
+        daysoutSpan.style.fontSize = '0.9em';
+
+        li.appendChild(daysoutSpan);
+    }
+
+    if (showPhones && phone) {
         const phoneSpan = document.createElement('span');
         phoneSpan.className = 'pill-badge';
         phoneSpan.textContent = phone;
@@ -83,23 +120,27 @@ async function updateMaster() {
     const resp = await fetch(MASTER_LIST_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: '{}'  
+      body: '{}'
     });
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
     const data = await resp.json();
     const students = data.students || [];
     const entries = students.map(s => ({
-      name: s.name, 
-      time: s.time || '', url:  s.url, phone: s.phone || ''
+      name: s.name,
+      time: s.time || '',
+      url:  s.url,
+      phone: s.phone || '',
+      daysout: s.daysout
     }));
     const now = new Date();
     const timestampStr = now.toLocaleDateString('en-US', {
         month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true
     }).replace(',', '');
+    
     await new Promise(res => chrome.storage.local.set({ masterEntries: entries, lastUpdated: timestampStr }, res));
-    const badge = document.querySelector('.tab-button[data-tab="master"] .count');
-    if(badge) badge.textContent = entries.length;
-    renderMasterList(entries);
+    
+    displayMasterList();
+    
     const lastUpdatedSpan = document.getElementById('lastUpdatedTime');
     if(lastUpdatedSpan) lastUpdatedSpan.textContent = `Last updated: ${timestampStr}`;
   } catch (e) {
@@ -124,12 +165,95 @@ function createRipple(event) {
     }, 600);
 }
 
+function updateSearchPlaceholder(showPhones) {
+    const searchInput = document.getElementById('newItemInput');
+    if (searchInput) {
+        searchInput.placeholder = showPhones ? 'Search Name or Phone...' : 'Search Name or Days Out...';
+    }
+}
+
+let activeSort = {
+    criterion: 'none',
+    direction: 'none'
+};
+
+async function displayMasterList() {
+    const { masterEntries = [], showPhoneNumbers = true } = await chrome.storage.local.get(['masterEntries', 'showPhoneNumbers']);
+    
+    const searchInput = document.getElementById('newItemInput');
+    const term = searchInput.value.trim();
+    const lowerTerm = term.toLowerCase();
+
+    const advancedFilterRegex = /^\s*([><]=?|=)\s*(\d+)\s*$/;
+    const advancedMatch = term.match(advancedFilterRegex);
+
+    const filteredEntries = masterEntries.filter(entry => {
+        if (advancedMatch) {
+            const operator = advancedMatch[1];
+            const value = parseInt(advancedMatch[2], 10);
+            const daysout = entry.daysout;
+
+            if (daysout == null) return false;
+
+            switch (operator) {
+                case '>':  return daysout > value;
+                case '<':  return daysout < value;
+                case '>=': return daysout >= value;
+                case '<=': return daysout <= value;
+                case '=':  return daysout === value;
+                default:   return false;
+            }
+        }
+
+        if (term === '') return true;
+
+        const nameMatch = entry.name.toLowerCase().includes(lowerTerm);
+        let extraMatch = false;
+        
+        if (showPhoneNumbers) {
+            const numericTerm = term.replace(/[^0-9]/g, '');
+            if (entry.phone && numericTerm.length > 0) {
+                const numericPhone = entry.phone.replace(/[^0-9]/g, '');
+                extraMatch = numericPhone.includes(numericTerm);
+            }
+        } else {
+            if (entry.daysout != null && !isNaN(term) && term !== '') {
+                 extraMatch = String(entry.daysout) === term;
+            }
+        }
+        return nameMatch || extraMatch;
+    });
+
+    let finalEntries = [...filteredEntries];
+    if (activeSort.criterion === 'daysout') {
+        finalEntries.sort((a, b) => {
+            const valA = a.daysout || 0;
+            const valB = b.daysout || 0;
+            return activeSort.direction === 'desc' ? valB - valA : valA - valB;
+        });
+    } else if (activeSort.criterion === 'name') {
+        finalEntries.sort((a, b) => {
+            return activeSort.direction === 'asc' 
+                ? a.name.localeCompare(b.name) 
+                : b.name.localeCompare(a.name);
+        });
+    }
+
+    renderMasterList(finalEntries, showPhoneNumbers);
+
+    const badge = document.querySelector('.tab-button[data-tab="master"] .count');
+    if (badge) badge.textContent = finalEntries.length;
+}
+
 document.addEventListener('DOMContentLoaded', () => {
-  let isStarted; 
+  let isStarted;
   const manifest = chrome.runtime.getManifest();
   document.getElementById('version-display').textContent = `Version ${manifest.version}`;
   const keywordDisplay = document.getElementById('keyword');
   const loopCounterDisplay = document.getElementById('loop-counter');
+
+  const daysOutSortBtn = document.getElementById('daysOutSortBtn');
+  const nameSortBtn = document.getElementById('nameSortBtn');
 
   function applyDebugModeStyles(enabled) {
       document.body.classList.toggle('debug-mode', enabled);
@@ -157,47 +281,84 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
   }
-  updateKeywordDisplay();
+  
+  function updateSortButtons() {
+    daysOutSortBtn.classList.remove('active');
+    nameSortBtn.classList.remove('active');
+    daysOutSortBtn.textContent = 'Sort by Days Out';
+    nameSortBtn.textContent = 'Sort by Name';
 
-  // Initial call to set the counter state when the popup opens.
+    if (activeSort.criterion === 'daysout') {
+        daysOutSortBtn.classList.add('active');
+        daysOutSortBtn.textContent = activeSort.direction === 'desc' ? 'Days Out (High-Low)' : 'Days Out (Low-High)';
+    } else if (activeSort.criterion === 'name') {
+        nameSortBtn.classList.add('active');
+        nameSortBtn.textContent = activeSort.direction === 'asc' ? 'Name (A-Z)' : 'Name (Z-A)';
+    }
+  }
+
+  updateKeywordDisplay();
   updateLoopCounter();
 
-  // Initial load of the lists
   chrome.storage.local.get({ foundEntries: [] }, data => {
     const badge = document.querySelector('.tab-button[data-tab="found"] .count');
     if(badge) badge.textContent = data.foundEntries.length;
     renderFoundList(data.foundEntries);
   });
 
-  chrome.storage.local.get(['masterEntries', 'lastUpdated'], data => {
-    const badge = document.querySelector('.tab-button[data-tab="master"] .count');
-    if(badge) badge.textContent = data.masterEntries?.length || 0;
-    if (data.masterEntries?.length) { renderMasterList(data.masterEntries); }
-    else { document.getElementById('masterList').innerHTML = '<li>None yet</li>'; }
+  chrome.storage.local.get(['lastUpdated'], data => {
     const lastUpdatedSpan = document.getElementById('lastUpdatedTime');
     if (lastUpdatedSpan && data.lastUpdated) { lastUpdatedSpan.textContent = `Last updated: ${data.lastUpdated}`; }
   });
+  
+  displayMasterList();
+  
+  const searchMasterInput = document.getElementById('newItemInput');
+  if (searchMasterInput) {
+      searchMasterInput.addEventListener('input', displayMasterList);
+  }
+
+  if (daysOutSortBtn) {
+      daysOutSortBtn.addEventListener('click', () => {
+          if (activeSort.criterion !== 'daysout') {
+              activeSort.criterion = 'daysout';
+              activeSort.direction = 'desc';
+          } else {
+              activeSort.direction = activeSort.direction === 'desc' ? 'asc' : 'desc';
+          }
+          updateSortButtons();
+          displayMasterList();
+      });
+  }
+  if (nameSortBtn) {
+      nameSortBtn.addEventListener('click', () => {
+          if (activeSort.criterion !== 'name') {
+              activeSort.criterion = 'name';
+              activeSort.direction = 'asc';
+          } else {
+              activeSort.direction = activeSort.direction === 'asc' ? 'desc' : 'asc';
+          }
+          updateSortButtons();
+          displayMasterList();
+      });
+  }
 
   chrome.storage.onChanged.addListener((changes, namespace) => {
     if (changes.foundEntries) {
       const newEntries = changes.foundEntries.newValue || [];
-      console.log('Found list updated in real-time.', newEntries);
-      
-      // Re-render the list in the UI
       renderFoundList(newEntries);
-      
-      // Update the badge count on the "Found" tab
       const badge = document.querySelector('.tab-button[data-tab="found"] .count');
       if (badge) {
         badge.textContent = newEntries.length;
       }
     }
-    // Listen for changes to the loop status or extension state to update the counter.
     if (changes.loopStatus || changes.extensionState) {
         updateLoopCounter();
     }
+    if (changes.masterEntries) {
+        displayMasterList();
+    }
   });
-
 
   document.getElementById('clearBtn').addEventListener('click', () => {
     chrome.storage.local.set({ foundEntries: [] }, () => location.reload());
@@ -220,24 +381,41 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   const concurrentTabsInput = document.getElementById('concurrentTabsInput');
+  const looperDaysOutFilterInput = document.getElementById('looperDaysOutFilterInput');
   const embedToggle = document.getElementById('embedToggle');
+  const showPhoneToggle = document.getElementById('showPhoneToggle');
   const colorPicker = document.getElementById('colorPicker');
   const customKeywordInput = document.getElementById('customKeywordInput');
   const debugToggle = document.getElementById('debugToggle');
   const sharepointBtn = document.getElementById('sharepointBtn');
 
   if (concurrentTabsInput) {
-    chrome.storage.local.get({ concurrentTabs: 3 }, (data) => {
+    chrome.storage.local.get({ concurrentTabs: 3 }, data => {
         concurrentTabsInput.value = data.concurrentTabs;
     });
     concurrentTabsInput.addEventListener('change', (event) => {
         let value = parseInt(event.target.value, 10);
         if (isNaN(value) || value < 1) value = 1;
         if (value > 10) value = 10;
-        event.target.value = value; // Correct the input field if necessary
+        event.target.value = value;
         chrome.storage.local.set({ concurrentTabs: value });
     });
   }
+  
+  // --- UPDATED SETTING LOGIC ---
+  if (looperDaysOutFilterInput) {
+      chrome.storage.local.get({ looperDaysOutFilter: 'all' }, (data) => {
+          // If the stored value is 'all', show an empty input box.
+          looperDaysOutFilterInput.value = data.looperDaysOutFilter === 'all' ? '' : data.looperDaysOutFilter;
+      });
+      looperDaysOutFilterInput.addEventListener('change', (event) => {
+          // Save the exact value, which can be an empty string.
+          // The looper will interpret '' or 'all' as the default.
+          const value = event.target.value.trim();
+          chrome.storage.local.set({ looperDaysOutFilter: value });
+      });
+  }
+
   if (embedToggle) {
     chrome.storage.local.get({ embedInCanvas: true }, (data) => {
       embedToggle.checked = data.embedInCanvas;
@@ -246,6 +424,21 @@ document.addEventListener('DOMContentLoaded', () => {
       chrome.storage.local.set({ embedInCanvas: event.target.checked });
     });
   }
+  
+  if (showPhoneToggle) {
+    chrome.storage.local.get({ showPhoneNumbers: true }, (data) => {
+      showPhoneToggle.checked = data.showPhoneNumbers;
+      updateSearchPlaceholder(data.showPhoneNumbers);
+    });
+    showPhoneToggle.addEventListener('change', (event) => {
+      const isEnabled = event.target.checked;
+      updateSearchPlaceholder(isEnabled);
+      chrome.storage.local.set({ showPhoneNumbers: isEnabled }, () => {
+          displayMasterList();
+      });
+    });
+  }
+
   if (colorPicker) {
     chrome.storage.local.get({ highlightColor: '#ffff00' }, (data) => { colorPicker.value = data.highlightColor; });
     colorPicker.addEventListener('input', (event) => { chrome.storage.local.set({ highlightColor: event.target.value }); });
@@ -287,8 +480,7 @@ document.addEventListener('DOMContentLoaded', () => {
       startBtn.style.backgroundColor = 'var(--accent-color)';
       startBtnText.textContent = 'Start';
     }
-    // Also update the counter visibility when the button state changes.
-    updateLoopCounter(); 
+    updateLoopCounter();
   }
   if (startBtn && startBtnText) {
     chrome.storage.local.get({ extensionState: 'off' }, data => { updateButtonState(data.extensionState); });
