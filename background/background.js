@@ -1,6 +1,6 @@
 /*
-* Timestamp: 2025-09-15 08:56 AM
-* Version: 8.0
+* Timestamp: 2025-09-15 10:50 AM
+* Version: 9.0
 */
 import { startLoop, stopLoop, processNextInQueue, addToFoundUrlCache } from './looper.js';
 import { STORAGE_KEYS, CHECKER_MODES } from '../constants.js';
@@ -63,11 +63,12 @@ chrome.runtime.onMessage.addListener(async (msg, sender) => {
           addToLogBuffer('warn', summaryPayload);
           chrome.runtime.sendMessage({ type: 'logToPanel', level: 'warn', payload: summaryPayload });
       } else {
-          // --- THIS IS THE NEW LOGIC ---
           const summaryPayload = { type: 'MISSING_SUMMARY', message: "SUCCESS: No missing assignments found for any students in the list." };
           addToLogBuffer('log', summaryPayload);
           chrome.runtime.sendMessage({ type: 'logToPanel', level: 'log', payload: summaryPayload });
       }
+      // MODIFIED: Centralize state change here
+      chrome.storage.local.set({ [STORAGE_KEYS.EXTENSION_STATE]: 'off' });
   } else if (msg.type === 'requestingStoredLogs') {
       if (logBuffer.length > 0) {
           chrome.runtime.sendMessage({ type: 'storedLogs', payload: logBuffer });
@@ -166,4 +167,3 @@ updateBadge();
 chrome.storage.local.get(STORAGE_KEYS.EXTENSION_STATE, data => {
     handleStateChange(data[STORAGE_KEYS.EXTENSION_STATE]);
 });
-

@@ -1,6 +1,6 @@
 /*
-* Timestamp: 2025-09-15 08:53 AM
-* Version: 8.0
+* Timestamp: 2025-09-15 10:50 AM
+* Version: 9.0
 */
 import { STORAGE_KEYS, CHECKER_MODES, ADVANCED_FILTER_REGEX, DEFAULT_SETTINGS } from '../constants.js';
 
@@ -104,7 +104,9 @@ export function stopLoop() {
     chrome.tabs.remove(tabId).catch(e => {});
   }
   activeTabs.clear();
-  chrome.storage.local.set({ [STORAGE_KEYS.EXTENSION_STATE]: 'off' });
+  // MODIFIED: State change is now handled by the background script's listeners
+  // to ensure consistency.
+  // chrome.storage.local.set({ [STORAGE_KEYS.EXTENSION_STATE]: 'off' });
 }
 
 export function processNextInQueue(finishedTabId = null) {
@@ -114,12 +116,11 @@ export function processNextInQueue(finishedTabId = null) {
     activeTabs.delete(finishedTabId);
   }
 
-  // --- MODIFIED: Loop completion logic ---
   if (currentLoopIndex >= masterListCache.length && activeTabs.size === 0) {
     if (currentCheckerMode === CHECKER_MODES.MISSING) {
         console.log('Completed single run for Missing Assignments check.');
         chrome.runtime.sendMessage({ action: 'missingCheckCompleted' });
-        stopLoop(); // Stop after one full pass
+        stopLoop()
         return;
     } else { // SUBMISSION mode
         console.log('Looped through entire list. Starting over.');
@@ -134,7 +135,6 @@ export function processNextInQueue(finishedTabId = null) {
     
     chrome.storage.local.set({ [STORAGE_KEYS.LOOP_STATUS]: { current: currentLoopIndex, total: masterListCache.length } });
     
-    // Only skip already-found entries when in submission mode
     if (currentCheckerMode === CHECKER_MODES.SUBMISSION && foundUrlCache.has(entry.url)) {
       console.log(`Skipping already found URL: ${entry.url}`);
       setTimeout(() => processNextInQueue(), 0);

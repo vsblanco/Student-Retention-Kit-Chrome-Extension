@@ -1,6 +1,6 @@
 /*
-* Timestamp: 2025-09-15 09:32 AM
-* Version: 8.3
+* Timestamp: 2025-09-15 10:57 AM
+* Version: 9.0
 */
 import { STORAGE_KEYS, DEFAULT_SETTINGS, ADVANCED_FILTER_REGEX, SHAREPOINT_URL, CHECKER_MODES } from '../constants.js';
 
@@ -189,10 +189,10 @@ function renderConnectionsList(connections = []) {
 
 
 // --- DATA & STATE MANAGEMENT ---
-// ... (data management functions are unchanged) ...
 let activeSort = { criterion: 'none', direction: 'none' };
 let connectionToDelete = null;
 let connectionToExport = null;
+let currentSessionId = null;
 
 async function displayMasterList() {
     const { [STORAGE_KEYS.MASTER_ENTRIES]: masterEntries = [] } = await chrome.storage.local.get(STORAGE_KEYS.MASTER_ENTRIES);
@@ -317,7 +317,6 @@ async function updateMasterFromClipboard() {
 }
 
 // --- UI HELPER FUNCTIONS ---
-// ... (ui helpers are unchanged) ...
 function getDaysOutStyle(daysout) {
     if (daysout == null) return {};
     if (daysout >= 10) return { backgroundColor: 'hsl(0, 85%, 55%)', color: 'white', fontWeight: 'bold' };
@@ -368,7 +367,6 @@ function updateExportView() {
 }
 
 // --- MODAL FUNCTIONS ---
-// ... (modal functions are unchanged) ...
 function openModal(modalId) {
     const modal = document.getElementById(modalId);
     if (modal) modal.style.display = 'flex';
@@ -420,7 +418,6 @@ function openEditConnectionModal(connection, index) {
 }
 
 // --- Clipboard Auto-Detect ---
-// ... (clipboard functions are unchanged) ...
 async function checkClipboardForConnection() {
     try {
         const text = await navigator.clipboard.readText();
@@ -518,7 +515,6 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function makeDraggable(element, handle) {
-      // ... (draggable logic is unchanged) ...
       let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
 
       handle.onmousedown = dragMouseDown;
@@ -548,37 +544,59 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function overrideConsole(logArea) {
-      // ... (console override logic is unchanged) ...
       const originalLog = console.log;
       const originalWarn = console.warn;
       const originalError = console.error;
 
       const createLogEntry = (args, type) => {
+          const firstArg = args[0];
+          const secondArg = args[1];
+
+          // Handle session start logs
+          if (typeof firstArg === 'object' && firstArg !== null && firstArg.type === 'sessionStart') {
+              const { sessionId, title } = firstArg;
+              const entry = document.createElement('div');
+              entry.className = `log-entry ${type}`;
+              entry.innerHTML = `
+                  <details class="log-details" id="${sessionId}" open>
+                      <summary class="log-summary">${title} (<span>...</span>)</summary>
+                      <div class="session-body"></div>
+                  </details>
+              `;
+              logArea.appendChild(entry);
+              return;
+          }
+
+          // Handle regular collapsible payload logs
           const entry = document.createElement('div');
           entry.className = `log-entry ${type}`;
-          
-          const message = Array.from(args).map(arg => {
-              if (typeof arg === 'object' && arg !== null) {
-                  try {
-                      // Special formatting for known log types
-                      if (arg.name && arg.time) { // Submission Found
-                          return `Student: ${arg.name}, Time: ${arg.time}`;
+          if (typeof firstArg === 'string' && firstArg.toLowerCase().includes("payload") && typeof secondArg === 'object' && secondArg !== null) {
+              entry.innerHTML = `
+                  <details class="log-details">
+                      <summary class="log-summary">${firstArg}</summary>
+                      <pre>${JSON.stringify(secondArg, null, 2)}</pre>
+                  </details>
+              `;
+          } else {
+              const message = Array.from(args).map(arg => {
+                  if (typeof arg === 'object' && arg !== null) {
+                      try {
+                          if (arg.studentName && arg.count) {
+                              const assignments = arg.assignments.map(a => `  - ${a.title} (Due: ${a.dueDate})`).join('\n');
+                              return `Student: ${arg.studentName}\n${assignments}`;
+                          }
+                          return JSON.stringify(arg, null, 2);
+                      } catch (e) {
+                          return '[Unserializable Object]';
                       }
-                      if (arg.studentName && arg.count) { // Missing Found
-                          const assignments = arg.assignments.map(a => `  - ${a.title} (Due: ${a.dueDate})`).join('\n');
-                          return `Student: ${arg.studentName}\n${assignments}`;
-                      }
-                      return JSON.stringify(arg, null, 2);
-                  } catch (e) {
-                      return '[Unserializable Object]';
                   }
-              }
-              return String(arg);
-          }).join(' ');
+                  return String(arg);
+              }).join(' ');
+              entry.textContent = message;
+          }
 
-          entry.textContent = message;
           logArea.appendChild(entry);
-          logArea.scrollTop = logArea.scrollHeight; // Auto-scroll
+          logArea.scrollTop = logArea.scrollHeight;
       };
 
       console.log = function(...args) {
@@ -595,20 +613,31 @@ document.addEventListener('DOMContentLoaded', () => {
       };
   }
 
-  // --- *** NEW: Message Listener for Logs *** ---
   chrome.runtime.onMessage.addListener((msg) => {
     if (msg.type === 'logToPanel') {
-      if (msg.level === 'warn') {
-        console.warn(msg.payload);
-      } else {
-        console.log(msg.payload);
-      }
+        const { level, payload } = msg;
+
+        if (payload.type === 'SUBMISSION' && currentSessionId) {
+            const sessionLog = document.getElementById(currentSessionId);
+            if (sessionLog) {
+                const sessionBody = sessionLog.querySelector('.session-body');
+                const studentEntry = document.createElement('div');
+                studentEntry.className = 'log-entry log';
+                studentEntry.textContent = `Found: ${payload.name} at ${payload.time}`;
+                sessionBody.appendChild(studentEntry);
+            }
+        } else {
+            if (level === 'warn') {
+                console.warn(payload);
+            } else {
+                console.log(payload);
+            }
+        }
     }
   });
 
   const manifest = chrome.runtime.getManifest();
   document.getElementById('version-display').textContent = `Version ${manifest.version}`;
-  // ... (the rest of the DOMContentLoaded is unchanged) ...
   const keywordDisplay = document.getElementById('keyword');
   const loopCounterDisplay = document.getElementById('loop-counter');
   let contextMenuEntry = null;
@@ -617,10 +646,19 @@ document.addEventListener('DOMContentLoaded', () => {
     chrome.storage.local.get([STORAGE_KEYS.LOOP_STATUS, STORAGE_KEYS.EXTENSION_STATE], (data) => {
         const loopStatus = data[STORAGE_KEYS.LOOP_STATUS];
         const extensionState = data[STORAGE_KEYS.EXTENSION_STATE];
+        const counterText = (loopStatus && loopStatus.total > 0) ? `${loopStatus.current} / ${loopStatus.total}` : '';
 
-        if (extensionState === 'on' && loopStatus && loopStatus.total > 0) {
-            loopCounterDisplay.textContent = `${loopStatus.current} / ${loopStatus.total}`;
+        if (extensionState === 'on' && counterText) {
+            loopCounterDisplay.textContent = counterText;
             loopCounterDisplay.style.display = 'block';
+
+            if (currentSessionId) {
+                const sessionLog = document.getElementById(currentSessionId);
+                if (sessionLog) {
+                    const counterSpan = sessionLog.querySelector('.log-summary span');
+                    if(counterSpan) counterSpan.textContent = counterText;
+                }
+            }
         } else {
             loopCounterDisplay.style.display = 'none';
         }
@@ -684,8 +722,12 @@ document.addEventListener('DOMContentLoaded', () => {
       const badge = document.querySelector('.tab-button[data-tab="found"] .count');
       if (badge) badge.textContent = newEntries.length;
     }
-    if (changes[STORAGE_KEYS.LOOP_STATUS] || changes[STORAGE_KEYS.EXTENSION_STATE]) {
+    if (changes[STORAGE_KEYS.LOOP_STATUS]) {
       updateLoopCounter();
+    }
+    // MODIFIED: Handle EXTENSION_STATE changes to update the UI
+    if (changes[STORAGE_KEYS.EXTENSION_STATE]) {
+      updateButtonState(changes[STORAGE_KEYS.EXTENSION_STATE].newValue);
     }
     if (changes[STORAGE_KEYS.MASTER_ENTRIES]) {
       displayMasterList();
@@ -759,14 +801,29 @@ document.addEventListener('DOMContentLoaded', () => {
     isStarted = (state === 'on');
     startBtn.classList.toggle('active', isStarted);
     startBtnText.textContent = isStarted ? 'Stop' : 'Start';
+    if (!isStarted) {
+        currentSessionId = null; 
+    }
     updateLoopCounter();
   }
   chrome.storage.local.get({ [STORAGE_KEYS.EXTENSION_STATE]: 'off' }, data => updateButtonState(data[STORAGE_KEYS.EXTENSION_STATE]));
   startBtn.addEventListener('click', (event) => {
     createRipple(event);
     const newState = !isStarted ? 'on' : 'off';
+    
+    if (newState === 'on') {
+        currentSessionId = `run_${Date.now()}`;
+        chrome.storage.local.get({ [STORAGE_KEYS.CHECKER_MODE]: CHECKER_MODES.SUBMISSION }, (settings) => {
+            const mode = settings[STORAGE_KEYS.CHECKER_MODE];
+            const modeText = mode === CHECKER_MODES.MISSING ? 'Missing Assignments' : 'Submission Check';
+            console.log({ type: 'sessionStart', sessionId: currentSessionId, title: `Checker started in ${modeText} mode` });
+        });
+    } else {
+        console.log("Checker stopped.");
+    }
+
     chrome.storage.local.set({ [STORAGE_KEYS.EXTENSION_STATE]: newState });
-    updateButtonState(newState);
+    // The button state will now be updated by the storage listener, ensuring consistency.
   });
 
   // --- Modals Logic ---
@@ -900,7 +957,11 @@ document.addEventListener('DOMContentLoaded', () => {
                         try {
                             const stringToSign = `${socketId}:${connection.channel}`;
                             const cryptoKey = await crypto.subtle.importKey(
-                                "raw", str2ab(connection.secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]
+                                "raw",
+                                str2ab(connection.secret),
+                                { name: "HMAC", hash: "SHA-256" },
+                                false,
+                                ["sign"]
                             );
                             const signature = await crypto.subtle.sign("HMAC", cryptoKey, str2ab(stringToSign));
                             const signatureHex = Array.from(new Uint8Array(signature)).map(b => b.toString(16).padStart(2, '0')).join('');

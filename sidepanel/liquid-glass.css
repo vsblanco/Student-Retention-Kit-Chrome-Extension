@@ -1,6 +1,6 @@
 /*
-* Timestamp: 2025-09-15 09:38 AM
-* Version: 8.4
+* Timestamp: 2025-09-15 10:16 AM
+* Version: 8.9
 */
 /* --- Liquid Glass Theme (Light) --- */
 
@@ -1140,7 +1140,7 @@ input:checked + .slider:before { transform: translateX(20px); }
 }
 
 #debug-console-log-area .log-entry {
-    padding: 3px 5px;
+    padding: 1px 5px;
     border-bottom: 1px solid #1f2937;
     line-height: 1.4;
 }
@@ -1180,5 +1180,54 @@ input:checked + .slider:before { transform: translateX(20px); }
     align-items: center;
     justify-content: center;
     opacity: 0.6;
+}
+
+/* --- MODIFIED: Collapsible Log Styles --- */
+#debug-console-log-area .log-details {
+    margin: 0;
+    padding: 0;
+}
+
+#debug-console-log-area .log-summary {
+    cursor: pointer;
+    outline: none;
+    list-style: none; /* For Firefox */
+    display: block;
+    padding: 0;
+}
+
+#debug-console-log-area .log-summary::-webkit-details-marker {
+    display: none; /* For Chrome/Safari */
+}
+
+#debug-console-log-area .log-summary::before {
+    content: '▸';
+    margin-right: 5px;
+    font-size: 0.9em;
+    display: inline-block;
+    transition: transform 0.15s ease-in-out;
+}
+
+#debug-console-log-area .log-details[open] > .log-summary::before {
+    transform: rotate(90deg);
+}
+
+#debug-console-log-area .log-details pre {
+    background-color: rgba(0, 0, 0, 0.25);
+    color: #c7d2fe;
+    border-radius: 4px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 8px;
+    margin-top: 5px;
+    margin-left: 15px;
+    font-size: 0.95em;
+    white-space: pre-wrap;
+    word-break: break-all;
+}
+
+#debug-console-log-area .session-body .log-entry {
+    border-bottom: none;
+    padding-left: 15px;
+    color: #a5b4fc;
 }
 
