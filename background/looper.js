@@ -120,7 +120,7 @@ export function processNextInQueue(finishedTabId = null) {
     if (currentCheckerMode === CHECKER_MODES.MISSING) {
         console.log('Completed single run for Missing Assignments check.');
         chrome.runtime.sendMessage({ action: 'missingCheckCompleted' });
-        stopLoop()
+        chrome.storage.local.set({ [STORAGE_KEYS.EXTENSION_STATE]: "off" });
         return;
     } else { // SUBMISSION mode
         console.log('Looped through entire list. Starting over.');
