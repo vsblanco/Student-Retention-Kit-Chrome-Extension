@@ -1,6 +1,6 @@
 /*
-* Timestamp: 2025-09-15 08:41 AM
-* Version: 8.0
+* Timestamp: 2025-09-15 09:32 AM
+* Version: 8.3
 */
 import { STORAGE_KEYS, DEFAULT_SETTINGS, ADVANCED_FILTER_REGEX, SHAREPOINT_URL, CHECKER_MODES } from '../constants.js';
 
@@ -489,7 +489,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // --- FLOATING DEBUG CONSOLE LOGIC ---
   function setupDebugConsole() {
-      // ... (console setup is unchanged) ...
       const consoleEl = document.getElementById('debug-console');
       const consoleContent = document.getElementById('debug-console-content');
       const consoleHeader = document.getElementById('debug-console-header');
@@ -499,13 +498,13 @@ document.addEventListener('DOMContentLoaded', () => {
       const clearBtn = document.getElementById('clearConsoleBtn');
 
       toggleBtn.addEventListener('click', () => {
-          const isHidden = consoleEl.style.display === 'none';
-          consoleEl.style.display = isHidden ? 'block' : 'none';
+          const isHidden = !consoleEl.classList.contains('visible');
+          consoleEl.classList.toggle('visible', isHidden);
           toggleBtn.textContent = isHidden ? 'Hide Console' : 'Show Console';
       });
 
       closeBtn.addEventListener('click', () => {
-          consoleEl.style.display = 'none';
+          consoleEl.classList.remove('visible');
           toggleBtn.textContent = 'Show Console';
       });
 
@@ -1031,6 +1030,13 @@ document.addEventListener('DOMContentLoaded', () => {
     debugToggle.checked = settings[STORAGE_KEYS.DEBUG_MODE];
     document.body.classList.toggle('debug-mode', settings[STORAGE_KEYS.DEBUG_MODE]);
 
+    if (settings[STORAGE_KEYS.DEBUG_MODE]) {
+        const consoleEl = document.getElementById('debug-console');
+        const toggleBtn = document.getElementById('toggleConsoleBtn');
+        consoleEl.classList.add('visible');
+        toggleBtn.textContent = 'Hide Console';
+    }
+    
     const checkerModeToggle = document.getElementById('checkerModeToggle');
     const currentMode = settings[STORAGE_KEYS.CHECKER_MODE];
     checkerModeToggle.checked = (currentMode === CHECKER_MODES.MISSING);
@@ -1061,6 +1067,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const isEnabled = event.target.checked;
     chrome.storage.local.set({ [STORAGE_KEYS.DEBUG_MODE]: isEnabled });
     document.body.classList.toggle('debug-mode', isEnabled);
+    
+    const consoleEl = document.getElementById('debug-console');
+    const toggleBtn = document.getElementById('toggleConsoleBtn');
+    if (isEnabled) {
+        consoleEl.classList.add('visible');
+        toggleBtn.textContent = 'Hide Console';
+    } else {
+        consoleEl.classList.remove('visible');
+        toggleBtn.textContent = 'Show Console';
+    }
   });
   
   document.getElementById('checkerModeToggle').addEventListener('change', (event) => {
