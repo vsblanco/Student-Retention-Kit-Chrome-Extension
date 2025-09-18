@@ -1,6 +1,6 @@
 <!--
-* Timestamp: 2025-09-17 10:15 AM
-* Version: 12.9
+* Timestamp: 2025-09-18 16:42 PM
+* Version: 13.0
 -->
 <!DOCTYPE html>
 <html lang="en">
@@ -83,7 +83,17 @@
         </div>
         <div class="report-actions">
             <button id="toggleReportViewBtnSidePanel" class="btn-secondary">View JSON</button>
-            <button id="downloadReportCsvBtnSidePanel" class="btn-primary">Download CSV</button>
+            <div class="download-actions-wrapper">
+                <button id="downloadReportJsonBtnSidePanel" class="btn-primary">Download JSON</button>
+                <button id="downloadOptionsToggleSidePanel" class="btn-primary dropdown-toggle">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                        <path fill-rule="evenodd" d="M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z"/>
+                    </svg>
+                </button>
+                <div id="downloadOptionsSidePanel" class="download-options">
+                    <button id="downloadReportCsvBtnSidePanel">Download CSV</button>
+                </div>
+            </div>
         </div>
     </div>
     
@@ -402,7 +412,17 @@
 
           <div class="modal-actions">
               <button id="toggleReportViewBtn" class="btn-secondary">View JSON</button>
-              <button id="downloadReportCsvBtn" class="btn-primary">Download CSV</button>
+              <div class="download-actions-wrapper">
+                  <button id="downloadReportJsonBtn" class="btn-primary">Download JSON</button>
+                  <button id="downloadOptionsToggle" class="btn-primary dropdown-toggle">
+                       <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                          <path fill-rule="evenodd" d="M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z"/>
+                      </svg>
+                  </button>
+                  <div id="downloadOptions" class="download-options">
+                      <button id="downloadReportCsvBtn">Download CSV</button>
+                  </div>
+              </div>
           </div>
       </div>
   </div>
@@ -434,4 +454,3 @@
   <script src="popupSearch.js" type="module"></script>
 </body>
 </html>
-

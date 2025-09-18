@@ -1,5 +1,5 @@
-// [2025-09-16 17:40 PM]
-// Version: 10.8
+// [2025-09-18 15:34 PM]
+// Version: 10.9
 // Note: This content script cannot use ES6 modules, so constants are redefined here.
 
 const CHECKER_MODES = {
@@ -242,6 +242,13 @@ const STORAGE_KEYS = {
     const collectedAssignments = [];
     const now = new Date();
     
+    // *** MODIFICATION START ***
+    // Get the clean gradebook URL to include in the report
+    const urlObject = new URL(window.location.href);
+    urlObject.searchParams.delete('looper');
+    const cleanUrl = urlObject.href;
+    // *** MODIFICATION END ***
+    
     const monthMap = { Jan: 0, Feb: 1, Mar: 2, Apr: 3, May: 4, Jun: 5, Jul: 6, Aug: 7, Sep: 8, Oct: 9, Nov: 10, Dec: 11 };
 
     assignmentRows.forEach(row => {
@@ -287,6 +294,7 @@ const STORAGE_KEYS = {
         const currentGrade = await getCurrentGrade();
         const payload = {
             studentName: studentName,
+            gradeBook: cleanUrl, // ADDED: gradebook URL
             currentGrade: currentGrade,
             count: collectedAssignments.length,
             assignments: collectedAssignments
@@ -297,6 +305,7 @@ const STORAGE_KEYS = {
         const currentGrade = await getCurrentGrade();
         const payload = {
             studentName: studentName,
+            gradeBook: cleanUrl, // ADDED: gradebook URL
             currentGrade: currentGrade,
             count: collectedAssignments.length,
             assignments: collectedAssignments

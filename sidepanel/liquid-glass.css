@@ -1,6 +1,6 @@
 /*
-* Timestamp: 2025-09-17 10:00 AM
-* Version: 12.6
+* Timestamp: 2025-09-18 17:01 PM
+* Version: 12.9
 *//* --- Liquid Glass Theme (Light) --- */
 
 html {
@@ -301,7 +301,6 @@ h3 {
     flex: 1 1 0;
     text-align: center;
     white-space: nowrap;
-    margin-top: 12px;
     padding: 10px 8px;
     font-size: 0.9em;
     font-weight: 500;
@@ -331,17 +330,15 @@ h3 {
     display: flex;
     gap: 10px;
     flex-shrink: 0;
+    margin-top: 12px;
 }
 
-.report-actions button.btn-primary {
-    background-color: #005A9C;
-    color: white;
-    border: 1px solid transparent;
-}
-.report-actions button.btn-primary:hover:not(:disabled) {
-    background-color: #004a7c;
+/* Specific hover for the 'View JSON' button */
+.report-actions > button.btn-secondary:hover:not(:disabled) {
+    background-color: #d1d5db;
     transform: translateY(-1px);
 }
+
 .report-actions button.btn-secondary {
     background-color: #e5e7eb;
     color: #374151;
@@ -1652,4 +1649,130 @@ input:checked + .slider:before { transform: translateX(20px); }
 .readme-content pre code {
     background: none;
     padding: 0;
+}
+
+/* --- Download Button Dropdown Styles --- */
+.report-actions, .modal-actions {
+    position: relative; /* For dropdown positioning */
+    align-items: flex-start;
+}
+
+.download-actions-wrapper {
+    position: relative;
+    display: flex;
+    flex: 1 1 0; /* For sidepanel button */
+    transition: transform 0.2s;
+}
+
+.download-actions-wrapper:hover {
+    transform: translateY(-1px);
+}
+
+.download-actions-wrapper > button {
+    margin-top: 0;
+}
+
+.download-actions-wrapper > button:first-child {
+    flex: 1 1 auto;
+}
+
+.download-actions-wrapper > .dropdown-toggle {
+    flex: 0 0 auto;
+}
+
+.modal-actions .download-actions-wrapper {
+    flex: 0 0 auto;
+}
+
+.download-actions-wrapper .btn-primary {
+    background-color: #005A9C;
+    color: white;
+    border: none;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.download-actions-wrapper:hover > .btn-primary:not(:disabled) {
+    background-color: #004a7c;
+}
+
+.download-actions-wrapper .btn-primary:hover:not(:disabled) {
+    background-color: #004a7c;
+}
+
+.download-actions-wrapper .btn-primary:disabled {
+    cursor: not-allowed !important;
+    background-color: #f3f4f6 !important;
+    color: #9ca3af !important;
+    transform: none;
+    opacity: 0.7;
+}
+
+.download-actions-wrapper button:first-of-type:not(:last-child) {
+    border-radius: 0.75rem 0 0 0.75rem;
+    padding-right: 12px;
+}
+
+.download-actions-wrapper .dropdown-toggle {
+    border-radius: 0 0.75rem 0.75rem 0;
+    border-left: 1px solid rgba(255, 255, 255, 0.2);
+    padding-left: 8px;
+    padding-right: 8px;
+}
+
+.download-actions-wrapper .dropdown-toggle svg {
+    display: block;
+    width: 16px;
+    height: 16px;
+}
+
+.download-options {
+    display: none;
+    position: absolute;
+    bottom: calc(100% + 5px);
+    right: 0;
+    background-color: white;
+    border-radius: 0.5rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    z-index: 100;
+    overflow: hidden;
+    min-width: 100%;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.download-options.active {
+    display: block;
+}
+
+.download-options button {
+    display: block;
+    width: 100%;
+    padding: 10px 15px;
+    background: none;
+    border: none;
+    text-align: left;
+    cursor: pointer;
+    font-size: 0.9em;
+    color: #333;
+    white-space: nowrap;
+}
+
+.download-options button:hover {
+    background-color: rgba(0, 90, 156, 0.1);
+    color: #005A9C;
+}
+
+.modal-actions .download-actions-wrapper button {
+    padding: 10px 20px;
+    font-size: 0.95em;
+    font-weight: 500;
+}
+
+.modal-actions .download-actions-wrapper button:first-of-type:not(:last-child) {
+    padding-right: 16px;
+}
+
+.modal-actions .download-actions-wrapper .dropdown-toggle {
+    padding-left: 10px;
+    padding-right: 10px;
 }

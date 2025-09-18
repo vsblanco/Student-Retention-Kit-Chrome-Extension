@@ -1,5 +1,5 @@
-// [2025-09-17 09:31 AM]
-// Version: 12.6
+// [2025-09-18 16:42 PM]
+// Version: 12.8
 import { STORAGE_KEYS, DEFAULT_SETTINGS, ADVANCED_FILTER_REGEX, SHAREPOINT_URL, CHECKER_MODES, EXTENSION_STATES, MESSAGE_TYPES, CONNECTION_TYPES } from '../constants.js';
 
 let lastActiveTab = 'found'; // Variable to store the last active tab before 'about'
@@ -188,13 +188,16 @@ function renderConnectionsList(connections = []) {
 
 function renderReportContent(reportData, container) {
     container.innerHTML = '';
+    
+    // The student data is now nested inside the CUSTOM_IMPORT object.
+    const studentDetails = reportData?.CUSTOM_IMPORT?.data;
 
-    if (!reportData || !reportData.details || reportData.details.length === 0) {
+    if (!studentDetails || studentDetails.length === 0) {
         container.innerHTML = '<p class="placeholder-text">No missing assignments found in the latest report, or a report has not been generated yet.</p>';
         return;
     }
 
-    reportData.details.forEach(student => {
+    studentDetails.forEach(student => {
         const details = document.createElement('details');
         details.className = 'report-student-details';
 
@@ -206,12 +209,13 @@ function renderReportContent(reportData, container) {
         const assignmentsList = document.createElement('ul');
         assignmentsList.className = 'report-assignments-list';
         
+        // Loop through the nested assignments array for each student
         student.assignments.forEach(assignment => {
             const li = document.createElement('li');
             
             const title = document.createElement('a');
             title.className = 'assignment-title';
-            title.textContent = assignment.title;
+            title.textContent = assignment.assignmentTitle; // Use new key
             title.href = '#'; // Prevent page jump
             title.addEventListener('click', (e) => {
                 e.preventDefault();
@@ -223,19 +227,6 @@ function renderReportContent(reportData, container) {
 
             const meta = document.createElement('div');
             meta.className = 'assignment-meta';
-
-            if (reportData.isFullReport) {
-                const statusTag = document.createElement('span');
-                statusTag.className = 'assignment-status-tag';
-                if (assignment.isSubmitted === false) {
-                    statusTag.textContent = 'Missing';
-                    statusTag.classList.add('missing');
-                } else {
-                    statusTag.textContent = 'Submitted';
-                    statusTag.classList.add('submitted');
-                }
-                meta.appendChild(statusTag);
-            }
             
             const dueDate = document.createElement('span');
             dueDate.textContent = `Due: ${assignment.dueDate}`;
@@ -264,7 +255,7 @@ function renderFormattedReport(reportData) {
 function renderReportInTab(reportData) {
     const container = document.getElementById('report-formatted-view-sidepanel');
     const toggleBtn = document.getElementById('toggleReportViewBtnSidePanel');
-    const downloadBtn = document.getElementById('downloadReportCsvBtnSidePanel');
+    const downloadBtnJson = document.getElementById('downloadReportJsonBtnSidePanel');
     const jsonView = document.getElementById('report-json-view-sidepanel');
     const formattedView = document.getElementById('report-formatted-view-sidepanel');
     const timestampEl = document.getElementById('reportGeneratedTime');
@@ -272,10 +263,11 @@ function renderReportInTab(reportData) {
 
     latestReportData = reportData; // Store for CSV download and JSON view
 
-    const hasReport = reportData && reportData.details && reportData.details.length > 0;
+    const hasReport = reportData && reportData.CUSTOM_IMPORT && reportData.CUSTOM_IMPORT.data && reportData.CUSTOM_IMPORT.data.length > 0;
 
     if (toggleBtn) toggleBtn.disabled = !hasReport;
-    if (downloadBtn) downloadBtn.disabled = !hasReport;
+    if (downloadBtnJson) downloadBtnJson.disabled = !hasReport;
+
 
     if (reportData && reportData.reportGenerated) {
         const date = new Date(reportData.reportGenerated);
@@ -621,7 +613,7 @@ function openEditConnectionModal(connection, index) {
   }
 }
 
-// --- CSV Generation ---
+// --- DOWNLOAD FUNCTIONS ---
 function escapeCsvCell(cell) {
     let cellString = String(cell == null ? '' : cell);
     if (cellString.includes(',') || cellString.includes('"') || cellString.includes('\n')) {
@@ -631,39 +623,50 @@ function escapeCsvCell(cell) {
 }
 
 function generateCsvContent(reportData) {
-    if (!reportData || !reportData.details || reportData.details.length === 0) {
+    const students = reportData?.CUSTOM_IMPORT?.data;
+    if (!students || students.length === 0) {
         return '';
     }
 
-    const headers = reportData.isFullReport
-        ? ["Student Name", "Current Grade", "Assignment Title", "Due Date", "Score", "Link", "Status"]
-        : ["Student Name", "Current Grade", "Assignment Title", "Due Date", "Score", "Link"];
+    const headers = [
+        "Student Name", "Current Grade", "Total Missing", 
+        "Grade Book", "Assignment Title", "Due Date", "Score", "Link"
+    ];
         
     const rows = [headers];
 
-    reportData.details.forEach(student => {
-        student.assignments.forEach(assignment => {
+    students.forEach(student => {
+        if (student.assignments && student.assignments.length > 0) {
+            student.assignments.forEach(assignment => {
+                const row = [
+                    student.studentName,
+                    student.studentGrade,
+                    student.totalMissing,
+                    student.gradeBook,
+                    assignment.assignmentTitle,
+                    assignment.dueDate,
+                    assignment.score,
+                    assignment.link
+                ];
+                rows.push(row);
+            });
+        } else {
             const row = [
                 student.studentName,
-                student.currentGrade,
-                assignment.title,
-                assignment.dueDate,
-                assignment.score,
-                assignment.link
+                student.studentGrade,
+                student.totalMissing,
+                student.gradeBook,
+                "N/A", "N/A", "N/A", "N/A"
             ];
-            if (reportData.isFullReport) {
-                const status = assignment.isSubmitted === false ? 'Missing' : (assignment.isSubmitted === true ? 'Submitted' : '');
-                row.push(status);
-            }
             rows.push(row);
-        });
+        }
     });
     
     return rows.map(row => row.map(escapeCsvCell).join(',')).join('\n');
 }
 
-function downloadCsv(csvContent, filename) {
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+function downloadFile(content, filename, contentType) {
+    const blob = new Blob([content], { type: contentType });
     const link = document.createElement("a");
     const url = URL.createObjectURL(blob);
     link.setAttribute("href", url);
@@ -673,6 +676,26 @@ function downloadCsv(csvContent, filename) {
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
+}
+
+function downloadCsv(reportData) {
+    const csvContent = generateCsvContent(reportData);
+    if (!csvContent) {
+        alert("There is no data to export.");
+        return;
+    }
+    const today = new Date();
+    const dateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    const filename = `Missing_Assignments_Report_${dateStr}.csv`;
+    downloadFile(csvContent, filename, 'text/csv;charset=utf-8;');
+}
+
+function downloadJson(reportData) {
+    const jsonString = JSON.stringify(reportData, null, 2);
+    const today = new Date();
+    const dateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    const filename = `Missing_Assignments_Report_${dateStr}.json`;
+    downloadFile(jsonString, filename, 'application/json;charset=utf-8;');
 }
 
 
@@ -888,18 +911,14 @@ document.addEventListener('DOMContentLoaded', () => {
         const formattedView = document.getElementById('report-formatted-view');
         const jsonView = document.getElementById('report-json-view');
         const toggleBtn = document.getElementById('toggleReportViewBtn');
-
-        if (finalReportData && finalReportData.details && finalReportData.details.length > 0) {
-            if (finalReportData.isFullReport) {
-                summaryEl.textContent = `Full report for ${finalReportData.totalStudentsInReport} student(s). ${finalReportData.totalStudentsWithMissing} have missing assignments.`;
-            } else {
-                summaryEl.textContent = `Scan complete. Found missing assignments for ${finalReportData.totalStudentsWithMissing} student(s).`;
-            }
+        
+        const reportDataForSummary = finalReportData?.CUSTOM_IMPORT?.data || [];
+        if (reportDataForSummary.length > 0) {
+            summaryEl.textContent = `Scan complete. Found missing assignments for ${finalReportData.totalStudentsWithMissing} student(s).`;
         } else {
             summaryEl.textContent = "Scan complete. No missing assignments were found for any students in the list.";
         }
         
-        // Render the new formatted view and show it by default
         renderFormattedReport(finalReportData);
         formattedView.style.display = 'block';
         jsonView.style.display = 'none';
@@ -1199,31 +1218,37 @@ document.addEventListener('DOMContentLoaded', () => {
       }
   });
 
+  document.getElementById('downloadReportJsonBtn').addEventListener('click', () => {
+      if (!finalReportData) return;
+      downloadJson(finalReportData);
+  });
+
+  document.getElementById('downloadOptionsToggle').addEventListener('click', (e) => {
+      e.stopPropagation();
+      document.getElementById('downloadOptions').classList.toggle('active');
+  });
+
   document.getElementById('downloadReportCsvBtn').addEventListener('click', () => {
-      if (!finalReportData) {
-          console.error("No report data available to download.");
-          return;
-      }
-      const csvContent = generateCsvContent(finalReportData);
-      if (!csvContent) {
-          alert("There is no data to export.");
-          return;
-      }
-      const today = new Date();
-      const dateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-      const filename = `Missing_Assignments_Report_${dateStr}.csv`;
-      downloadCsv(csvContent, filename);
+      if (!finalReportData) return;
+      downloadCsv(finalReportData);
+      document.getElementById('downloadOptions').classList.remove('active');
   });
   
   // --- Report Tab Logic ---
+  document.getElementById('downloadReportJsonBtnSidePanel').addEventListener('click', () => {
+      if (!latestReportData) return;
+      downloadJson(latestReportData);
+  });
+
+  document.getElementById('downloadOptionsToggleSidePanel').addEventListener('click', (e) => {
+      e.stopPropagation();
+      document.getElementById('downloadOptionsSidePanel').classList.toggle('active');
+  });
+  
   document.getElementById('downloadReportCsvBtnSidePanel').addEventListener('click', () => {
       if (!latestReportData) return;
-      const csvContent = generateCsvContent(latestReportData);
-      if (!csvContent) return;
-      const today = new Date();
-      const dateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-      const filename = `Missing_Assignments_Report_${dateStr}.csv`;
-      downloadCsv(csvContent, filename);
+      downloadCsv(latestReportData);
+      document.getElementById('downloadOptionsSidePanel').classList.remove('active');
   });
 
   document.getElementById('toggleReportViewBtnSidePanel').addEventListener('click', (e) => {
@@ -1301,6 +1326,11 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       if (!event.target.closest('#list-context-menu')) {
           document.getElementById('list-context-menu').style.display = 'none';
+      }
+      if (!event.target.closest('.download-actions-wrapper')) {
+        document.querySelectorAll('.download-options.active').forEach(menu => {
+            menu.classList.remove('active');
+        });
       }
   });
   

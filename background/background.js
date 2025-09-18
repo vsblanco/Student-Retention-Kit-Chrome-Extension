@@ -1,5 +1,5 @@
-// [2025-09-16 17:51 PM]
-// Version: 12.3
+// [2025-09-18 15:40 PM]
+// Version: 12.5
 import { startLoop, stopLoop, processNextInQueue, addToFoundUrlCache } from './looper.js';
 import { STORAGE_KEYS, CHECKER_MODES, MESSAGE_TYPES, EXTENSION_STATES, CONNECTION_TYPES, SCHEDULED_ALARM_NAME } from '../constants.js';
 import { setupSchedule, runScheduledCheck } from './schedule.js';
@@ -18,42 +18,84 @@ function addToLogBuffer(level, payload) {
 }
 
 // This function holds the logic for when the missing check is complete.
-// It will be passed to the looper as a callback.
 async function onMissingCheckCompleted() {
     console.log("MESSAGE RECEIVED: MISSING_CHECK_COMPLETED");
     const settings = await chrome.storage.local.get(STORAGE_KEYS.INCLUDE_ALL_ASSIGNMENTS);
     const includeAll = settings[STORAGE_KEYS.INCLUDE_ALL_ASSIGNMENTS];
 
-    let summaryPayload;
+    let finalPayload;
 
     if (missingAssignmentsCollector.length > 0) {
+        // *** MODIFICATION START ***
+        // Transform the collected data to match the desired CUSTOM_IMPORT schema
+        const transformedData = missingAssignmentsCollector.map(studentReport => {
+            const transformedAssignments = studentReport.assignments.map(assignment => ({
+                assignmentTitle: assignment.title,
+                link: assignment.link,
+                dueDate: assignment.dueDate,
+                score: assignment.score
+            }));
+
+            return {
+                studentName: studentReport.studentName,
+                studentGrade: studentReport.currentGrade,
+                totalMissing: studentReport.count,
+                gradeBook: studentReport.gradeBook, // This now comes from the content script
+                assignments: transformedAssignments
+            };
+        });
+        
         const studentsWithMissingCount = missingAssignmentsCollector.filter(studentReport => 
             studentReport.assignments.some(assignment => assignment.isMissing === true || !('isSubmitted' in assignment))
         ).length;
 
-        summaryPayload = {
-            type: 'MISSING_ASSIGNMENTS_REPORT',
+        // Build the final payload with the CUSTOM_IMPORT structure
+        finalPayload = {
+            reportGenerated: new Date().toISOString(),
             totalStudentsInReport: missingAssignmentsCollector.length,
             totalStudentsWithMissing: studentsWithMissingCount,
-            reportGenerated: new Date().toISOString(),
-            details: missingAssignmentsCollector,
-            isFullReport: includeAll
+            type: "MISSING_ASSIGNMENTS_REPORT",
+            CUSTOM_IMPORT: {
+                importName: "Missing Assignments Report",
+                dataArrayKey: "assignments",
+                targetSheet: "Missing Assignments",
+                sheetKeyColumn: ["Link", "Grade Book"],
+                columnMappings: [
+                  { source: "studentName", target: "Student Name" },
+                  { source: "studentGrade", target: ["grade", "Grade"], targetSheet: "Master List" },
+                  { source: "totalMissing", target: "Missing Assignments", targetSheet: "Master List" },
+                  { source: "assignmentTitle", target: "Assignment Title" },
+                  { source: "dueDate", target: "Due Date" },
+                  { source: "score", target: "Score" },
+                  { source: "gradeBook", target: "Grade Book", targetSheet: "Master List" },
+                  { source: "link", target: "Link" }
+                ],
+                data: transformedData // Use the transformed data here
+            }
         };
+        // *** MODIFICATION END ***
         
-        await sendConnectionPings(summaryPayload);
+        await sendConnectionPings(finalPayload);
 
         chrome.runtime.sendMessage({
             type: MESSAGE_TYPES.LOG_TO_PANEL,
             level: 'warn',
-            args: [ `Final Missing Assignments Report`, summaryPayload ]
+            args: [ `Final Missing Assignments Report`, finalPayload ]
         });
         
-        addToLogBuffer('warn', summaryPayload);
+        addToLogBuffer('warn', finalPayload);
         
     } else {
         const successMessage = "Missing Assignments Check Complete: No missing assignments were found.";
-        summaryPayload = { type: 'MISSING_SUMMARY', message: successMessage, details: [], isFullReport: includeAll };
-        addToLogBuffer('log', summaryPayload);
+        finalPayload = { 
+            reportGenerated: new Date().toISOString(),
+            totalStudentsInReport: 0,
+            totalStudentsWithMissing: 0,
+            type: 'MISSING_ASSIGNMENTS_REPORT',
+            message: successMessage,
+            CUSTOM_IMPORT: { data: [] } // Ensure CUSTOM_IMPORT block exists even when empty
+        };
+        addToLogBuffer('log', finalPayload);
         
         chrome.runtime.sendMessage({
             type: MESSAGE_TYPES.LOG_TO_PANEL,
@@ -62,11 +104,11 @@ async function onMissingCheckCompleted() {
         });
     }
     
-    await chrome.storage.local.set({ [STORAGE_KEYS.LATEST_MISSING_REPORT]: summaryPayload });
+    await chrome.storage.local.set({ [STORAGE_KEYS.LATEST_MISSING_REPORT]: finalPayload });
 
     chrome.runtime.sendMessage({
         type: MESSAGE_TYPES.SHOW_MISSING_ASSIGNMENTS_REPORT,
-        payload: summaryPayload
+        payload: finalPayload
     });
     
     chrome.storage.local.set({ [STORAGE_KEYS.EXTENSION_STATE]: EXTENSION_STATES.OFF });
