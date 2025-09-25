@@ -1,5 +1,5 @@
-// [2025-09-16 17:40 PM]
-// Version: 9.9
+// [2025-09-25 16:41 PM]
+// Version: 10.1
 /*
 * Timestamp: 2025-09-12 17:17 PM
 * Version: 8.0
@@ -20,7 +20,8 @@ export const CHECKER_MODES = {
  */
 export const EXTENSION_STATES = {
     ON: 'on',
-    OFF: 'off'
+    OFF: 'off',
+    PAUSED: 'paused'
 };
 
 /**
@@ -98,6 +99,11 @@ export const DEFAULT_SETTINGS = {
 export const SCHEDULED_ALARM_NAME = 'daily_missing_check';
 
 /**
+ * The name for the network recovery alarm.
+ */
+export const NETWORK_RECOVERY_ALARM_NAME = 'network_recovery_check';
+
+/**
  * Regular expression for parsing advanced filter queries like '>=5' or '<10'.
  */
 export const ADVANCED_FILTER_REGEX = /^\s*([><]=?|=)\s*(\d+)\s*$/;
@@ -106,3 +112,4 @@ export const ADVANCED_FILTER_REGEX = /^\s*([><]=?|=)\s*(\d+)\s*$/;
  * SharePoint URL for the "SharePoint" button in the settings tab.
  */
 export const SHAREPOINT_URL = "https://edukgroup3_sharepoint.com/sites/SM-StudentServices/SitePages/CollabHome.aspx";
+

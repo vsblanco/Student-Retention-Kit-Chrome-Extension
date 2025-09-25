@@ -14,7 +14,8 @@
     "alarms",
     "sidePanel",
     "clipboardRead",
-    "offscreen"
+    "offscreen",
+    "webRequest"
   ],
   "host_permissions": [
     "<all_urls>"

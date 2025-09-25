@@ -1,7 +1,7 @@
-// [2025-09-25 13:28 PM]
-// Version: 13.3
+// [2025-09-25 16:47 PM]
+// Version: 13.7
 import { startLoop, stopLoop, processNextInQueue, addToFoundUrlCache, getActiveTabs } from './looper.js';
-import { STORAGE_KEYS, CHECKER_MODES, MESSAGE_TYPES, EXTENSION_STATES, CONNECTION_TYPES, SCHEDULED_ALARM_NAME } from '../constants.js';
+import { STORAGE_KEYS, CHECKER_MODES, MESSAGE_TYPES, EXTENSION_STATES, CONNECTION_TYPES, SCHEDULED_ALARM_NAME, NETWORK_RECOVERY_ALARM_NAME } from '../constants.js';
 import { setupSchedule, runScheduledCheck } from './schedule.js';
 
 let logBuffer = [];
@@ -193,37 +193,19 @@ chrome.storage.onChanged.addListener((changes) => {
   }
 });
 
-// --- Safety Net Listener for Network Errors ---
+// --- Safety Net Listener for Rendered Network Error Pages ---
 chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
-    // Check if the tab has finished loading and its URL is not a Chrome internal page
     if (changeInfo.status === 'complete' && tab.url && !tab.url.startsWith('chrome://')) {
-        const activeTabs = getActiveTabs(); // Get the active tabs map from the looper
+        const activeTabs = getActiveTabs();
         if (activeTabs.has(tabId)) {
-            // Check for common network error titles
-            const errorTitles = [
-                "This site can’t be reached",
-                "No internet",
-                "err_connection_refused",
-                "err_connection_timed_out",
-				"Your connection was interrupted",
-                "Aw, Snap!"
-            ];
-
+            const errorTitles = ["This site can’t be reached", "No internet", "err_connection_refused", "err_connection_timed_out", "Your connection was interrupted", "Aw, Snap!"];
             const isErrorPage = errorTitles.some(errorTitle => tab.title.toLowerCase().includes(errorTitle.toLowerCase()));
 
             if (isErrorPage) {
                 const { entry } = activeTabs.get(tabId);
                 const errorMessage = `Network error for ${entry.name}: "${tab.title}". Closing tab and skipping.`;
                 console.warn(errorMessage);
-
-                // Log to the side panel console
-                chrome.runtime.sendMessage({
-                  type: MESSAGE_TYPES.LOG_TO_PANEL,
-                  level: 'warn',
-                  args: [errorMessage]
-                }).catch(e => console.error("Error sending log to panel:", e));
-
-                // Close the faulty tab and process the next in queue
+                chrome.runtime.sendMessage({ type: MESSAGE_TYPES.LOG_TO_PANEL, level: 'warn', args: [errorMessage] }).catch(e => console.error("Error sending log to panel:", e));
                 await chrome.tabs.remove(tabId).catch(e => console.error(`Error removing faulty tab ${tabId}:`, e));
                 processNextInQueue(tabId);
             }
@@ -231,11 +213,59 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
     }
 });
 
-chrome.alarms.onAlarm.addListener((alarm) => {
+chrome.alarms.onAlarm.addListener(async (alarm) => {
   if (alarm.name === SCHEDULED_ALARM_NAME) {
     runScheduledCheck();
   }
+
+  // Handle network recovery check
+  if (alarm.name === NETWORK_RECOVERY_ALARM_NAME) {
+    try {
+      await fetch('https://www.google.com/generate_204', {
+        method: 'HEAD',
+        mode: 'no-cors',
+        cache: 'no-store'
+      });
+
+      console.log("Network recovery check successful. Restarting checker.");
+      chrome.runtime.sendMessage({ type: MESSAGE_TYPES.LOG_TO_PANEL, level: 'log', args: ["Network connection restored. Restarting checker..."] }).catch(e => {});
+      
+      await chrome.alarms.clear(NETWORK_RECOVERY_ALARM_NAME);
+      await chrome.storage.local.set({ [STORAGE_KEYS.EXTENSION_STATE]: EXTENSION_STATES.ON });
+
+    } catch (e) {
+      console.log("Network recovery check failed. Still offline.");
+    }
+  }
 });
+
+// --- MODIFIED Safety Net Listener for Low-Level Network Errors ---
+chrome.webRequest.onErrorOccurred.addListener(
+  async (details) => {
+    // We only care about errors on the main page request of a tab
+    if (details.type !== 'main_frame') {
+      return;
+    }
+
+    const { [STORAGE_KEYS.EXTENSION_STATE]: state } = await chrome.storage.local.get(STORAGE_KEYS.EXTENSION_STATE);
+
+    // Only pause if the checker is currently running
+    if (state === EXTENSION_STATES.ON) {
+        console.warn(`Network error detected (${details.error}). Stopping the checker and closing tabs.`);
+        chrome.runtime.sendMessage({ type: MESSAGE_TYPES.LOG_TO_PANEL, level: 'warn', args: [`Network error detected: ${details.error}. The checker is paused. All tabs have been closed. It will restart automatically when the connection is restored.`] }).catch(e => {});
+        
+        stopLoop(); // Stop and clean up all tabs and state
+        await chrome.storage.local.set({ [STORAGE_KEYS.EXTENSION_STATE]: EXTENSION_STATES.PAUSED });
+
+        // Create a periodic alarm to check for network recovery
+        chrome.alarms.create(NETWORK_RECOVERY_ALARM_NAME, {
+            delayInMinutes: 0.25, // Start after 15 seconds
+            periodInMinutes: 0.5  // Check every 30 seconds
+        });
+    }
+  },
+  { urls: ["<all_urls>"] }
+);
 
 chrome.runtime.onMessage.addListener(async (msg, sender) => {
   if (msg.type === MESSAGE_TYPES.INSPECTION_RESULT) {
@@ -327,11 +357,15 @@ async function triggerPowerAutomate(connection, payload) {
 // --- STATE & DATA MANAGEMENT ---
 function updateBadge() {
   chrome.storage.local.get([STORAGE_KEYS.EXTENSION_STATE, STORAGE_KEYS.FOUND_ENTRIES], (data) => {
-    const isExtensionOn = data[STORAGE_KEYS.EXTENSION_STATE] === EXTENSION_STATES.ON;
+    const state = data[STORAGE_KEYS.EXTENSION_STATE];
     const foundCount = data[STORAGE_KEYS.FOUND_ENTRIES]?.length || 0;
-    if (isExtensionOn) {
-      chrome.action.setBadgeBackgroundColor({ color: '#0052cc' });
+    
+    if (state === EXTENSION_STATES.ON) {
+      chrome.action.setBadgeBackgroundColor({ color: '#0052cc' }); // Blue
       chrome.action.setBadgeText({ text: foundCount > 0 ? foundCount.toString() : 'ON' });
+    } else if (state === EXTENSION_STATES.PAUSED) {
+      chrome.action.setBadgeBackgroundColor({ color: '#f5a623' }); // Orange/Yellow
+      chrome.action.setBadgeText({ text: 'PAUSED' });
     } else {
       chrome.action.setBadgeText({ text: '' });
     }
@@ -340,6 +374,7 @@ function updateBadge() {
 
 async function handleStateChange(newState, oldState) {
     if (newState === EXTENSION_STATES.ON) {
+        // A transition from OFF or PAUSED to ON is always a fresh start.
         const settings = await chrome.storage.local.get(STORAGE_KEYS.CHECKER_MODE);
         const currentMode = settings[STORAGE_KEYS.CHECKER_MODE] || CHECKER_MODES.SUBMISSION;
         
@@ -347,12 +382,11 @@ async function handleStateChange(newState, oldState) {
             missingAssignmentsCollector = [];
             missingCheckStartTime = Date.now();
             console.log("Starting Missing Assignments check. Collector has been cleared.");
-            // Pass the callback function to the looper.
             startLoop({ onComplete: onMissingCheckCompleted });
         } else {
             startLoop();
         }
-    } else if (newState === EXTENSION_STATES.OFF && oldState === EXTENSION_STATES.ON) {
+    } else if (newState === EXTENSION_STATES.OFF && (oldState === EXTENSION_STATES.ON || oldState === EXTENSION_STATES.PAUSED)) {
         stopLoop();
     }
 }

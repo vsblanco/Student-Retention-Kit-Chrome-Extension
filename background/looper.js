@@ -1,6 +1,6 @@
-// [2025-09-25 13:24 PM]
-// Version: 9.9
-import { STORAGE_KEYS, CHECKER_MODES, ADVANCED_FILTER_REGEX, DEFAULT_SETTINGS, EXTENSION_STATES, MESSAGE_TYPES } from '../constants.js';
+// [2025-09-25 16:47 PM]
+// Version: 10.2
+import { STORAGE_KEYS, CHECKER_MODES, ADVANCED_FILTER_REGEX, DEFAULT_SETTINGS, EXTENSION_STATES, MESSAGE_TYPES, NETWORK_RECOVERY_ALARM_NAME } from '../constants.js';
 
 // --- Configuration for Testing ---
 // Set to true to make new tabs focused, false to open them in the background.
@@ -38,22 +38,21 @@ async function loadSettings() {
 }
 
 export async function startLoop(options = {}) {
-  // Check if this is a recursive call or a new start from the background script
-  if (options.onComplete) {
-    onCompleteCallback = options.onComplete;
-  } else if (options !== true) { // A fresh start without a specific callback
-    onCompleteCallback = null;
-  }
-
-  // The 'force' parameter was previously passed as a boolean 'true' for restarts
-  const force = options === true || options.force;
-  if (isLooping && !force) return;
+  // options can be { onComplete, force }
+  if (isLooping && !options.force) return;
   
   console.log('START command received.');
 
+  if (options.onComplete) {
+    onCompleteCallback = options.onComplete;
+  } else {
+    onCompleteCallback = null;
+  }
+
   isLooping = true;
-  currentLoopIndex = 0;
   
+  console.log('Resetting loop index for a fresh start.');
+  currentLoopIndex = 0;
   // Clear any lingering timeouts from a previous run
   for (const tabInfo of activeTabs.values()) {
     if (tabInfo.timeoutId) {
@@ -113,7 +112,7 @@ export async function startLoop(options = {}) {
 
   masterListCache = filteredMasterList;
   
-  chrome.storage.local.set({ [STORAGE_KEYS.LOOP_STATUS]: { current: 0, total: masterListCache.length } });
+  chrome.storage.local.set({ [STORAGE_KEYS.LOOP_STATUS]: { current: currentLoopIndex, total: masterListCache.length } });
   
   for (let i = 0; i < maxConcurrentTabs; i++) {
     processNextInQueue();
@@ -121,11 +120,14 @@ export async function startLoop(options = {}) {
 }
 
 export function stopLoop() {
-  if (!isLooping) return;
+  if (!isLooping && activeTabs.size === 0) return;
   console.log('STOP command received.');
   isLooping = false;
+  currentLoopIndex = 0; // Reset index on a full stop
+  onCompleteCallback = null;
   
   chrome.storage.local.remove(STORAGE_KEYS.LOOP_STATUS);
+  chrome.alarms.clear(NETWORK_RECOVERY_ALARM_NAME); // Clear recovery alarm on manual stop
   
   for (const [tabId, tabInfo] of activeTabs.entries()) {
     if (tabInfo.timeoutId) {

@@ -1,5 +1,5 @@
-// [2025-09-24 18:31 PM]
-// Version: 13.2
+// [2025-09-25 16:32 PM]
+// Version: 13.3
 import { STORAGE_KEYS, DEFAULT_SETTINGS, ADVANCED_FILTER_REGEX, SHAREPOINT_URL, CHECKER_MODES, EXTENSION_STATES, MESSAGE_TYPES, CONNECTION_TYPES } from '../constants.js';
 
 let lastActiveTab = 'found'; // Variable to store the last active tab before 'about'
@@ -1161,9 +1161,19 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function updateButtonState(state) {
-    isStarted = (state === EXTENSION_STATES.ON);
+    isStarted = (state === EXTENSION_STATES.ON || state === EXTENSION_STATES.PAUSED);
     startBtn.classList.toggle('active', isStarted);
-    startBtnText.textContent = isStarted ? 'Stop' : 'Start';
+    startBtnText.textContent = isStarted ? (state === EXTENSION_STATES.PAUSED ? 'Paused' : 'Stop') : 'Start';
+    
+    // Custom styling for paused state
+    if (state === EXTENSION_STATES.PAUSED) {
+        startBtn.style.background = 'rgba(245, 166, 35, 0.8)'; // Orange color
+        startBtn.style.borderColor = 'rgba(255, 255, 255, 0.2)';
+    } else {
+        startBtn.style.background = ''; // Revert to CSS default
+        startBtn.style.borderColor = '';
+    }
+
     if (!isStarted) {
         currentSessionId = null; 
     }
