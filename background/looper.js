@@ -1,5 +1,5 @@
-// [2025-09-24 17:36 PM]
-// Version: 9.5
+// [2025-09-25 10:36 AM]
+// Version: 9.7
 import { STORAGE_KEYS, CHECKER_MODES, ADVANCED_FILTER_REGEX, DEFAULT_SETTINGS, EXTENSION_STATES, MESSAGE_TYPES } from '../constants.js';
 
 let currentLoopIndex = 0;
@@ -12,7 +12,7 @@ let maxConcurrentTabs = DEFAULT_SETTINGS[STORAGE_KEYS.CONCURRENT_TABS];
 let currentCheckerMode = DEFAULT_SETTINGS[STORAGE_KEYS.CHECKER_MODE];
 let onCompleteCallback = null; // To hold the callback function from background.js
 
-const TAB_TIMEOUT_MS = 20000; // 20 second timeout
+const TAB_TIMEOUT_MS = 200000; // 20 second timeout
 
 export function addToFoundUrlCache(url) {
   if (!url || foundUrlCache.has(url)) return;
@@ -181,10 +181,11 @@ async function openTab(entry) {
 
     const urlToOpen = new URL(entry.url);
     urlToOpen.searchParams.set('looper', 'true');
+    urlToOpen.searchParams.set('startTime', Date.now());
     
     console.log(`Opening tab for index #${currentLoopIndex - 1}: ${entry.name}`);
     try {
-        const tab = await chrome.tabs.create({ url: urlToOpen.href, active: false });
+        const tab = await chrome.tabs.create({ url: urlToOpen.href, active: true });
         
         const timeoutId = setTimeout(() => {
             const timeoutMessage = `Tab for ${entry.name} timed out after ${TAB_TIMEOUT_MS / 1000} seconds. Closing and continuing.`;

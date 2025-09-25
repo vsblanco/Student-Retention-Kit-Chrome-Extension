@@ -1,5 +1,5 @@
-// [2025-09-19 10:23 AM]
-// Version: 11.1
+// [2025-09-25 11:03 AM]
+// Version: 11.2
 // Note: This content script cannot use ES6 modules, so constants are redefined here.
 
 const CHECKER_MODES = {
@@ -44,7 +44,9 @@ const STORAGE_KEYS = {
   const checkerMode = settings[STORAGE_KEYS.CHECKER_MODE] || CHECKER_MODES.SUBMISSION;
   const includeAllAssignments = settings[STORAGE_KEYS.INCLUDE_ALL_ASSIGNMENTS] || false;
   
-  const isLooperRun = new URLSearchParams(window.location.search).has('looper');
+  const urlParams = new URLSearchParams(window.location.search);
+  const isLooperRun = urlParams.has('looper');
+  const startTime = parseInt(urlParams.get('startTime'), 10);
 
   function getFirstStudentName() {
     const re = /Grades for\s*([\w ,'-]+)/g;
@@ -104,6 +106,7 @@ const STORAGE_KEYS = {
         const timeStr = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
         const urlObject = new URL(window.location.href);
         urlObject.searchParams.delete('looper');
+        urlObject.searchParams.delete('startTime');
         const cleanUrl = urlObject.href;
 
         foundEntry = {
@@ -237,6 +240,13 @@ const STORAGE_KEYS = {
   // --- MISSING ASSIGNMENT CHECK LOGIC ---
   async function runMissingCheck() {
     console.log("Content script loaded in MISSING mode.");
+
+    // --- OPTIMIZATION START ---
+    // Start the asynchronous grade check immediately, but DON'T wait for it.
+    // This allows the faster, synchronous assignment scan to run in parallel.
+    const gradePromise = getCurrentGrade();
+    // --- OPTIMIZATION END ---
+
     const studentName = getFirstStudentName();
     const assignmentRows = document.querySelectorAll('tr.student_assignment');
     const collectedAssignments = [];
@@ -244,6 +254,7 @@ const STORAGE_KEYS = {
     
     const urlObject = new URL(window.location.href);
     urlObject.searchParams.delete('looper');
+    urlObject.searchParams.delete('startTime');
     const cleanUrl = urlObject.href;
     
     const monthMap = { Jan: 0, Feb: 1, Mar: 2, Apr: 3, May: 4, Jun: 5, Jul: 6, Aug: 7, Sep: 8, Oct: 9, Nov: 10, Dec: 11 };
@@ -292,7 +303,10 @@ const STORAGE_KEYS = {
     });
 
     console.log(`Scanning gradebook for ${studentName}... Found ${assignmentRows.length} total assignments.`);
-    const currentGrade = await getCurrentGrade();
+    
+    // Now that the fast part is done, wait for the slower grade check to complete.
+    const currentGrade = await gradePromise;
+    const duration = startTime ? ((Date.now() - startTime) / 1000).toFixed(2) : null;
 
     if (includeAllAssignments || collectedAssignments.length > 0) {
         const payload = {
@@ -300,6 +314,7 @@ const STORAGE_KEYS = {
             gradeBook: cleanUrl,
             currentGrade: currentGrade,
             count: collectedAssignments.length,
+            duration: duration,
             assignments: collectedAssignments
         };
         chrome.runtime.sendMessage({ type: MESSAGE_TYPES.FOUND_MISSING_ASSIGNMENTS, payload });
@@ -310,6 +325,7 @@ const STORAGE_KEYS = {
             gradeBook: cleanUrl,
             currentGrade: currentGrade,
             count: 0,
+            duration: duration,
             assignments: []
         };
         chrome.runtime.sendMessage({ type: MESSAGE_TYPES.FOUND_MISSING_ASSIGNMENTS, payload });

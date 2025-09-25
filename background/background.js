@@ -1,5 +1,5 @@
-// [2025-09-19 09:42 AM]
-// Version: 12.7
+// [2025-09-25 10:30 AM]
+// Version: 13.1
 import { startLoop, stopLoop, processNextInQueue, addToFoundUrlCache } from './looper.js';
 import { STORAGE_KEYS, CHECKER_MODES, MESSAGE_TYPES, EXTENSION_STATES, CONNECTION_TYPES, SCHEDULED_ALARM_NAME } from '../constants.js';
 import { setupSchedule, runScheduledCheck } from './schedule.js';
@@ -9,6 +9,7 @@ const MAX_LOG_BUFFER_SIZE = 100;
 
 // --- State for collecting missing assignment results ---
 let missingAssignmentsCollector = [];
+let missingCheckStartTime = null;
 
 function addToLogBuffer(level, payload) {
     logBuffer.push({ level, payload, timestamp: new Date().toISOString() });
@@ -20,6 +21,7 @@ function addToLogBuffer(level, payload) {
 // This function holds the logic for when the missing check is complete.
 async function onMissingCheckCompleted() {
     console.log("MESSAGE RECEIVED: MISSING_CHECK_COMPLETED");
+    const completionEndTime = Date.now();
     const settings = await chrome.storage.local.get(STORAGE_KEYS.INCLUDE_ALL_ASSIGNMENTS);
     const includeAll = settings[STORAGE_KEYS.INCLUDE_ALL_ASSIGNMENTS];
 
@@ -48,10 +50,66 @@ async function onMissingCheckCompleted() {
             studentReport.count > 0
         ).length;
 
+        // --- Performance Calculations ---
+        let totalCompletionTime = null;
+        if (missingCheckStartTime) {
+            totalCompletionTime = `${((completionEndTime - missingCheckStartTime) / 1000).toFixed(2)} seconds`;
+        }
+        
+        const validDurations = missingAssignmentsCollector
+            .map(report => parseFloat(report.duration))
+            .filter(duration => !isNaN(duration));
+            
+        let averageTimePerTab = null;
+        let minTimePerTab = null;
+        let maxTimePerTab = null;
+        let medianTimePerTab = null;
+        let firstQuartileTimePerTab = null;
+        let thirdQuartileTimePerTab = null;
+
+        if (validDurations.length > 0) {
+            const sortedDurations = [...validDurations].sort((a, b) => a - b);
+            const n = sortedDurations.length;
+
+            const getMedian = (arr) => {
+                if (arr.length === 0) return 0;
+                const mid = Math.floor(arr.length / 2);
+                return arr.length % 2 !== 0 ? arr[mid] : (arr[mid - 1] + arr[mid]) / 2;
+            };
+
+            minTimePerTab = `${sortedDurations[0].toFixed(2)} seconds`;
+            maxTimePerTab = `${sortedDurations[n - 1].toFixed(2)} seconds`;
+            medianTimePerTab = `${getMedian(sortedDurations).toFixed(2)} seconds`;
+
+            const midIndex = Math.floor(n / 2);
+            const lowerHalf = sortedDurations.slice(0, midIndex);
+            const upperHalf = n % 2 === 0 ? sortedDurations.slice(midIndex) : sortedDurations.slice(midIndex + 1);
+
+            if (lowerHalf.length > 0) {
+                firstQuartileTimePerTab = `${getMedian(lowerHalf).toFixed(2)} seconds`;
+            }
+             if (upperHalf.length > 0) {
+                thirdQuartileTimePerTab = `${getMedian(upperHalf).toFixed(2)} seconds`;
+            }
+            
+            const totalDurationSum = validDurations.reduce((acc, curr) => acc + curr, 0);
+            averageTimePerTab = `${(totalDurationSum / validDurations.length).toFixed(2)} seconds`;
+        }
+        // --- End of Performance Calculations ---
+
         finalPayload = {
             reportGenerated: new Date().toISOString(),
             totalStudentsInReport: missingAssignmentsCollector.length,
             totalStudentsWithMissing: studentsWithMissingCount,
+            totalCompletionTime: totalCompletionTime,
+            performanceMetrics: {
+                average: averageTimePerTab,
+                min: minTimePerTab,
+                q1: firstQuartileTimePerTab,
+                median: medianTimePerTab,
+                q3: thirdQuartileTimePerTab,
+                max: maxTimePerTab
+            },
             type: "MISSING_ASSIGNMENTS_REPORT",
             CUSTOM_IMPORT: {
                 importName: "Missing Assignments Report",
@@ -104,6 +162,8 @@ async function onMissingCheckCompleted() {
     }
     
     await chrome.storage.local.set({ [STORAGE_KEYS.LATEST_MISSING_REPORT]: finalPayload });
+    
+    missingCheckStartTime = null; // Reset timer
 
     chrome.runtime.sendMessage({
         type: MESSAGE_TYPES.SHOW_MISSING_ASSIGNMENTS_REPORT,
@@ -155,9 +215,10 @@ chrome.runtime.onMessage.addListener(async (msg, sender) => {
       chrome.runtime.sendMessage({ type: MESSAGE_TYPES.LOG_TO_PANEL, level: 'log', payload: logPayload });
   } else if (msg.type === MESSAGE_TYPES.FOUND_MISSING_ASSIGNMENTS) {
       missingAssignmentsCollector.push(msg.payload);
+      const durationText = msg.payload.duration ? ` | ${msg.payload.duration} seconds` : '';
       const logMessage = msg.payload.count > 0 
-          ? `Missing Assignments Found for ${msg.payload.studentName}`
-          : `No missing assignments for ${msg.payload.studentName}`;
+          ? `Missing Assignments Found for ${msg.payload.studentName}${durationText}`
+          : `No missing assignments for ${msg.payload.studentName}${durationText}`;
       chrome.runtime.sendMessage({
           type: MESSAGE_TYPES.LOG_TO_PANEL,
           level: msg.payload.count > 0 ? 'warn' : 'log',
@@ -246,6 +307,7 @@ async function handleStateChange(newState, oldState) {
         
         if (currentMode === CHECKER_MODES.MISSING) {
             missingAssignmentsCollector = [];
+            missingCheckStartTime = Date.now();
             console.log("Starting Missing Assignments check. Collector has been cleared.");
             // Pass the callback function to the looper.
             startLoop({ onComplete: onMissingCheckCompleted });

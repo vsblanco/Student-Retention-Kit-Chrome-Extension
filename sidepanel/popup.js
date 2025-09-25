@@ -1,5 +1,5 @@
-// [2025-09-19 09:42 AM]
-// Version: 13.1
+// [2025-09-24 18:31 PM]
+// Version: 13.2
 import { STORAGE_KEYS, DEFAULT_SETTINGS, ADVANCED_FILTER_REGEX, SHAREPOINT_URL, CHECKER_MODES, EXTENSION_STATES, MESSAGE_TYPES, CONNECTION_TYPES } from '../constants.js';
 
 let lastActiveTab = 'found'; // Variable to store the last active tab before 'about'
@@ -270,6 +270,7 @@ function renderReportInTab(reportData) {
     const formattedView = document.getElementById('report-formatted-view-sidepanel');
     const timestampEl = document.getElementById('reportGeneratedTime');
     const headerEl = timestampEl.parentElement;
+    const needsUpdatePill = document.getElementById('needsUpdatePill');
 
     latestReportData = reportData; // Store for CSV download and JSON view
 
@@ -278,16 +279,26 @@ function renderReportInTab(reportData) {
     if (toggleBtn) toggleBtn.disabled = !hasReport;
     if (downloadBtnJson) downloadBtnJson.disabled = !hasReport;
 
-
     if (reportData && reportData.reportGenerated) {
-        const date = new Date(reportData.reportGenerated);
-        const timestampStr = date.toLocaleDateString('en-US', {
+        const reportDate = new Date(reportData.reportGenerated);
+        const timestampStr = reportDate.toLocaleDateString('en-US', {
             month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true
         }).replace(',', '');
         timestampEl.textContent = `Generated: ${timestampStr}`;
-        headerEl.style.display = 'block';
+        headerEl.style.display = 'flex';
+
+        const today = new Date();
+        const isToday = reportDate.getFullYear() === today.getFullYear() &&
+                        reportDate.getMonth() === today.getMonth() &&
+                        reportDate.getDate() === today.getDate();
+
+        if (needsUpdatePill) {
+            needsUpdatePill.style.display = isToday ? 'none' : 'inline-flex';
+        }
+
     } else {
         timestampEl.textContent = '';
+        if (needsUpdatePill) needsUpdatePill.style.display = 'none';
         headerEl.style.display = 'none';
     }
 
@@ -1769,4 +1780,3 @@ document.addEventListener('DOMContentLoaded', () => {
 
   setupDebugConsole();
 });
-
