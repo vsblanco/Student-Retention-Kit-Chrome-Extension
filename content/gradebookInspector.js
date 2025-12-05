@@ -1,372 +1,185 @@
-// [2025-09-25 12:56 PM]
-// Version: 11.3
-// Note: This content script cannot use ES6 modules, so constants are redefined here.
-
-const CHECKER_MODES = {
-    SUBMISSION: 'submission',
-    MISSING: 'missing'
-};
-
-const EXTENSION_STATES = {
-    ON: 'on',
-    OFF: 'off'
-};
-
-const MESSAGE_TYPES = {
-    INSPECTION_RESULT: 'inspectionResult',
-    FOUND_SUBMISSION: 'foundSubmission',
-    FOUND_MISSING_ASSIGNMENTS: 'foundMissingAssignments',
-    LOG_TO_PANEL: 'logToPanel'
-};
-
-const STORAGE_KEYS = {
-    CONCURRENT_TABS: 'concurrentTabs',
-    LOOPER_DAYS_OUT_FILTER: 'looperDaysOutFilter',
-    CUSTOM_KEYWORD: 'customKeyword',
-    HIGHLIGHT_COLOR: 'highlightColor',
-    DEBUG_MODE: 'debugMode',
-    CHECKER_MODE: 'checkerMode',
-    CONNECTIONS: 'connections',
-    EXTENSION_STATE: 'extensionState',
-    FOUND_ENTRIES: 'foundEntries',
-    LOOP_STATUS: 'loopStatus',
-    MASTER_ENTRIES: 'masterEntries',
-    LAST_UPDATED: 'lastUpdated',
-    INCLUDE_ALL_ASSIGNMENTS: 'includeAllAssignments'
-};
-
+// [2025-10-24 03:00 PM]
+// Version: 18.5
+// This script is now purely for VISUAL enhancement (Passive Mode).
+// It runs automatically when a user views a Gradebook page.
 
 (async function() {
-  const settings = await chrome.storage.local.get(Object.values(STORAGE_KEYS));
-  const extensionState = settings[STORAGE_KEYS.EXTENSION_STATE] || EXTENSION_STATES.OFF;
-  const highlightColor = settings[STORAGE_KEYS.HIGHLIGHT_COLOR] || '#ffff00';
-  const customKeyword = settings[STORAGE_KEYS.CUSTOM_KEYWORD] || '';
-  const checkerMode = settings[STORAGE_KEYS.CHECKER_MODE] || CHECKER_MODES.SUBMISSION;
-  const includeAllAssignments = settings[STORAGE_KEYS.INCLUDE_ALL_ASSIGNMENTS] || false;
-  
-  const urlParams = new URLSearchParams(window.location.search);
-  const isLooperRun = urlParams.has('looper');
-  const startTime = parseInt(urlParams.get('startTime'), 10);
+  // Only run on grades page
+  if (!window.location.href.includes('/grades/')) return;
 
-  function getFirstStudentName() {
-    const re = /Grades for\s*([\w ,'-]+)/g;
-    let match;
-    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null);
-    while (walker.nextNode()) {
-      const txt = walker.currentNode.nodeValue;
-      while ((match = re.exec(txt))) return match[1].trim();
-    }
-    const studentNameEl = document.querySelector('h2.student-name');
-    if (studentNameEl) return studentNameEl.textContent.trim();
-    return 'Unknown Student';
+  const INSPECTOR_STORAGE_KEYS = {
+      CUSTOM_KEYWORD: 'customKeyword',
+      HIGHLIGHT_COLOR: 'highlightColor',
+      EMBED_IN_CANVAS: 'embedInCanvas',
+      EXTENSION_STATE: 'extensionState'
+  };
+
+  // FETCH SETTINGS
+  const settings = await chrome.storage.local.get(Object.values(INSPECTOR_STORAGE_KEYS));
+  
+  // [CRITICAL FIX] Check if Embed In Canvas is enabled.
+  // If false or undefined, default to TRUE (or FALSE depending on preference).
+  // Assuming default is true based on previous context, but strictly respecting the toggle.
+  const isEnabled = settings[INSPECTOR_STORAGE_KEYS.EMBED_IN_CANVAS];
+  
+  // If explicitly set to false, stop execution.
+  if (isEnabled === false) {
+      console.log("[Visual Inspector] Disabled via settings.");
+      return;
   }
 
-  // --- SUBMISSION CHECK LOGIC ---
-  function runSubmissionCheck() {
-    let keywordFound = false;
-    let foundEntry = null;
-
-    let todayStr;
-    if (customKeyword) {
-      todayStr = customKeyword;
-    } else {
+  const highlightColor = settings[INSPECTOR_STORAGE_KEYS.HIGHLIGHT_COLOR] || '#ffff00';
+  const customKeyword = settings[INSPECTOR_STORAGE_KEYS.CUSTOM_KEYWORD] || '';
+  
+  // Determine Keyword
+  let searchKeyword;
+  if (customKeyword) {
+      searchKeyword = customKeyword;
+  } else {
       const now = new Date();
       const opts = { month: 'short', day: 'numeric' };
-      todayStr = now.toLocaleDateString('en-US', opts).replace(',', '') + ' at';
-    }
-    console.log(`Content script loaded in SUBMISSION mode. Using keyword: "${todayStr}"`);
-
-    function highlightAndNotify(node) {
-      if (keywordFound) return;
-      const cell = node.parentElement?.closest('td.submitted');
-      if (!cell) return;
-      const idx = node.nodeValue.indexOf(todayStr);
-      if (idx < 0) return;
-
-      keywordFound = true;
-
-      const parent = node.parentNode;
-      const span = document.createElement('span');
-      span.textContent = node.nodeValue.slice(idx, idx + todayStr.length);
-      span.style.backgroundColor = highlightColor;
-      span.style.fontWeight = 'bold';
-      span.style.fontSize = '1.1em';
-      
-      parent.insertBefore(document.createTextNode(node.nodeValue.slice(0, idx)), node);
-      parent.insertBefore(span, node);
-      parent.insertBefore(document.createTextNode(node.nodeValue.slice(idx + todayStr.length)), node);
-      parent.removeChild(node);
-
-      if (extensionState === EXTENSION_STATES.OFF) {
-          span.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }
-
-      if (isLooperRun) {
-        const studentName = getFirstStudentName().trim();
-        const timeStr = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-        const urlObject = new URL(window.location.href);
-        urlObject.searchParams.delete('looper');
-        urlObject.searchParams.delete('startTime');
-        const cleanUrl = urlObject.href;
-
-        foundEntry = {
-            name: studentName,
-            time: timeStr,
-            url: cleanUrl,
-            timestamp: new Date().toISOString()
-        };
-        chrome.runtime.sendMessage({ type: MESSAGE_TYPES.FOUND_SUBMISSION, payload: foundEntry });
-      }
-    }
-
-    function walkTheDOM(root) {
-      const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
-      let node;
-      while (!keywordFound && (node = walker.nextNode())) {
-          highlightAndNotify(node);
-      }
-      finishCheck();
-    }
-
-    function finishCheck() {
-      if (!isLooperRun) return;
-
-      if (keywordFound) {
-        chrome.runtime.sendMessage({ type: MESSAGE_TYPES.INSPECTION_RESULT, found: true, entry: foundEntry });
-      } else {
-        chrome.runtime.sendMessage({ type: MESSAGE_TYPES.INSPECTION_RESULT, found: false, entry: null });
-      }
-    }
-
-    walkTheDOM(document.body);
+      // Format: "Oct 23 at"
+      searchKeyword = now.toLocaleDateString('en-US', opts).replace(',', '') + ' at';
   }
-  
-  /**
-   * Waits for the grade element to contain a numerical value or "N/A".
-   * @returns {Promise<number|string>} A promise that resolves with the parsed grade or rejects on timeout.
-   */
-  async function getCurrentGrade() {
-      console.log('Searching for current grade...');
-      const selector = '.student_assignment.final_grade .grade';
+
+  console.log(`[Visual Inspector] Running. Keyword: "${searchKeyword}"`);
+
+  // --- 1. SUBMISSION HIGHLIGHTER ---
+  function highlightSubmissions() {
+      if (!searchKeyword) return;
+
+      const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+      const nodesToHighlight = [];
       
-      return new Promise((resolve, reject) => {
-          const timeout = 5000;
-          const intervalTime = 100;
-          let elapsedTime = 0;
-
-          const interval = setInterval(() => {
-              const finalGradeElement = document.querySelector(selector);
-              if (finalGradeElement) {
-                  const gradeText = finalGradeElement.textContent.trim();
-
-                  // Immediately resolve if the grade is explicitly "N/A"
-                  if (gradeText.toUpperCase() === 'N/A') {
-                      clearInterval(interval);
-                      console.log(`Success: Found grade element. Grade is: N/A`);
-                      resolve('N/A');
-                      return;
-                  }
-                  
-                  const gradeValue = parseFloat(gradeText.replace('%', ''));
-
-                  // Check if the parsed value is a valid number
-                  if (!isNaN(gradeValue)) {
-                      clearInterval(interval);
-                      console.log(`Success: Found grade element. Parsed grade is: ${gradeValue}`);
-                      resolve(gradeValue);
-                      return;
-                  }
+      let node;
+      while (node = walker.nextNode()) {
+          // Check if text contains keyword and is inside a submission row
+          if (node.nodeValue.includes(searchKeyword)) {
+              const parent = node.parentElement;
+              // Ensure we are looking at a submitted date cell or similar context
+              if (parent && (parent.closest('td.submitted') || parent.closest('.submission_date'))) {
+                  nodesToHighlight.push(node);
               }
+          }
+      }
 
-              elapsedTime += intervalTime;
-              if (elapsedTime >= timeout) {
-                  clearInterval(interval);
-                  console.log(`Failure: Timed out after ${timeout}ms waiting for a valid grade.`);
-                  resolve('N/A'); // Resolve with N/A as a fallback
-              }
-          }, intervalTime);
+      nodesToHighlight.forEach(node => {
+          const idx = node.nodeValue.indexOf(searchKeyword);
+          if (idx >= 0) {
+              const range = document.createRange();
+              range.setStart(node, idx);
+              range.setEnd(node, idx + searchKeyword.length);
+              
+              const span = document.createElement('span');
+              span.style.backgroundColor = highlightColor;
+              span.style.fontWeight = 'bold';
+              span.style.borderRadius = '3px';
+              span.textContent = searchKeyword; 
+              
+              range.deleteContents();
+              range.insertNode(span);
+          }
       });
   }
 
-  function isAssignmentMissing(row, now, monthMap) {
-      const submittedCell = row.querySelector('td.submitted');
-      const scoreCell = row.querySelector('td.assignment_score');
-      const dueCell = row.querySelector('td.due');
-
-      // Condition 1: Must have no submission.
-      const hasSubmission = submittedCell ? submittedCell.textContent.trim() !== '' : true;
-      if (hasSubmission) return false;
-
-      // Condition 2: Score must be 0 or '-'.
-      let isConsideredUngraded = false;
-      if (scoreCell) {
-          const scoreSpan = scoreCell.querySelector('span.grade');
-          const scoreContentForCheck = scoreSpan ? scoreSpan.textContent.trim() : scoreCell.textContent.trim();
-          if (scoreContentForCheck === '-') {
-              isConsideredUngraded = true;
-          } else {
-              const parsedScore = parseFloat(scoreContentForCheck.replace('%', ''));
-              if (!isNaN(parsedScore) && parsedScore === 0) {
-                  isConsideredUngraded = true;
-              }
-          }
-      }
-      if (!isConsideredUngraded) return false;
-
-      // Condition 3: Must be past due.
-      let isPastDue = false;
-      if (dueCell) {
-          const dueDateStr = dueCell.textContent.trim();
-          const dateRegex = /(\w{3})\s(\d{1,2})/;
-          const match = dueDateStr.match(dateRegex);
-          if (match) {
-              const month = monthMap[match[1]];
-              const day = parseInt(match[2], 10);
-              const year = now.getFullYear();
-              const dueDate = new Date(year, month, day);
-              dueDate.setHours(23, 59, 59, 999);
-              if (dueDate < now) {
-                  isPastDue = true;
-              }
-          }
-      }
-      if (!isPastDue) return false;
-      
-      return true; // All conditions met
-  }
-
-  function injectMissingPill(row) {
-      const statusCell = row.querySelector('td.status');
-      if (statusCell && !statusCell.querySelector('.submission-missing-pill')) {
-          const pillWrapper = document.createElement('span');
-          pillWrapper.className = 'submission-missing-pill';
-          pillWrapper.innerHTML = '<span dir="ltr" class="css-1pqqu0s-view--inlineBlock"><div class="css-12pzab8-pill"><div class="css-xbajoi-pill__text">missing</div></div></span>';
-          statusCell.prepend(pillWrapper);
-      }
-  }
-
-
-  // --- MISSING ASSIGNMENT CHECK LOGIC ---
-  async function runMissingCheck() {
-    console.log("Content script loaded in MISSING mode.");
-
-    // --- OPTIMIZATION START ---
-    // Start the asynchronous grade check immediately, but DON'T wait for it.
-    // This allows the faster, synchronous assignment scan to run in parallel.
-    const gradePromise = getCurrentGrade();
-    // --- OPTIMIZATION END ---
-
-    const studentName = getFirstStudentName();
-    const assignmentRows = document.querySelectorAll('tr.student_assignment');
-    const collectedAssignments = [];
-    const now = new Date();
-    
-    const urlObject = new URL(window.location.href);
-    urlObject.searchParams.delete('looper');
-    urlObject.searchParams.delete('startTime');
-    const cleanUrl = urlObject.href;
-    
-    const monthMap = { Jan: 0, Feb: 1, Mar: 2, Apr: 3, May: 4, Jun: 5, Jul: 6, Aug: 7, Sep: 8, Oct: 9, Nov: 10, Dec: 11 };
-
-    assignmentRows.forEach(row => {
-      const titleLink = row.querySelector('th.title a');
-      if (!titleLink) return;
-
-      const title = titleLink.textContent.trim();
-      const submissionLink = titleLink.href; // Keep the original full URL
-      let link = submissionLink;
-      const submissionIndex = link.indexOf('/submissions');
-      if (submissionIndex !== -1) {
-        link = link.substring(0, submissionIndex);
-      }
-      
-      const dueCell = row.querySelector('td.due');
-      const scoreCell = row.querySelector('td.assignment_score');
-      let scoreText = scoreCell ? (scoreCell.querySelector('span.grade') || scoreCell).textContent.trim() : 'N/A';
-      if (scoreText.includes('%')) {
-        scoreText = scoreText.replace('%', '');
-      }
-      const dueDateStr = dueCell ? dueCell.textContent.trim() : 'No due date';
-      
-      const isMissing = isAssignmentMissing(row, now, monthMap);
-
-      if (includeAllAssignments) {
-        collectedAssignments.push({
-            title: title,
-            link: link,
-            submissionLink: submissionLink,
-            dueDate: dueDateStr,
-            score: scoreText,
-            isSubmitted: !isMissing,
-            isMissing: isMissing
-        });
-      } else if (isMissing) {
-        collectedAssignments.push({
-            title: title,
-            link: link,
-            submissionLink: submissionLink,
-            dueDate: dueDateStr,
-            score: scoreText,
-        });
-      }
-    });
-
-    console.log(`Scanning gradebook for ${studentName}... Found ${assignmentRows.length} total assignments.`);
-    
-    // Now that the fast part is done, wait for the slower grade check to complete.
-    const currentGrade = await gradePromise;
-    const duration = startTime ? ((Date.now() - startTime) / 1000).toFixed(2) : null;
-
-    if (includeAllAssignments || collectedAssignments.length > 0) {
-        const payload = {
-            studentName: studentName,
-            gradeBook: cleanUrl,
-            currentGrade: currentGrade,
-            count: collectedAssignments.length,
-            duration: duration,
-            assignments: collectedAssignments
-        };
-        chrome.runtime.sendMessage({ type: MESSAGE_TYPES.FOUND_MISSING_ASSIGNMENTS, payload });
-    } else {
-        // Even if no missing assignments, send a report with the grade.
-        const payload = {
-            studentName: studentName,
-            gradeBook: cleanUrl,
-            currentGrade: currentGrade,
-            count: 0,
-            duration: duration,
-            assignments: []
-        };
-        chrome.runtime.sendMessage({ type: MESSAGE_TYPES.FOUND_MISSING_ASSIGNMENTS, payload });
-        console.log(`No missing assignments found for ${studentName}, but sending grade report.`);
-    }
-
-    if (isLooperRun) {
-      chrome.runtime.sendMessage({ type: MESSAGE_TYPES.INSPECTION_RESULT, found: false, entry: null });
-    }
-  }
-
-  // --- SCRIPT EXECUTION ---
-  
-  // Passive check: Always run this when a user is just browsing, not during an active loop.
-  if (!isLooperRun) {
-      const assignmentRows = document.querySelectorAll('tr.student_assignment');
+  // --- 2. MISSING ASSIGNMENT PILLS ---
+  function markMissingAssignments() {
+      const rows = document.querySelectorAll('tr.student_assignment');
       const now = new Date();
       const monthMap = { Jan: 0, Feb: 1, Mar: 2, Apr: 3, May: 4, Jun: 5, Jul: 6, Aug: 7, Sep: 8, Oct: 9, Nov: 10, Dec: 11 };
-      assignmentRows.forEach(row => {
-          if (isAssignmentMissing(row, now, monthMap)) {
+
+      rows.forEach(row => {
+          // Skip if already marked
+          if (row.querySelector('.submission-missing-pill')) return;
+
+          // Exclusion Logic: Skip Category/Group rows
+          if (row.classList.contains('hard_coded_group') || 
+              row.classList.contains('group_total') || 
+              row.classList.contains('final_grade')) {
+              return;
+          }
+
+          // 1. Get Due Date
+          const dueCell = row.querySelector('td.due');
+          let dueDate = null;
+          if (dueCell) {
+              const dueText = dueCell.textContent.trim();
+              const match = dueText.match(/(\w{3})\s(\d{1,2})/); // "Oct 23"
+              if (match) {
+                  const year = now.getFullYear();
+                  const month = monthMap[match[1]];
+                  const day = parseInt(match[2], 10);
+                  dueDate = new Date(year, month, day);
+                  dueDate.setHours(23, 59, 59, 999); // End of day
+              }
+          }
+
+          // 2. Get Score
+          const scoreCell = row.querySelector('td.assignment_score .grade');
+          let score = null;
+          if (scoreCell) {
+              const scoreText = scoreCell.textContent.trim().replace('%', '');
+              // Check for numeric 0 or "-"
+              if (scoreText === '0' || scoreText === '0.0') score = 0;
+              else if (scoreText === '-') score = null; // Ungraded
+              else if (!isNaN(parseFloat(scoreText))) score = parseFloat(scoreText);
+          }
+
+          // 3. Get Submission Status
+          const submittedCell = row.querySelector('td.submitted');
+          const hasSubmission = submittedCell && submittedCell.textContent.trim().length > 5; // Rough check for timestamp text
+
+          // 4. Calculate Logic Conditions
+          const isManualZero = (score === 0) && !hasSubmission;
+
+          // Global Future Filter with Exception
+          if (dueDate && dueDate > now && !isManualZero) return; 
+
+          const isOfficialMissing = row.classList.contains('missing') || (dueCell && dueCell.classList.contains('missing'));
+          const isUnsubmittedPastDue = !hasSubmission && (dueDate && dueDate < now);
+
+          if (isOfficialMissing || isUnsubmittedPastDue || isManualZero) {
               injectMissingPill(row);
           }
       });
   }
 
-  // Active check: Only run the appropriate checker if the extension is turned on.
-  if (extensionState === EXTENSION_STATES.ON) {
-      if (checkerMode === CHECKER_MODES.MISSING) {
-          runMissingCheck();
-      } else {
-          runSubmissionCheck();
+  function injectMissingPill(row) {
+      const statusCell = row.querySelector('td.status');
+      if (statusCell) {
+          const pill = document.createElement('div');
+          
+          pill.className = 'submission-missing-pill';
+          pill.style.display = 'inline-block';
+          pill.style.backgroundColor = 'transparent'; // No fill
+          pill.style.border = '1px solid #EE352E';    // Red outline
+          pill.style.color = '#EE352E';               // Red text
+          pill.style.borderRadius = '12px';
+          pill.style.padding = '2px 8px';
+          pill.style.fontSize = '14px';
+          pill.style.fontWeight = 400;
+          pill.style.textTransform = 'lowercase';     // Lowercase
+          pill.style.marginTop = '4px';
+          pill.textContent = 'missing';               // Lowercase text
+          
+          statusCell.appendChild(pill);
       }
   }
+
+  // Run on load
+  if (document.readyState === 'complete') {
+      highlightSubmissions();
+      markMissingAssignments();
+  } else {
+      window.addEventListener('load', () => {
+          highlightSubmissions();
+          markMissingAssignments();
+      });
+  }
+
+  setTimeout(() => {
+      highlightSubmissions();
+      markMissingAssignments();
+  }, 2000);
 
 })();

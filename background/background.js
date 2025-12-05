@@ -1,7 +1,7 @@
-// [2025-09-25 16:47 PM]
-// Version: 13.7
-import { startLoop, stopLoop, processNextInQueue, addToFoundUrlCache, getActiveTabs } from './looper.js';
-import { STORAGE_KEYS, CHECKER_MODES, MESSAGE_TYPES, EXTENSION_STATES, CONNECTION_TYPES, SCHEDULED_ALARM_NAME, NETWORK_RECOVERY_ALARM_NAME } from '../constants.js';
+// [2025-10-22 09:00 AM]
+// Version: 14.3
+import { startLoop, stopLoop, addToFoundUrlCache } from './looper.js';
+import { STORAGE_KEYS, CHECKER_MODES, MESSAGE_TYPES, EXTENSION_STATES, CONNECTION_TYPES, SCHEDULED_ALARM_NAME } from '../constants.js';
 import { setupSchedule, runScheduledCheck } from './schedule.js';
 
 let logBuffer = [];
@@ -18,7 +18,34 @@ function addToLogBuffer(level, payload) {
     }
 }
 
-// This function holds the logic for when the missing check is complete.
+// --- CALLBACKS FOR LOOPER ---
+
+// Handle found submissions (Submission Mode)
+async function onSubmissionFound(entry) {
+    await addStudentToFoundList(entry);
+    await sendConnectionPings(entry);
+    
+    const logPayload = { type: 'SUBMISSION', ...entry };
+    addToLogBuffer('log', logPayload);
+    chrome.runtime.sendMessage({ type: MESSAGE_TYPES.LOG_TO_PANEL, level: 'log', payload: logPayload }).catch(() => {});
+}
+
+// Handle found missing assignments (Missing Mode) - NEW CALLBACK
+function onMissingFound(payload) {
+    missingAssignmentsCollector.push(payload);
+    
+    // Logic moved from onMessage listener to ensure synchronous data collection
+    const logMessage = payload.count > 0 
+          ? `Missing Found: ${payload.studentName} (${payload.count})`
+          : `Clean: ${payload.studentName}`;
+          
+    chrome.runtime.sendMessage({
+          type: MESSAGE_TYPES.LOG_TO_PANEL,
+          level: payload.count > 0 ? 'warn' : 'log',
+          args: [ logMessage ]
+    }).catch(() => {});
+}
+
 async function onMissingCheckCompleted() {
     console.log("MESSAGE RECEIVED: MISSING_CHECK_COMPLETED");
     const completionEndTime = Date.now();
@@ -42,7 +69,8 @@ async function onMissingCheckCompleted() {
                 studentGrade: studentReport.currentGrade,
                 totalMissing: studentReport.count,
                 gradeBook: studentReport.gradeBook,
-                assignments: transformedAssignments
+                assignments: transformedAssignments,
+                gradeBookLink: studentReport.gradeBook 
             };
         });
         
@@ -56,61 +84,13 @@ async function onMissingCheckCompleted() {
             totalCompletionTime = `${((completionEndTime - missingCheckStartTime) / 1000).toFixed(2)} seconds`;
         }
         
-        const validDurations = missingAssignmentsCollector
-            .map(report => parseFloat(report.duration))
-            .filter(duration => !isNaN(duration));
-            
-        let averageTimePerTab = null;
-        let minTimePerTab = null;
-        let maxTimePerTab = null;
-        let medianTimePerTab = null;
-        let firstQuartileTimePerTab = null;
-        let thirdQuartileTimePerTab = null;
-
-        if (validDurations.length > 0) {
-            const sortedDurations = [...validDurations].sort((a, b) => a - b);
-            const n = sortedDurations.length;
-
-            const getMedian = (arr) => {
-                if (arr.length === 0) return 0;
-                const mid = Math.floor(arr.length / 2);
-                return arr.length % 2 !== 0 ? arr[mid] : (arr[mid - 1] + arr[mid]) / 2;
-            };
-
-            minTimePerTab = `${sortedDurations[0].toFixed(2)} seconds`;
-            maxTimePerTab = `${sortedDurations[n - 1].toFixed(2)} seconds`;
-            medianTimePerTab = `${getMedian(sortedDurations).toFixed(2)} seconds`;
-
-            const midIndex = Math.floor(n / 2);
-            const lowerHalf = sortedDurations.slice(0, midIndex);
-            const upperHalf = n % 2 === 0 ? sortedDurations.slice(midIndex) : sortedDurations.slice(midIndex + 1);
-
-            if (lowerHalf.length > 0) {
-                firstQuartileTimePerTab = `${getMedian(lowerHalf).toFixed(2)} seconds`;
-            }
-             if (upperHalf.length > 0) {
-                thirdQuartileTimePerTab = `${getMedian(upperHalf).toFixed(2)} seconds`;
-            }
-            
-            const totalDurationSum = validDurations.reduce((acc, curr) => acc + curr, 0);
-            averageTimePerTab = `${(totalDurationSum / validDurations.length).toFixed(2)} seconds`;
-        }
-        // --- End of Performance Calculations ---
-
         finalPayload = {
             reportGenerated: new Date().toISOString(),
             totalStudentsInReport: missingAssignmentsCollector.length,
             totalStudentsWithMissing: studentsWithMissingCount,
             totalCompletionTime: totalCompletionTime,
-            performanceMetrics: {
-                average: averageTimePerTab,
-                min: minTimePerTab,
-                q1: firstQuartileTimePerTab,
-                median: medianTimePerTab,
-                q3: thirdQuartileTimePerTab,
-                max: maxTimePerTab
-            },
             type: "MISSING_ASSIGNMENTS_REPORT",
+            mode: "API_HEADLESS",
             CUSTOM_IMPORT: {
                 importName: "Missing Assignments Report",
                 dataArrayKey: "assignments",
@@ -119,14 +99,14 @@ async function onMissingCheckCompleted() {
                 sheetKeyColumn: ["submissionLink", "Grade Book"],
                 columnMappings: [
                   { source: "studentName", target: "Student Name" },
-                  { source: "studentGrade", target: ["grade", "Grade"], targetSheet: "Master List", overwriteTargetSheet: false },
-                  { source: "totalMissing", target: "Missing Assignments", targetSheet: "Master List", overwriteTargetSheet: false },
+                  { source: "studentGrade", target: ["grade", "Grade"] },
+                  { source: "totalMissing", target: "Missing Assignments" },
                   { source: "assignmentTitle", target: "Assignment Title" },
                   { source: "dueDate", target: "Due Date" },
                   { source: "score", target: "Score" },
-                  { source: "gradeBook", target: "Grade Book", targetSheet: "Master List", overwriteTargetSheet: false },
-                  { source: "link", target: "Link" },
-                  { source: "submissionLink", target: "submissionLink" }
+                  { source: "gradeBook", target: "Grade Book" },
+                  { source: "submissionLink", target: "submissionLink" },
+                  { source: "gradeBookLink", target: "gradeBookLink" }
                 ],
                 data: transformedData
             }
@@ -137,8 +117,8 @@ async function onMissingCheckCompleted() {
         chrome.runtime.sendMessage({
             type: MESSAGE_TYPES.LOG_TO_PANEL,
             level: 'warn',
-            args: [ `Final Missing Assignments Report`, finalPayload ]
-        });
+            args: [ `Final Missing Assignments Report (API Mode)`, finalPayload ]
+        }).catch(() => {});
         
         addToLogBuffer('warn', finalPayload);
         
@@ -158,17 +138,17 @@ async function onMissingCheckCompleted() {
             type: MESSAGE_TYPES.LOG_TO_PANEL,
             level: 'log',
             args: [ successMessage ]
-        });
+        }).catch(() => {});
     }
     
     await chrome.storage.local.set({ [STORAGE_KEYS.LATEST_MISSING_REPORT]: finalPayload });
     
-    missingCheckStartTime = null; // Reset timer
+    missingCheckStartTime = null;
 
     chrome.runtime.sendMessage({
         type: MESSAGE_TYPES.SHOW_MISSING_ASSIGNMENTS_REPORT,
         payload: finalPayload
-    });
+    }).catch(() => {});
     
     chrome.storage.local.set({ [STORAGE_KEYS.EXTENSION_STATE]: EXTENSION_STATES.OFF });
 }
@@ -193,108 +173,29 @@ chrome.storage.onChanged.addListener((changes) => {
   }
 });
 
-// --- Safety Net Listener for Rendered Network Error Pages ---
-chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
-    if (changeInfo.status === 'complete' && tab.url && !tab.url.startsWith('chrome://')) {
-        const activeTabs = getActiveTabs();
-        if (activeTabs.has(tabId)) {
-            const errorTitles = ["This site can’t be reached", "No internet", "err_connection_refused", "err_connection_timed_out", "Your connection was interrupted", "Aw, Snap!"];
-            const isErrorPage = errorTitles.some(errorTitle => tab.title.toLowerCase().includes(errorTitle.toLowerCase()));
-
-            if (isErrorPage) {
-                const { entry } = activeTabs.get(tabId);
-                const errorMessage = `Network error for ${entry.name}: "${tab.title}". Closing tab and skipping.`;
-                console.warn(errorMessage);
-                chrome.runtime.sendMessage({ type: MESSAGE_TYPES.LOG_TO_PANEL, level: 'warn', args: [errorMessage] }).catch(e => console.error("Error sending log to panel:", e));
-                await chrome.tabs.remove(tabId).catch(e => console.error(`Error removing faulty tab ${tabId}:`, e));
-                processNextInQueue(tabId);
-            }
-        }
-    }
-});
-
 chrome.alarms.onAlarm.addListener(async (alarm) => {
   if (alarm.name === SCHEDULED_ALARM_NAME) {
     runScheduledCheck();
   }
-
-  // Handle network recovery check
-  if (alarm.name === NETWORK_RECOVERY_ALARM_NAME) {
-    try {
-      await fetch('https://www.google.com/generate_204', {
-        method: 'HEAD',
-        mode: 'no-cors',
-        cache: 'no-store'
-      });
-
-      console.log("Network recovery check successful. Restarting checker.");
-      chrome.runtime.sendMessage({ type: MESSAGE_TYPES.LOG_TO_PANEL, level: 'log', args: ["Network connection restored. Restarting checker..."] }).catch(e => {});
-      
-      await chrome.alarms.clear(NETWORK_RECOVERY_ALARM_NAME);
-      await chrome.storage.local.set({ [STORAGE_KEYS.EXTENSION_STATE]: EXTENSION_STATES.ON });
-
-    } catch (e) {
-      console.log("Network recovery check failed. Still offline.");
-    }
-  }
 });
 
-// --- MODIFIED Safety Net Listener for Low-Level Network Errors ---
 chrome.webRequest.onErrorOccurred.addListener(
   async (details) => {
-    // We only care about errors on the main page request of a tab
-    if (details.type !== 'main_frame') {
-      return;
-    }
-
-    const { [STORAGE_KEYS.EXTENSION_STATE]: state } = await chrome.storage.local.get(STORAGE_KEYS.EXTENSION_STATE);
-
-    // Only pause if the checker is currently running
-    if (state === EXTENSION_STATES.ON) {
-        console.warn(`Network error detected (${details.error}). Stopping the checker and closing tabs.`);
-        chrome.runtime.sendMessage({ type: MESSAGE_TYPES.LOG_TO_PANEL, level: 'warn', args: [`Network error detected: ${details.error}. The checker is paused. All tabs have been closed. It will restart automatically when the connection is restored.`] }).catch(e => {});
-        
-        stopLoop(); // Stop and clean up all tabs and state
-        await chrome.storage.local.set({ [STORAGE_KEYS.EXTENSION_STATE]: EXTENSION_STATES.PAUSED });
-
-        // Create a periodic alarm to check for network recovery
-        chrome.alarms.create(NETWORK_RECOVERY_ALARM_NAME, {
-            delayInMinutes: 0.25, // Start after 15 seconds
-            periodInMinutes: 0.5  // Check every 30 seconds
-        });
+    if (details.url.includes('/api/v1/courses/')) {
+        console.warn('API Connection Error:', details.error);
     }
   },
-  { urls: ["<all_urls>"] }
+  { urls: ["https://nuc.instructure.com/api/*"] }
 );
 
 chrome.runtime.onMessage.addListener(async (msg, sender) => {
-  if (msg.type === MESSAGE_TYPES.INSPECTION_RESULT) {
-    if (msg.found && msg.entry) {
-      await addStudentToFoundList(msg.entry);
-      await sendConnectionPings(msg.entry);
-    }
-    if (sender.tab?.id) {
-      chrome.tabs.remove(sender.tab.id).catch(e => console.error(`Error removing tab ${sender.tab.id}:`, e));
-      processNextInQueue(sender.tab.id);
-    }
-  } else if (msg.type === MESSAGE_TYPES.FOUND_SUBMISSION) {
-      const logPayload = { type: 'SUBMISSION', ...msg.payload };
-      addToLogBuffer('log', logPayload);
-      chrome.runtime.sendMessage({ type: MESSAGE_TYPES.LOG_TO_PANEL, level: 'log', payload: logPayload });
-  } else if (msg.type === MESSAGE_TYPES.FOUND_MISSING_ASSIGNMENTS) {
-      missingAssignmentsCollector.push(msg.payload);
-      const durationText = msg.payload.duration ? ` | ${msg.payload.duration} seconds` : '';
-      const logMessage = msg.payload.count > 0 
-          ? `Missing Assignments Found for ${msg.payload.studentName}${durationText}`
-          : `No missing assignments for ${msg.payload.studentName}${durationText}`;
-      chrome.runtime.sendMessage({
-          type: MESSAGE_TYPES.LOG_TO_PANEL,
-          level: msg.payload.count > 0 ? 'warn' : 'log',
-          args: [ logMessage, msg.payload ]
-      });
-  } else if (msg.type === MESSAGE_TYPES.REQUEST_STORED_LOGS) {
+  
+  // NOTE: MESSAGE_TYPES.FOUND_MISSING_ASSIGNMENTS is removed from here 
+  // because we now use the direct onMissingFound callback.
+  
+  if (msg.type === MESSAGE_TYPES.REQUEST_STORED_LOGS) {
       if (logBuffer.length > 0) {
-          chrome.runtime.sendMessage({ type: MESSAGE_TYPES.STORED_LOGS, payload: logBuffer });
+          chrome.runtime.sendMessage({ type: MESSAGE_TYPES.STORED_LOGS, payload: logBuffer }).catch(() => {});
           logBuffer = [];
       }
   } else if (msg.type === MESSAGE_TYPES.TEST_CONNECTION_PA) {
@@ -305,6 +206,9 @@ chrome.runtime.onMessage.addListener(async (msg, sender) => {
     }
   } else if (msg.type === MESSAGE_TYPES.UPDATE_SCHEDULE) {
     await setupSchedule();
+  } else if (msg.type === MESSAGE_TYPES.LOG_TO_PANEL) {
+      // Re-broadcast logs from looper to the popup if needed
+      // (Usually handled directly by looper, but good for safety)
   }
 });
 
@@ -333,23 +237,20 @@ async function sendConnectionPings(payload) {
         }
     }
     await Promise.all(pingPromises);
-    console.log("All connection pings have been sent.");
 }
 
 async function handlePaConnectionTest(connection) {
     const testPayload = { name: 'Test Submission', url: '#', grade: '100', timestamp: new Date().toISOString(), test: true };
     const result = await triggerPowerAutomate(connection, testPayload);
-    chrome.runtime.sendMessage({ type: MESSAGE_TYPES.CONNECTION_TEST_RESULT, connectionType: CONNECTION_TYPES.POWER_AUTOMATE, success: result.success, error: result.error || 'Check service worker console for details.' });
+    chrome.runtime.sendMessage({ type: MESSAGE_TYPES.CONNECTION_TEST_RESULT, connectionType: CONNECTION_TYPES.POWER_AUTOMATE, success: result.success, error: result.error || 'Check service worker console for details.' }).catch(() => {});
 }
 
 async function triggerPowerAutomate(connection, payload) {
   try {
     const resp = await fetch(connection.url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
     if (!resp.ok && resp.status !== 202) { throw new Error(`HTTP Error: ${resp.status}`); }
-    console.log("Power Automate flow triggered successfully. Status:", resp.status);
     return { success: true };
   } catch (e) {
-    console.error("Power Automate flow error:", e);
     return { success: false, error: e.message };
   }
 }
@@ -362,10 +263,10 @@ function updateBadge() {
     
     if (state === EXTENSION_STATES.ON) {
       chrome.action.setBadgeBackgroundColor({ color: '#0052cc' }); // Blue
-      chrome.action.setBadgeText({ text: foundCount > 0 ? foundCount.toString() : 'ON' });
+      chrome.action.setBadgeText({ text: foundCount > 0 ? foundCount.toString() : 'API' });
     } else if (state === EXTENSION_STATES.PAUSED) {
       chrome.action.setBadgeBackgroundColor({ color: '#f5a623' }); // Orange/Yellow
-      chrome.action.setBadgeText({ text: 'PAUSED' });
+      chrome.action.setBadgeText({ text: 'WAIT' });
     } else {
       chrome.action.setBadgeText({ text: '' });
     }
@@ -374,17 +275,21 @@ function updateBadge() {
 
 async function handleStateChange(newState, oldState) {
     if (newState === EXTENSION_STATES.ON) {
-        // A transition from OFF or PAUSED to ON is always a fresh start.
         const settings = await chrome.storage.local.get(STORAGE_KEYS.CHECKER_MODE);
         const currentMode = settings[STORAGE_KEYS.CHECKER_MODE] || CHECKER_MODES.SUBMISSION;
         
         if (currentMode === CHECKER_MODES.MISSING) {
             missingAssignmentsCollector = [];
             missingCheckStartTime = Date.now();
-            console.log("Starting Missing Assignments check. Collector has been cleared.");
-            startLoop({ onComplete: onMissingCheckCompleted });
+            console.log("Starting Missing Assignments check (API Mode).");
+            // Pass the direct callback here to fix the race condition
+            startLoop({ 
+                onComplete: onMissingCheckCompleted,
+                onMissingFound: onMissingFound 
+            });
         } else {
-            startLoop();
+            console.log("Starting Submission check (API Mode).");
+            startLoop({ onFound: onSubmissionFound });
         }
     } else if (newState === EXTENSION_STATES.OFF && (oldState === EXTENSION_STATES.ON || oldState === EXTENSION_STATES.PAUSED)) {
         stopLoop();
@@ -406,4 +311,3 @@ setupSchedule();
 chrome.storage.local.get(STORAGE_KEYS.EXTENSION_STATE, data => {
     handleStateChange(data[STORAGE_KEYS.EXTENSION_STATE]);
 });
-

@@ -1,8 +1,8 @@
-// [2025-09-25 16:32 PM]
-// Version: 13.3
+// [2025-10-24 04:30 PM]
+// Version: 16.7
 import { STORAGE_KEYS, DEFAULT_SETTINGS, ADVANCED_FILTER_REGEX, SHAREPOINT_URL, CHECKER_MODES, EXTENSION_STATES, MESSAGE_TYPES, CONNECTION_TYPES } from '../constants.js';
 
-let lastActiveTab = 'found'; // Variable to store the last active tab before 'about'
+let lastActiveTab = 'found'; 
 
 // --- RENDER FUNCTIONS ---
 export function renderFoundList(entries) {
@@ -13,15 +13,17 @@ export function renderFoundList(entries) {
       return;
   }
 
+  // SORTING: Descending (Latest First)
   entries.sort((a, b) => {
-    if (!a.timestamp || !b.timestamp) return 0;
-    return b.timestamp.localeCompare(a.timestamp);
+    const timeA = a.timestamp ? new Date(a.timestamp).getTime() : 0;
+    const timeB = b.timestamp ? new Date(b.timestamp).getTime() : 0;
+    return timeB - timeA; 
   });
 
   entries.forEach(entry => {
     const { name, time, url } = entry;
     const li = document.createElement('li');
-    li.dataset.entry = JSON.stringify(entry); // Store data on the entire list item
+    li.dataset.entry = JSON.stringify(entry);
     
     const a  = document.createElement('a');
     a.textContent = name;
@@ -41,14 +43,47 @@ export function renderFoundList(entries) {
   });
 }
 
+function getHeatmapColor(value, max) {
+    if (value == null) {
+        return 'hsl(0, 0%, 80%)'; 
+    }
+    if (value < 5) {
+        return 'hsl(120, 70%, 45%)'; 
+    }
+    const gradientStart = 5;
+    const gradientEnd = Math.max(gradientStart, max);
+
+    if (gradientStart === gradientEnd) {
+        return 'hsl(60, 90%, 55%)'; 
+    }
+
+    const clampedValue = Math.max(gradientStart, Math.min(value, gradientEnd));
+    const ratio = (clampedValue - gradientStart) / (gradientEnd - gradientStart);
+    const hue = 60 - (ratio * 60);
+    return `hsl(${hue}, 90%, 55%)`;
+}
+
 export function renderMasterList(entries, showPhones) {
   const list = document.getElementById('masterList');
   list.innerHTML = '';
+
+  const daysOutValues = entries.map(e => e.daysout).filter(d => d != null);
+  const maxDaysOut = daysOutValues.length > 0 ? Math.max(...daysOutValues) : 0;
+
   entries.forEach((entry) => {
     const { name, url, phone, daysout } = entry;
     const li = document.createElement('li');
-    li.dataset.entry = JSON.stringify(entry); // Store data on the entire list item
+    li.dataset.entry = JSON.stringify(entry);
 
+    const heatmapIndicator = document.createElement('div');
+    heatmapIndicator.className = 'heatmap-indicator';
+    heatmapIndicator.style.backgroundColor = getHeatmapColor(daysout, maxDaysOut);
+    heatmapIndicator.title = daysout != null ? `Days Out: ${daysout}` : 'Days Out: N/A';
+    li.appendChild(heatmapIndicator);
+
+    const contentDiv = document.createElement('div');
+    contentDiv.className = 'master-list-content';
+    
     if (url && url !== '#N/A' && url.startsWith('http')) {
       const a  = document.createElement('a');
       a.textContent = name;
@@ -57,34 +92,23 @@ export function renderMasterList(entries, showPhones) {
         e.preventDefault();
         chrome.tabs.create({ url });
       });
-      li.appendChild(a);
+      contentDiv.appendChild(a);
     } else {
       const nameSpan = document.createElement('span');
       nameSpan.textContent = name;
       nameSpan.style.color = '#888';
       nameSpan.title = 'Invalid URL. Please update on the master list.';
-      li.appendChild(nameSpan);
-    }
-
-    if (daysout != null) {
-        const daysoutSpan = document.createElement('span');
-        daysoutSpan.className = 'pill-badge';
-        daysoutSpan.textContent = daysout;
-        
-        const styles = getDaysOutStyle(daysout);
-        Object.assign(daysoutSpan.style, styles);
-
-        daysoutSpan.style.fontSize = '0.9em';
-
-        li.appendChild(daysoutSpan);
+      contentDiv.appendChild(nameSpan);
     }
 
     if (showPhones && phone) {
         const phoneSpan = document.createElement('span');
         phoneSpan.className = 'pill-badge';
         phoneSpan.textContent = phone;
-        li.appendChild(phoneSpan);
+        contentDiv.appendChild(phoneSpan);
     }
+    
+    li.appendChild(contentDiv);
     list.appendChild(li);
   });
 }
@@ -100,16 +124,12 @@ function renderConnectionsList(connections = []) {
 
     connections.forEach((conn, index) => {
         const li = document.createElement('li');
-        
         const icon = document.createElement('img');
         icon.className = 'connection-icon';
-        
         const infoDiv = document.createElement('div');
         infoDiv.className = 'connection-info';
-
         const typeSpan = document.createElement('span');
         typeSpan.className = 'connection-type';
-        
         const detailSpan = document.createElement('span');
         detailSpan.className = 'connection-detail';
 
@@ -130,7 +150,6 @@ function renderConnectionsList(connections = []) {
 
         const actionsDiv = document.createElement('div');
         actionsDiv.className = 'connection-actions';
-
         const menuBtn = document.createElement('button');
         menuBtn.className = 'connection-actions-btn';
         menuBtn.title = 'Actions';
@@ -188,7 +207,6 @@ function renderConnectionsList(connections = []) {
 
 function renderReportContent(reportData, container) {
     container.innerHTML = '';
-    
     const studentDetails = reportData?.CUSTOM_IMPORT?.data;
 
     if (!studentDetails || studentDetails.length === 0) {
@@ -199,7 +217,6 @@ function renderReportContent(reportData, container) {
     studentDetails.forEach(student => {
         const details = document.createElement('details');
         details.className = 'report-student-details';
-
         const summary = document.createElement('summary');
         summary.className = 'report-student-summary';
         summary.textContent = student.studentName;
@@ -214,14 +231,12 @@ function renderReportContent(reportData, container) {
             li.textContent = 'All assignments are submitted.';
             li.style.padding = '8px 5px';
             assignmentsList.appendChild(li);
-            // Prevent the summary from being clickable to expand/collapse.
             summary.addEventListener('click', (e) => {
                 e.preventDefault();
             });
         } else if (student.assignments && student.assignments.length > 0) {
             student.assignments.forEach(assignment => {
                 const li = document.createElement('li');
-                
                 const title = document.createElement('a');
                 title.className = 'assignment-title';
                 title.textContent = assignment.assignmentTitle;
@@ -236,48 +251,43 @@ function renderReportContent(reportData, container) {
 
                 const meta = document.createElement('div');
                 meta.className = 'assignment-meta';
-                
                 const dueDate = document.createElement('span');
                 dueDate.textContent = `Due: ${assignment.dueDate}`;
                 meta.appendChild(dueDate);
-
                 const score = document.createElement('span');
                 score.textContent = `Score: ${assignment.score}`;
                 meta.appendChild(score);
-
                 li.appendChild(meta);
                 assignmentsList.appendChild(li);
             });
         }
-        
         details.appendChild(assignmentsList);
         container.appendChild(details);
     });
 }
 
-// Function for the modal
 function renderFormattedReport(reportData) {
     const container = document.getElementById('report-formatted-view');
     renderReportContent(reportData, container);
 }
 
-// Function for the new Report tab
 function renderReportInTab(reportData) {
     const container = document.getElementById('report-formatted-view-sidepanel');
     const toggleBtn = document.getElementById('toggleReportViewBtnSidePanel');
-    const downloadBtnJson = document.getElementById('downloadReportJsonBtnSidePanel');
+    const downloadBtnMain = document.getElementById('downloadReportJsonBtnSidePanel'); 
+    
     const jsonView = document.getElementById('report-json-view-sidepanel');
     const formattedView = document.getElementById('report-formatted-view-sidepanel');
     const timestampEl = document.getElementById('reportGeneratedTime');
     const headerEl = timestampEl.parentElement;
     const needsUpdatePill = document.getElementById('needsUpdatePill');
 
-    latestReportData = reportData; // Store for CSV download and JSON view
+    latestReportData = reportData; 
 
     const hasReport = reportData && reportData.CUSTOM_IMPORT && reportData.CUSTOM_IMPORT.data && reportData.CUSTOM_IMPORT.data.length > 0;
 
     if (toggleBtn) toggleBtn.disabled = !hasReport;
-    if (downloadBtnJson) downloadBtnJson.disabled = !hasReport;
+    if (downloadBtnMain) downloadBtnMain.disabled = !hasReport;
 
     if (reportData && reportData.reportGenerated) {
         const reportDate = new Date(reportData.reportGenerated);
@@ -295,14 +305,12 @@ function renderReportInTab(reportData) {
         if (needsUpdatePill) {
             needsUpdatePill.style.display = isToday ? 'none' : 'inline-flex';
         }
-
     } else {
         timestampEl.textContent = '';
         if (needsUpdatePill) needsUpdatePill.style.display = 'none';
         headerEl.style.display = 'none';
     }
 
-    // Reset view state to default (formatted)
     if (formattedView) formattedView.style.display = 'block';
     if (jsonView) jsonView.style.display = 'none';
     if (toggleBtn) toggleBtn.textContent = 'View JSON';
@@ -312,11 +320,8 @@ function renderReportInTab(reportData) {
     }
 }
 
-
-// --- ABOUT TAB & README FUNCTIONS ---
 function simpleMarkdownToHtml(markdown) {
     let html = markdown
-        // Remove backslashes escaping punctuation
         .replace(/\\([^\w\s])/g, '$1')
         .replace(/&/g, '&amp;')
         .replace(/</g, '&lt;')
@@ -329,21 +334,14 @@ function simpleMarkdownToHtml(markdown) {
         .replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>')
         .replace(/`([^`]+)`/g, '<code>$1</code>');
 
-    // Handle unordered lists
     html = html.replace(/^\s*[\-\*] (.*)/gm, '<ul><li>$1</li></ul>');
     html = html.replace(/<\/ul>\n<ul>/g, '');
-
-    // Handle ordered lists
     html = html.replace(/^\s*\d+\. (.*)/gm, '<ol><li>$1</li></ol>');
     html = html.replace(/<\/ol>\n<ol>/g, '');
-
-    // Handle code blocks
     html = html.replace(/```([\s\S]*?)```/g, (match, p1) => {
         const code = p1.trim();
         return `<pre><code>${code}</code></pre>`;
     });
-
-    // Handle paragraphs
     html = html.split(/\n\n+/).map(p => {
         if (p.startsWith('<h') || p.startsWith('<ul') || p.startsWith('<ol') || p.startsWith('<pre')) {
             return p;
@@ -367,14 +365,13 @@ async function loadAboutContent() {
     }
 }
 
-
 // --- DATA & STATE MANAGEMENT ---
 let activeSort = { criterion: 'none', direction: 'none' };
 let connectionToDelete = null;
 let connectionToExport = null;
 let currentSessionId = null;
-let finalReportData = null; // Store the final report data for the modal
-let latestReportData = null; // Store the latest report data for the side panel tab
+let finalReportData = null; 
+let latestReportData = null; 
 
 async function displayMasterList() {
     const { [STORAGE_KEYS.MASTER_ENTRIES]: masterEntries = [] } = await chrome.storage.local.get(STORAGE_KEYS.MASTER_ENTRIES);
@@ -504,13 +501,6 @@ async function loadLatestReport() {
 }
 
 // --- UI HELPER FUNCTIONS ---
-function getDaysOutStyle(daysout) {
-    if (daysout == null) return {};
-    if (daysout >= 10) return { backgroundColor: 'hsl(0, 85%, 55%)', color: 'white', fontWeight: 'bold' };
-    if (daysout >= 5) return { backgroundColor: 'hsl(35, 95%, 55%)', color: 'white', fontWeight: 'bold' };
-    return { backgroundColor: 'hsl(130, 65%, 90%)', color: 'hsl(130, 40%, 25%)', border: '1px solid hsl(130, 40%, 80%)' };
-}
-
 function createRipple(event) {
     const button = event.currentTarget;
     const rect = button.getBoundingClientRect();
@@ -568,10 +558,9 @@ function updateScheduleDisplay() {
         if (!statusEl) return;
 
         if (isEnabled && time) {
-            // Convert 24-hour time to 12-hour AM/PM format
             let [hours, minutes] = time.split(':');
             const ampm = hours >= 12 ? 'PM' : 'AM';
-            hours = hours % 12 || 12; // Convert hour "0" to "12"
+            hours = hours % 12 || 12; 
             const formattedTime = `${hours}:${minutes} ${ampm}`;
 
             statusEl.textContent = `Daily at ${formattedTime}`;
@@ -634,7 +623,6 @@ function openEditConnectionModal(connection, index) {
   }
 }
 
-// --- DOWNLOAD FUNCTIONS ---
 function escapeCsvCell(cell) {
     let cellString = String(cell == null ? '' : cell);
     if (cellString.includes(',') || cellString.includes('"') || cellString.includes('\n')) {
@@ -678,7 +666,7 @@ function generateCsvContent(reportData) {
                 student.studentGrade,
                 student.totalMissing,
                 student.gradeBook,
-                "N/A", "N/A", "N/A", "N/A", "N/A"
+                "", "", "", "", ""
             ];
             rows.push(row);
         }
@@ -720,8 +708,6 @@ function downloadJson(reportData) {
     downloadFile(jsonString, filename, 'application/json;charset=utf-8;');
 }
 
-
-// --- Clipboard Auto-Detect ---
 async function checkClipboardForConnection() {
     try {
         const text = await navigator.clipboard.readText();
@@ -739,7 +725,6 @@ async function checkClipboardForConnection() {
             pusherBtn.classList.add('clipboard-match');
         }
     } catch (e) {
-        // Silently fail if clipboard is empty or not valid JSON
     }
 }
 
@@ -788,7 +773,6 @@ function autoFillForm(type) {
 
 document.addEventListener('DOMContentLoaded', () => {
 
-  // --- FLOATING DEBUG CONSOLE LOGIC ---
   function setupDebugConsole() {
       const consoleEl = document.getElementById('debug-console');
       const consoleContent = document.getElementById('debug-console-content');
@@ -856,12 +840,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const entry = document.createElement('div');
         entry.className = `log-entry ${type}`;
 
-        // Handle special session start logs
         if (typeof args[0] === 'object' && args[0] !== null && args[0].type === 'sessionStart') {
             const { sessionId, title } = args[0];
             entry.innerHTML = `<details class="log-details" id="${sessionId}" open><summary class="log-summary">${title} (<span>...</span>)</summary><div class="session-body"></div></details>`;
         }
-        // Handle explicit args from background script for formatted logs
         else if (Array.isArray(args)) {
             const title = args[0];
             const payload = args[1];
@@ -872,7 +854,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 entry.textContent = title;
             }
         }
-        // Handle generic console logs
         else {
             const message = Array.from(args).map(arg => {
                 if (typeof arg === 'object' && arg !== null) {
@@ -1009,7 +990,7 @@ document.addEventListener('DOMContentLoaded', () => {
             switchTab('report');
         }
         
-    } else { // SUBMISSION mode
+    } else { 
         display.textContent = 'Submission Check';
         keywordSection.style.display = 'block';
         
@@ -1022,7 +1003,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // Initial Loads
   updateKeywordDisplay();
   updateLoopCounter();
   displayMasterList();
@@ -1052,7 +1032,6 @@ document.addEventListener('DOMContentLoaded', () => {
     updateModeDisplay(settings[STORAGE_KEYS.CHECKER_MODE]);
   });
 
-  // Event Listeners for Storage
   chrome.storage.onChanged.addListener((changes) => {
     if (changes[STORAGE_KEYS.FOUND_ENTRIES]) {
       const newEntries = changes[STORAGE_KEYS.FOUND_ENTRIES].newValue || [];
@@ -1102,7 +1081,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
   document.getElementById('newItemInput').addEventListener('input', displayMasterList);
 
-  // Sorting
   const daysOutSortBtn = document.getElementById('daysOutSortBtn');
   const nameSortBtn = document.getElementById('nameSortBtn');
   function updateSortButtons() {
@@ -1139,7 +1117,6 @@ document.addEventListener('DOMContentLoaded', () => {
       displayMasterList();
   });
 
-  // --- Start/Stop Button ---
   const startBtn = document.getElementById('startBtn');
   const startBtnText = document.getElementById('startBtnText');
   let isStarted;
@@ -1165,12 +1142,11 @@ document.addEventListener('DOMContentLoaded', () => {
     startBtn.classList.toggle('active', isStarted);
     startBtnText.textContent = isStarted ? (state === EXTENSION_STATES.PAUSED ? 'Paused' : 'Stop') : 'Start';
     
-    // Custom styling for paused state
     if (state === EXTENSION_STATES.PAUSED) {
-        startBtn.style.background = 'rgba(245, 166, 35, 0.8)'; // Orange color
+        startBtn.style.background = 'rgba(245, 166, 35, 0.8)'; 
         startBtn.style.borderColor = 'rgba(255, 255, 255, 0.2)';
     } else {
-        startBtn.style.background = ''; // Revert to CSS default
+        startBtn.style.background = ''; 
         startBtn.style.borderColor = '';
     }
 
@@ -1198,7 +1174,6 @@ document.addEventListener('DOMContentLoaded', () => {
     chrome.storage.local.set({ [STORAGE_KEYS.EXTENSION_STATE]: newState });
   });
 
-  // --- Modals Logic ---
   document.getElementById('showJsonExampleBtn').addEventListener('click', () => openModal('json-modal'));
   document.getElementById('payloadExampleBtn').addEventListener('click', () => openModal('payload-modal'));
   document.getElementById('createConnectionBtn').addEventListener('click', () => {
@@ -1228,7 +1203,6 @@ document.addEventListener('DOMContentLoaded', () => {
       openModal('schedule-modal');
   });
 
-  // --- Report Modal Logic ---
   document.getElementById('toggleReportViewBtn').addEventListener('click', (e) => {
       const btn = e.target;
       const formattedView = document.getElementById('report-formatted-view');
@@ -1252,7 +1226,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   document.getElementById('downloadReportJsonBtn').addEventListener('click', () => {
       if (!finalReportData) return;
-      downloadJson(finalReportData);
+      downloadCsv(finalReportData); 
   });
 
   document.getElementById('downloadOptionsToggle').addEventListener('click', (e) => {
@@ -1262,14 +1236,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
   document.getElementById('downloadReportCsvBtn').addEventListener('click', () => {
       if (!finalReportData) return;
-      downloadCsv(finalReportData);
+      downloadJson(finalReportData); 
       document.getElementById('downloadOptions').classList.remove('active');
   });
   
-  // --- Report Tab Logic ---
   document.getElementById('downloadReportJsonBtnSidePanel').addEventListener('click', () => {
       if (!latestReportData) return;
-      downloadJson(latestReportData);
+      downloadCsv(latestReportData); 
   });
 
   document.getElementById('downloadOptionsToggleSidePanel').addEventListener('click', (e) => {
@@ -1279,7 +1252,7 @@ document.addEventListener('DOMContentLoaded', () => {
   
   document.getElementById('downloadReportCsvBtnSidePanel').addEventListener('click', () => {
       if (!latestReportData) return;
-      downloadCsv(latestReportData);
+      downloadJson(latestReportData); 
       document.getElementById('downloadOptionsSidePanel').classList.remove('active');
   });
 
@@ -1366,7 +1339,6 @@ document.addEventListener('DOMContentLoaded', () => {
       }
   });
   
-  // --- Connections Modal Specific Logic ---
   document.querySelectorAll('.connection-choice-btn').forEach(btn => {
       btn.addEventListener('click', () => {
           const type = btn.dataset.type;
@@ -1432,7 +1404,6 @@ document.addEventListener('DOMContentLoaded', () => {
       closeModal('connections-modal');
   });
 
-  // --- Connection Test & Pusher Logic ---
   function str2ab(str) {
     const buf = new ArrayBuffer(str.length);
     const bufView = new Uint8Array(buf);
@@ -1564,7 +1535,6 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
 
-  // --- Settings Inputs ---
     function getBrightness(hex) {
         const r = parseInt(hex.slice(1, 3), 16);
         const g = parseInt(hex.slice(3, 5), 16);
@@ -1586,7 +1556,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
   const settingsToSync = {
-    concurrentTabsInput: { key: STORAGE_KEYS.CONCURRENT_TABS, type: 'number' },
     looperDaysOutFilterInput: { key: STORAGE_KEYS.LOOPER_DAYS_OUT_FILTER, type: 'text' },
     customKeywordInput: { key: STORAGE_KEYS.CUSTOM_KEYWORD, type: 'text' },
   };
@@ -1608,6 +1577,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const isDebugEnabled = settings[STORAGE_KEYS.DEBUG_MODE];
     debugToggle.checked = isDebugEnabled;
     updateDebugUI(isDebugEnabled);
+
+    // NEW: Load Embed in Canvas
+    const embedInCanvasToggle = document.getElementById('embedInCanvasToggle');
+    if (embedInCanvasToggle) {
+        embedInCanvasToggle.checked = settings[STORAGE_KEYS.EMBED_IN_CANVAS];
+    }
 
     const includeAllToggle = document.getElementById('includeAllToggle');
     if (includeAllToggle) {
@@ -1653,6 +1628,14 @@ document.addEventListener('DOMContentLoaded', () => {
     chrome.storage.local.set({ [STORAGE_KEYS.DEBUG_MODE]: isEnabled });
     updateDebugUI(isEnabled);
   });
+
+  // NEW: Add listener for Embed in Canvas
+  const embedInCanvasToggle = document.getElementById('embedInCanvasToggle');
+  if (embedInCanvasToggle) {
+    embedInCanvasToggle.addEventListener('change', (event) => {
+        chrome.storage.local.set({ [STORAGE_KEYS.EMBED_IN_CANVAS]: event.target.checked });
+    });
+  }
 
   const includeAllToggle = document.getElementById('includeAllToggle');
   if (includeAllToggle) {
@@ -1787,6 +1770,24 @@ document.addEventListener('DOMContentLoaded', () => {
       const initialTab = data[STORAGE_KEYS.CHECKER_MODE] === CHECKER_MODES.MISSING ? 'report' : 'found';
       switchTab(initialTab);
   });
+  
+  // SWAP UI LABELS: Update the text of download buttons to reflect the swapped logic
+  try {
+      const jsonBtnSide = document.getElementById('downloadReportJsonBtnSidePanel');
+      const csvBtnSide = document.getElementById('downloadReportCsvBtnSidePanel');
+      const jsonBtnModal = document.getElementById('downloadReportJsonBtn');
+      const csvBtnModal = document.getElementById('downloadReportCsvBtn');
+
+      // Update text to match the new behavior (JSON ID -> CSV Action)
+      if (jsonBtnSide) jsonBtnSide.childNodes[0].nodeValue = "Download CSV"; // Preserves icon if present as child
+      if (csvBtnSide) csvBtnSide.textContent = "Download JSON";
+      
+      if (jsonBtnModal) jsonBtnModal.textContent = "Download CSV";
+      if (csvBtnModal) csvBtnModal.textContent = "Download JSON";
+      
+  } catch (e) {
+      console.warn("Could not auto-update button labels:", e);
+  }
 
   setupDebugConsole();
 });

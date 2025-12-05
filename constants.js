@@ -1,8 +1,8 @@
-// [2025-09-25 16:41 PM]
-// Version: 10.1
+// [2025-10-20 10:00 AM]
+// Version: 14.0
 /*
-* Timestamp: 2025-09-12 17:17 PM
-* Version: 8.0
+* Timestamp: 2025-10-20 10:00 AM
+* Version: 14.0
 */
 
 // Centralized configuration for the Submission Checker extension.
@@ -81,7 +81,7 @@ export const STORAGE_KEYS = {
  */
 export const DEFAULT_SETTINGS = {
     [STORAGE_KEYS.CHECKER_MODE]: CHECKER_MODES.SUBMISSION,
-    [STORAGE_KEYS.CONCURRENT_TABS]: 3,
+    [STORAGE_KEYS.CONCURRENT_TABS]: 5, // Increased default since API is faster
     [STORAGE_KEYS.HIGHLIGHT_COLOR]: '#ffff00',
     [STORAGE_KEYS.CUSTOM_KEYWORD]: '',
     [STORAGE_KEYS.LOOPER_DAYS_OUT_FILTER]: 'all',
@@ -112,4 +112,3 @@ export const ADVANCED_FILTER_REGEX = /^\s*([><]=?|=)\s*(\d+)\s*$/;
  * SharePoint URL for the "SharePoint" button in the settings tab.
  */
 export const SHAREPOINT_URL = "https://edukgroup3_sharepoint.com/sites/SM-StudentServices/SitePages/CollabHome.aspx";
-

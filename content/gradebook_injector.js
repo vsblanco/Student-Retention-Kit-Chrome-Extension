@@ -1,18 +1,19 @@
 /*
-* Timestamp: 2025-09-12 17:01 PM
-* Version: 8.0
+* Timestamp: 2025-10-24 09:00 AM
+* Version: 8.1
 */
 
 // Note: Cannot use ES6 modules in content scripts directly.
 (function() {
-    const STORAGE_KEYS = {
+    // Renamed to avoid collision with other scripts
+    const INJECTOR_STORAGE_KEYS = {
         EMBED_IN_CANVAS: 'embedInCanvas',
         MASTER_ENTRIES: 'masterEntries'
     };
 
     // Only run this script if the setting is enabled
-    chrome.storage.local.get({ [STORAGE_KEYS.EMBED_IN_CANVAS]: true }, (settings) => {
-        if (!settings[STORAGE_KEYS.EMBED_IN_CANVAS]) {
+    chrome.storage.local.get({ [INJECTOR_STORAGE_KEYS.EMBED_IN_CANVAS]: true }, (settings) => {
+        if (!settings[INJECTOR_STORAGE_KEYS.EMBED_IN_CANVAS]) {
             console.log("Embed in Canvas is disabled. Injector will not run.");
             return;
         }
@@ -67,8 +68,8 @@
     }
 
     function addSearchFunctionality(searchInput, dropdown) {
-        chrome.storage.local.get({ [STORAGE_KEYS.MASTER_ENTRIES]: [] }, (data) => {
-            const masterList = data[STORAGE_KEYS.MASTER_ENTRIES];
+        chrome.storage.local.get({ [INJECTOR_STORAGE_KEYS.MASTER_ENTRIES]: [] }, (data) => {
+            const masterList = data[INJECTOR_STORAGE_KEYS.MASTER_ENTRIES];
             searchInput.addEventListener('input', () => {
                 const term = searchInput.value.trim();
                 const lowerTerm = term.toLowerCase();

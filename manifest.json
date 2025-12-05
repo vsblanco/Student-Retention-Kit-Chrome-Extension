@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Submission Checker",
-  "version": "8.2",
-  "description": "Automated student submission checking. Also includes missing assignments.",
+  "version": "9.0",
+  "description": "Automated student submission checking via Canvas API.",
   "icons": {
     "16": "icon.png",
     "48": "icon.png",
@@ -15,10 +15,11 @@
     "sidePanel",
     "clipboardRead",
     "offscreen",
-    "webRequest"
+    "webRequest",
+    "cookies"
   ],
   "host_permissions": [
-    "<all_urls>"
+    "https://nuc.instructure.com/*"
   ],
   "background": {
     "service_worker": "background/background.js",

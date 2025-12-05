@@ -1,6 +1,6 @@
 /*
-* Timestamp: 2025-09-24 18:31 PM
-* Version: 13.1
+* Timestamp: 2025-09-25 17:40 PM
+* Version: 13.3
 *//* --- Liquid Glass Theme (Light) --- */
 
 html {
@@ -1805,3 +1805,30 @@ input:checked + .slider:before { transform: translateX(20px); }
     padding-left: 10px;
     padding-right: 10px;
 }
+
+/* --- NEW Heatmap Styles --- */
+.heatmap-indicator {
+    width: 6px;
+    height: 28px;
+    border-radius: 3px;
+    margin-right: 12px;
+    flex-shrink: 0;
+    transition: transform 0.2s ease;
+}
+
+.found-list li:hover .heatmap-indicator {
+    transform: scaleX(1.5);
+}
+
+.master-list-content {
+    flex-grow: 1;
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.days-out-text {
+    /* This class is no longer used, but kept for reference */
+}
+
