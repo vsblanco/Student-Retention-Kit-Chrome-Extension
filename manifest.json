@@ -24,7 +24,8 @@
     "https://excel.office.com/*",
     "https://*.officeapps.live.com/*",
     "https://*.sharepoint.com/*", 
-    "https://vsblanco.github.io/*"
+    "https://vsblanco.github.io/*",
+    "https://app-atl.five9.com/*"
   ],
   "background": {
     "service_worker": "background/background.js",
@@ -50,6 +51,11 @@
       "js": ["content/excel_connector.js"],
       "run_at": "document_start",
       "all_frames": true
+    },
+    {
+      "matches": ["https://app-atl.five9.com/*"],
+      "js": ["content/five9_connector.js"],
+      "run_at": "document_idle"
     }
   ],
   "action": {

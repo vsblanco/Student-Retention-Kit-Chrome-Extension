@@ -1,5 +1,5 @@
-// [2025-10-22 09:00 AM]
-// Version: 14.3
+// [2025-12-17 01:25 PM]
+// Version: 14.4 - Added Five9 Integration
 import { startLoop, stopLoop, addToFoundUrlCache } from './looper.js';
 import { STORAGE_KEYS, CHECKER_MODES, MESSAGE_TYPES, EXTENSION_STATES, CONNECTION_TYPES, SCHEDULED_ALARM_NAME } from '../constants.js';
 import { setupSchedule, runScheduledCheck } from './schedule.js';
@@ -187,7 +187,7 @@ chrome.webRequest.onErrorOccurred.addListener(
   { urls: ["https://nuc.instructure.com/api/*"] }
 );
 
-chrome.runtime.onMessage.addListener(async (msg, sender) => {
+chrome.runtime.onMessage.addListener(async (msg, sender, sendResponse) => {
   if (msg.type === MESSAGE_TYPES.REQUEST_STORED_LOGS) {
       if (logBuffer.length > 0) {
           chrome.runtime.sendMessage({ type: MESSAGE_TYPES.STORED_LOGS, payload: logBuffer }).catch(() => {});
@@ -203,6 +203,60 @@ chrome.runtime.onMessage.addListener(async (msg, sender) => {
     await setupSchedule();
   } else if (msg.type === MESSAGE_TYPES.LOG_TO_PANEL) {
       // Re-broadcast logs
+  } 
+  
+  // --- FIVE9 INTEGRATION ---
+  else if (msg.type === 'triggerFive9Call') {
+      (async () => {
+          const tabs = await chrome.tabs.query({ url: "https://app-atl.five9.com/*" });
+          if (tabs.length === 0) {
+              chrome.runtime.sendMessage({ 
+                  type: 'callStatus', 
+                  success: false, 
+                  error: "Five9 tab not found. Please open Five9." 
+              });
+              return;
+          }
+          
+          const five9TabId = tabs[0].id;
+          // Clean number logic
+          let cleanNumber = msg.phoneNumber.replace(/[^0-9+]/g, '');
+          if (!cleanNumber.startsWith('+1') && cleanNumber.length === 10) {
+              cleanNumber = '+1' + cleanNumber;
+          }
+
+          chrome.tabs.sendMessage(five9TabId, { 
+              type: 'executeFive9Call', 
+              phoneNumber: cleanNumber 
+          }, (response) => {
+              if (chrome.runtime.lastError) {
+                  console.error("Five9 Connection Error:", chrome.runtime.lastError.message); 
+                  chrome.runtime.sendMessage({ type: 'callStatus', success: false, error: "Five9 disconnected. Refresh tab." });
+              } else {
+                  chrome.runtime.sendMessage({ type: 'callStatus', success: response?.success, error: response?.error });
+              }
+          });
+      })();
+      return true;
+  }
+  else if (msg.type === 'triggerFive9Hangup') {
+      (async () => {
+          const tabs = await chrome.tabs.query({ url: "https://app-atl.five9.com/*" });
+          if (tabs.length === 0) {
+              chrome.runtime.sendMessage({ type: 'hangupStatus', success: false, error: "Five9 tab not found." });
+              return;
+          }
+
+          chrome.tabs.sendMessage(tabs[0].id, { type: 'executeFive9Hangup' }, (response) => {
+              if (chrome.runtime.lastError) {
+                  console.error("Five9 Hangup Error:", chrome.runtime.lastError.message);
+                  chrome.runtime.sendMessage({ type: 'hangupStatus', success: false, error: "Five9 disconnected." });
+              } else {
+                  chrome.runtime.sendMessage({ type: 'hangupStatus', success: response?.success, error: response?.error });
+              }
+          });
+      })();
+      return true;
   }
 });
 
