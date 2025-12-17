@@ -1,5 +1,5 @@
-// [2025-10-24 05:30 PM]
-// Version: 18.0
+// [2025-12-10 11:30 AM]
+// Version: 18.1
 import { STORAGE_KEYS, CHECKER_MODES, ADVANCED_FILTER_REGEX, DEFAULT_SETTINGS, EXTENSION_STATES, MESSAGE_TYPES } from '../constants.js';
 
 let isLooping = false;
@@ -224,6 +224,7 @@ async function analyzeMissingMode(entry, submissions, userObject) {
 async function analyzeSubmissionMode(entry, submissions) {
     const settings = await chrome.storage.local.get(STORAGE_KEYS.CUSTOM_KEYWORD);
     let keyword = settings[STORAGE_KEYS.CUSTOM_KEYWORD];
+    const isCustomKeyword = !!keyword; // Check if user provided a specific custom keyword
     
     const now = new Date();
     if (!keyword) {
@@ -238,7 +239,16 @@ async function analyzeSubmissionMode(entry, submissions) {
             const subDate = new Date(sub.submitted_at);
             const subDateStr = subDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }).replace(',', '');
             
-            if (subDateStr.includes(keyword) || keyword.includes(subDateStr)) {
+            // FIX: If using default date (Today), use strict equality (===) to prevent "Dec 10" matching "Dec 1".
+            // If using a custom keyword (e.g. "Dec"), allow .includes() for partial matching.
+            let isMatch = false;
+            if (isCustomKeyword) {
+                isMatch = subDateStr.includes(keyword);
+            } else {
+                isMatch = subDateStr === keyword;
+            }
+            
+            if (isMatch) {
                 found = true;
                 
                 foundDetails = {

@@ -30,11 +30,10 @@ async function onSubmissionFound(entry) {
     chrome.runtime.sendMessage({ type: MESSAGE_TYPES.LOG_TO_PANEL, level: 'log', payload: logPayload }).catch(() => {});
 }
 
-// Handle found missing assignments (Missing Mode) - NEW CALLBACK
+// Handle found missing assignments (Missing Mode)
 function onMissingFound(payload) {
     missingAssignmentsCollector.push(payload);
     
-    // Logic moved from onMessage listener to ensure synchronous data collection
     const logMessage = payload.count > 0 
           ? `Missing Found: ${payload.studentName} (${payload.count})`
           : `Clean: ${payload.studentName}`;
@@ -95,7 +94,7 @@ async function onMissingCheckCompleted() {
                 importName: "Missing Assignments Report",
                 dataArrayKey: "assignments",
                 targetSheet: "Missing Assignments",
-				overwriteTargetSheet: true,
+                overwriteTargetSheet: true,
                 sheetKeyColumn: ["submissionLink", "Grade Book"],
                 columnMappings: [
                   { source: "studentName", target: "Student Name" },
@@ -189,10 +188,6 @@ chrome.webRequest.onErrorOccurred.addListener(
 );
 
 chrome.runtime.onMessage.addListener(async (msg, sender) => {
-  
-  // NOTE: MESSAGE_TYPES.FOUND_MISSING_ASSIGNMENTS is removed from here 
-  // because we now use the direct onMissingFound callback.
-  
   if (msg.type === MESSAGE_TYPES.REQUEST_STORED_LOGS) {
       if (logBuffer.length > 0) {
           chrome.runtime.sendMessage({ type: MESSAGE_TYPES.STORED_LOGS, payload: logBuffer }).catch(() => {});
@@ -207,8 +202,7 @@ chrome.runtime.onMessage.addListener(async (msg, sender) => {
   } else if (msg.type === MESSAGE_TYPES.UPDATE_SCHEDULE) {
     await setupSchedule();
   } else if (msg.type === MESSAGE_TYPES.LOG_TO_PANEL) {
-      // Re-broadcast logs from looper to the popup if needed
-      // (Usually handled directly by looper, but good for safety)
+      // Re-broadcast logs
   }
 });
 
@@ -262,10 +256,10 @@ function updateBadge() {
     const foundCount = data[STORAGE_KEYS.FOUND_ENTRIES]?.length || 0;
     
     if (state === EXTENSION_STATES.ON) {
-      chrome.action.setBadgeBackgroundColor({ color: '#0052cc' }); // Blue
+      chrome.action.setBadgeBackgroundColor({ color: '#0052cc' });
       chrome.action.setBadgeText({ text: foundCount > 0 ? foundCount.toString() : 'API' });
     } else if (state === EXTENSION_STATES.PAUSED) {
-      chrome.action.setBadgeBackgroundColor({ color: '#f5a623' }); // Orange/Yellow
+      chrome.action.setBadgeBackgroundColor({ color: '#f5a623' });
       chrome.action.setBadgeText({ text: 'WAIT' });
     } else {
       chrome.action.setBadgeText({ text: '' });
@@ -282,7 +276,6 @@ async function handleStateChange(newState, oldState) {
             missingAssignmentsCollector = [];
             missingCheckStartTime = Date.now();
             console.log("Starting Missing Assignments check (API Mode).");
-            // Pass the direct callback here to fix the race condition
             startLoop({ 
                 onComplete: onMissingCheckCompleted,
                 onMissingFound: onMissingFound 
@@ -304,6 +297,58 @@ async function addStudentToFoundList(entry) {
     addToFoundUrlCache(entry.url);
     await chrome.storage.local.set({ [STORAGE_KEYS.FOUND_ENTRIES]: Array.from(map.values()) });
 }
+
+// --- INJECTION LOGIC FOR EXCEL CONNECTOR ---
+
+const CONTENT_SCRIPT_FILE = "content/excel_connector.js";
+
+// UPDATED PATTERNS: Added SharePoint
+const TARGET_URL_PATTERNS = [
+  "https://excel.office.com/*",
+  "https://*.officeapps.live.com/*",
+  "https://*.sharepoint.com/*",
+  "https://vsblanco.github.io/*" 
+];
+
+async function injectScriptIntoTab(tabId, url) {
+  try {
+    await chrome.scripting.executeScript({
+      target: { tabId: tabId, allFrames: true },
+      files: [CONTENT_SCRIPT_FILE]
+    });
+    console.log(`[SRK] SUCCESS: Injected connector into tab ${tabId} (${url})`);
+  } catch (err) {
+    console.warn(`[SRK] FAILED to inject into tab ${tabId}: ${err.message}`);
+  }
+}
+
+// 1. On Install / Reload
+chrome.runtime.onInstalled.addListener(async () => {
+  console.log("[SRK] Extension installed/updated. Scanning for open Excel tabs...");
+
+  // Query specifically for our target URLs
+  const tabs = await chrome.tabs.query({ url: TARGET_URL_PATTERNS });
+  
+  console.log(`[SRK] Found ${tabs.length} matching tabs.`);
+
+  if (tabs.length === 0) {
+      console.log("[SRK] No tabs matched. Listing first 3 open tabs to debug URL mismatches:");
+      const allTabs = await chrome.tabs.query({});
+      allTabs.slice(0, 3).forEach(t => console.log(" - Open URL:", t.url));
+  }
+
+  for (const tab of tabs) {
+    injectScriptIntoTab(tab.id, tab.url);
+  }
+});
+
+// 2. On Browser Startup
+chrome.runtime.onStartup.addListener(async () => {
+  const tabs = await chrome.tabs.query({ url: TARGET_URL_PATTERNS });
+  for (const tab of tabs) {
+    injectScriptIntoTab(tab.id, tab.url);
+  }
+});
 
 // --- INITIALIZATION ---
 updateBadge();

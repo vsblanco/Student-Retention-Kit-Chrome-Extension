@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
-  "name": "Submission Checker",
-  "version": "9.0",
+  "name": "Student Retention Kit",
+  "version": "10.0",
   "description": "Automated student submission checking via Canvas API.",
   "icons": {
     "16": "icon.png",
@@ -16,10 +16,15 @@
     "clipboardRead",
     "offscreen",
     "webRequest",
-    "cookies"
+    "cookies",
+    "scripting" 
   ],
-  "host_permissions": [
-    "https://nuc.instructure.com/*"
+"host_permissions": [
+    "https://nuc.instructure.com/*",
+    "https://excel.office.com/*",
+    "https://*.officeapps.live.com/*",
+    "https://*.sharepoint.com/*", 
+    "https://vsblanco.github.io/*"
   ],
   "background": {
     "service_worker": "background/background.js",
@@ -35,6 +40,16 @@
       "matches": ["https://nuc.instructure.com/courses/*/grades/*"],
       "js": ["content/gradebook_injector.js"],
       "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://excel.office.com/*",
+        "https://*.officeapps.live.com/*",
+        "https://vsblanco.github.io/Student-Retention-Add-in/*"
+      ],
+      "js": ["content/excel_connector.js"],
+      "run_at": "document_start",
+      "all_frames": true
     }
   ],
   "action": {

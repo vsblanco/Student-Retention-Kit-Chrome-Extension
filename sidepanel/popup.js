@@ -1,1793 +1,1021 @@
-// [2025-10-24 04:30 PM]
-// Version: 16.7
-import { STORAGE_KEYS, DEFAULT_SETTINGS, ADVANCED_FILTER_REGEX, SHAREPOINT_URL, CHECKER_MODES, EXTENSION_STATES, MESSAGE_TYPES, CONNECTION_TYPES } from '../constants.js';
+import { STORAGE_KEYS, EXTENSION_STATES } from '../constants.js';
 
-let lastActiveTab = 'found'; 
+// --- CONFIGURATION ---
+const CANVAS_DOMAIN = "https://nuc.instructure.com";
+const GENERIC_AVATAR_URL = "https://nuc.instructure.com/images/messages/avatar-50.png";
 
-// --- RENDER FUNCTIONS ---
-export function renderFoundList(entries) {
-  const list = document.getElementById('foundList');
-  list.innerHTML = '';
-  if (!entries || entries.length === 0) {
-      list.innerHTML = '<li>None yet</li>';
-      return;
-  }
+// --- STATE MANAGEMENT ---
+let isScanning = false;
+let isCallActive = false;
+let callTimerInterval = null;
+let selectedQueue = []; // Tracks multiple selected students
 
-  // SORTING: Descending (Latest First)
-  entries.sort((a, b) => {
-    const timeA = a.timestamp ? new Date(a.timestamp).getTime() : 0;
-    const timeB = b.timestamp ? new Date(b.timestamp).getTime() : 0;
-    return timeB - timeA; 
-  });
+// --- DOM ELEMENTS CACHE ---
+const elements = {};
 
-  entries.forEach(entry => {
-    const { name, time, url } = entry;
-    const li = document.createElement('li');
-    li.dataset.entry = JSON.stringify(entry);
-    
-    const a  = document.createElement('a');
-    a.textContent = name;
-    a.href = '#';
-    a.addEventListener('click', e => {
-      e.preventDefault();
-      chrome.tabs.create({ url });
-    });
-    li.appendChild(a);
-    if (time) {
-        const timeBadge = document.createElement('span');
-        timeBadge.className = 'pill-badge align-right';
-        timeBadge.textContent = time;
-        li.appendChild(timeBadge);
-    }
-    list.appendChild(li);
-  });
-}
-
-function getHeatmapColor(value, max) {
-    if (value == null) {
-        return 'hsl(0, 0%, 80%)'; 
-    }
-    if (value < 5) {
-        return 'hsl(120, 70%, 45%)'; 
-    }
-    const gradientStart = 5;
-    const gradientEnd = Math.max(gradientStart, max);
-
-    if (gradientStart === gradientEnd) {
-        return 'hsl(60, 90%, 55%)'; 
-    }
-
-    const clampedValue = Math.max(gradientStart, Math.min(value, gradientEnd));
-    const ratio = (clampedValue - gradientStart) / (gradientEnd - gradientStart);
-    const hue = 60 - (ratio * 60);
-    return `hsl(${hue}, 90%, 55%)`;
-}
-
-export function renderMasterList(entries, showPhones) {
-  const list = document.getElementById('masterList');
-  list.innerHTML = '';
-
-  const daysOutValues = entries.map(e => e.daysout).filter(d => d != null);
-  const maxDaysOut = daysOutValues.length > 0 ? Math.max(...daysOutValues) : 0;
-
-  entries.forEach((entry) => {
-    const { name, url, phone, daysout } = entry;
-    const li = document.createElement('li');
-    li.dataset.entry = JSON.stringify(entry);
-
-    const heatmapIndicator = document.createElement('div');
-    heatmapIndicator.className = 'heatmap-indicator';
-    heatmapIndicator.style.backgroundColor = getHeatmapColor(daysout, maxDaysOut);
-    heatmapIndicator.title = daysout != null ? `Days Out: ${daysout}` : 'Days Out: N/A';
-    li.appendChild(heatmapIndicator);
-
-    const contentDiv = document.createElement('div');
-    contentDiv.className = 'master-list-content';
-    
-    if (url && url !== '#N/A' && url.startsWith('http')) {
-      const a  = document.createElement('a');
-      a.textContent = name;
-      a.href = url;
-      a.addEventListener('click', e => {
-        e.preventDefault();
-        chrome.tabs.create({ url });
-      });
-      contentDiv.appendChild(a);
-    } else {
-      const nameSpan = document.createElement('span');
-      nameSpan.textContent = name;
-      nameSpan.style.color = '#888';
-      nameSpan.title = 'Invalid URL. Please update on the master list.';
-      contentDiv.appendChild(nameSpan);
-    }
-
-    if (showPhones && phone) {
-        const phoneSpan = document.createElement('span');
-        phoneSpan.className = 'pill-badge';
-        phoneSpan.textContent = phone;
-        contentDiv.appendChild(phoneSpan);
-    }
-    
-    li.appendChild(contentDiv);
-    list.appendChild(li);
-  });
-}
-
-function renderConnectionsList(connections = []) {
-    const list = document.getElementById('connectionsList');
-    list.innerHTML = '';
-
-    if (connections.length === 0) {
-        list.innerHTML = '<li>No connections configured.</li>';
-        return;
-    }
-
-    connections.forEach((conn, index) => {
-        const li = document.createElement('li');
-        const icon = document.createElement('img');
-        icon.className = 'connection-icon';
-        const infoDiv = document.createElement('div');
-        infoDiv.className = 'connection-info';
-        const typeSpan = document.createElement('span');
-        typeSpan.className = 'connection-type';
-        const detailSpan = document.createElement('span');
-        detailSpan.className = 'connection-detail';
-
-        if (conn.type === CONNECTION_TYPES.POWER_AUTOMATE) {
-            icon.src = '../assets/pictures/power-automate-icon.png';
-            typeSpan.textContent = 'Power Automate';
-            detailSpan.textContent = conn.name;
-        } else if (conn.type === CONNECTION_TYPES.PUSHER) {
-            icon.src = '../assets/pictures/pusher-icon.png';
-            typeSpan.textContent = 'Pusher';
-            detailSpan.textContent = conn.name;
+document.addEventListener('DOMContentLoaded', () => {
+    // --- Block Text Highlighting Globally ---
+    const style = document.createElement('style');
+    style.textContent = `
+        * {
+            -webkit-user-select: none; /* Safari/Chrome */
+            user-select: none;
         }
+        input, textarea {
+            -webkit-user-select: text;
+            user-select: text;
+        }
+    `;
+    document.head.appendChild(style);
 
-        li.appendChild(icon);
-        infoDiv.appendChild(typeSpan);
-        infoDiv.appendChild(detailSpan);
-        li.appendChild(infoDiv);
+    cacheDomElements();
+    initializeApp();
+});
 
-        const actionsDiv = document.createElement('div');
-        actionsDiv.className = 'connection-actions';
-        const menuBtn = document.createElement('button');
-        menuBtn.className = 'connection-actions-btn';
-        menuBtn.title = 'Actions';
-        menuBtn.innerHTML = `<svg viewBox="0 0 24 24"><path d="M12,16A2,2 0 0,1 14,18A2,2 0 0,1 12,20A2,2 0 0,1 10,18A2,2 0 0,1 12,16M12,10A2,2 0 0,1 14,12A2,2 0 0,1 12,14A2,2 0 0,1 10,12A2,2 0 0,1 12,10M12,4A2,2 0 0,1 14,6A2,2 0 0,1 12,8A2,2 0 0,1 10,6A2,2 0 0,1 12,4Z" /></svg>`;
+function cacheDomElements() {
+    // Navigation
+    elements.tabs = document.querySelectorAll('.tab-button');
+    elements.contents = document.querySelectorAll('.tab-content');
+    
+    // Header
+    elements.headerSettingsBtn = document.getElementById('headerSettingsBtn');
+    elements.versionText = document.getElementById('versionText');
+    
+    // Checker Tab
+    elements.startBtn = document.getElementById('startBtn');
+    elements.startBtnText = document.getElementById('startBtnText');
+    elements.startBtnIcon = elements.startBtn ? elements.startBtn.querySelector('i') : null;
+    elements.statusDot = document.getElementById('statusDot');
+    elements.statusText = document.getElementById('statusText');
+    elements.foundList = document.querySelector('#checker .glass-list');
+    elements.clearListBtn = document.querySelector('#checker .btn-secondary');
+    elements.foundSearch = document.querySelector('#checker input[type="text"]');
 
-        const menu = document.createElement('div');
-        menu.className = 'connection-menu';
-
-        const editBtn = document.createElement('button');
-        editBtn.textContent = 'Edit';
-        editBtn.addEventListener('click', () => {
-            openEditConnectionModal(conn, index);
-            menu.classList.remove('active');
-        });
-
-        const exportBtn = document.createElement('button');
-        exportBtn.textContent = 'Export';
-        exportBtn.addEventListener('click', () => {
-            connectionToExport = conn;
-            document.getElementById('exportIncludeSecretToggle').checked = false;
-            updateExportView();
-            openModal('export-modal');
-            menu.classList.remove('active');
-        });
-
-        const deleteBtn = document.createElement('button');
-        deleteBtn.textContent = 'Delete';
-        deleteBtn.className = 'delete-action';
-        deleteBtn.addEventListener('click', () => {
-            connectionToDelete = conn.id;
-            openModal('delete-confirm-modal');
-            menu.classList.remove('active');
-        });
-
-        menu.appendChild(editBtn);
-        menu.appendChild(exportBtn);
-        menu.appendChild(deleteBtn);
-        actionsDiv.appendChild(menuBtn);
-        actionsDiv.appendChild(menu);
-        li.appendChild(actionsDiv);
-
-        menuBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            const listContainer = document.getElementById('connectionsList');
-            document.querySelectorAll('.connection-menu.active').forEach(m => {
-                if (m !== menu) m.classList.remove('active');
-            });
-            menu.classList.toggle('active');
-            listContainer.classList.toggle('overflow-visible', menu.classList.contains('active'));
-        });
-
-        list.appendChild(li);
-    });
-}
-
-function renderReportContent(reportData, container) {
-    container.innerHTML = '';
-    const studentDetails = reportData?.CUSTOM_IMPORT?.data;
-
-    if (!studentDetails || studentDetails.length === 0) {
-        container.innerHTML = '<p class="placeholder-text">No missing assignments found in the latest report, or a report has not been generated yet.</p>';
-        return;
-    }
-
-    studentDetails.forEach(student => {
-        const details = document.createElement('details');
-        details.className = 'report-student-details';
-        const summary = document.createElement('summary');
-        summary.className = 'report-student-summary';
-        summary.textContent = student.studentName;
-        details.appendChild(summary);
-
-        const assignmentsList = document.createElement('ul');
-        assignmentsList.className = 'report-assignments-list';
+    // Call Tab
+    elements.dialBtn = document.getElementById('dialBtn');
+    elements.callStatusText = document.querySelector('.call-status-bar');
+    elements.callTimer = document.querySelector('.call-timer');
+    elements.otherInputArea = document.getElementById('otherInputArea');
+    elements.customNote = document.getElementById('customNote');
+    elements.confirmNoteBtn = elements.otherInputArea ? elements.otherInputArea.querySelector('.btn-primary') : null;
+    elements.dispositionGrid = document.querySelector('.disposition-grid'); 
+    
+    // Call Tab - Student Card & Placeholder Logic
+    const contactTab = document.getElementById('contact');
+    if (contactTab) {
+        elements.contactCard = contactTab.querySelector('.setting-card');
         
-        if (student.totalMissing === 0) {
-            details.classList.add('no-missing');
-            const li = document.createElement('li');
-            li.textContent = 'All assignments are submitted.';
-            li.style.padding = '8px 5px';
-            assignmentsList.appendChild(li);
-            summary.addEventListener('click', (e) => {
-                e.preventDefault();
-            });
-        } else if (student.assignments && student.assignments.length > 0) {
-            student.assignments.forEach(assignment => {
-                const li = document.createElement('li');
-                const title = document.createElement('a');
-                title.className = 'assignment-title';
-                title.textContent = assignment.assignmentTitle;
-                title.href = '#';
-                title.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    if (assignment.link) {
-                        chrome.tabs.create({ url: assignment.submissionLink || assignment.link });
-                    }
-                });
-                li.appendChild(title);
-
-                const meta = document.createElement('div');
-                meta.className = 'assignment-meta';
-                const dueDate = document.createElement('span');
-                dueDate.textContent = `Due: ${assignment.dueDate}`;
-                meta.appendChild(dueDate);
-                const score = document.createElement('span');
-                score.textContent = `Score: ${assignment.score}`;
-                meta.appendChild(score);
-                li.appendChild(meta);
-                assignmentsList.appendChild(li);
-            });
+        // --- INJECT PLACEHOLDER ---
+        let placeholder = document.getElementById('contactPlaceholder');
+        if (!placeholder) {
+            placeholder = document.createElement('div');
+            placeholder.id = 'contactPlaceholder';
+            placeholder.style.cssText = 'display:none; flex-direction:column; align-items:center; justify-content:flex-start; padding-top:80px; height:100%; min-height:400px; color:#9ca3af; text-align:center; padding-left:20px; padding-right:20px;';
+            placeholder.innerHTML = `
+                <i class="fas fa-user-graduate" style="font-size:3em; margin-bottom:15px; opacity:0.5;"></i>
+                <span style="font-size:1.1em; font-weight:500;">No Student Selected</span>
+                <span style="font-size:0.9em; margin-top:5px; color:#6b7280;">Select a student from the Master List<br>to view details and make calls.</span>
+            `;
+            contactTab.insertBefore(placeholder, contactTab.firstChild);
         }
-        details.appendChild(assignmentsList);
-        container.appendChild(details);
-    });
-}
+        elements.contactPlaceholder = placeholder;
 
-function renderFormattedReport(reportData) {
-    const container = document.getElementById('report-formatted-view');
-    renderReportContent(reportData, container);
-}
-
-function renderReportInTab(reportData) {
-    const container = document.getElementById('report-formatted-view-sidepanel');
-    const toggleBtn = document.getElementById('toggleReportViewBtnSidePanel');
-    const downloadBtnMain = document.getElementById('downloadReportJsonBtnSidePanel'); 
-    
-    const jsonView = document.getElementById('report-json-view-sidepanel');
-    const formattedView = document.getElementById('report-formatted-view-sidepanel');
-    const timestampEl = document.getElementById('reportGeneratedTime');
-    const headerEl = timestampEl.parentElement;
-    const needsUpdatePill = document.getElementById('needsUpdatePill');
-
-    latestReportData = reportData; 
-
-    const hasReport = reportData && reportData.CUSTOM_IMPORT && reportData.CUSTOM_IMPORT.data && reportData.CUSTOM_IMPORT.data.length > 0;
-
-    if (toggleBtn) toggleBtn.disabled = !hasReport;
-    if (downloadBtnMain) downloadBtnMain.disabled = !hasReport;
-
-    if (reportData && reportData.reportGenerated) {
-        const reportDate = new Date(reportData.reportGenerated);
-        const timestampStr = reportDate.toLocaleDateString('en-US', {
-            month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true
-        }).replace(',', '');
-        timestampEl.textContent = `Generated: ${timestampStr}`;
-        headerEl.style.display = 'flex';
-
-        const today = new Date();
-        const isToday = reportDate.getFullYear() === today.getFullYear() &&
-                        reportDate.getMonth() === today.getMonth() &&
-                        reportDate.getDate() === today.getDate();
-
-        if (needsUpdatePill) {
-            needsUpdatePill.style.display = isToday ? 'none' : 'inline-flex';
+        // Cache Card Details
+        if (elements.contactCard) {
+            elements.contactAvatar = contactTab.querySelector('.setting-card div[style*="border-radius:50%"]');
+            const infoContainer = contactTab.querySelector('.setting-card div > div:not([style])'); 
+            if (infoContainer) {
+                elements.contactName = infoContainer.children[0];
+                elements.contactDetail = infoContainer.children[1]; 
+            } else {
+                elements.contactName = contactTab.querySelector('.setting-card div > div:first-child');
+                elements.contactDetail = contactTab.querySelector('.setting-card div > div:last-child');
+            }
+            elements.contactPhone = contactTab.querySelector('.phone-number-display');
         }
-    } else {
-        timestampEl.textContent = '';
-        if (needsUpdatePill) needsUpdatePill.style.display = 'none';
-        headerEl.style.display = 'none';
     }
 
-    if (formattedView) formattedView.style.display = 'block';
-    if (jsonView) jsonView.style.display = 'none';
-    if (toggleBtn) toggleBtn.textContent = 'View JSON';
+    // Data Tab
+    elements.masterList = document.getElementById('masterList');
+    elements.masterSearch = document.getElementById('masterSearch');
+    elements.sortSelect = document.getElementById('sortSelect');
+    elements.updateMasterBtn = document.getElementById('updateMasterBtn');
+    elements.downloadMasterBtn = document.getElementById('downloadMasterBtn');
+    elements.updateQueueSection = document.getElementById('updateQueueSection');
+    elements.queueCloseBtn = elements.updateQueueSection ? elements.updateQueueSection.querySelector('.icon-btn') : null;
+    elements.lastUpdatedText = document.getElementById('lastUpdatedText');
     
-    if (container) {
-        renderReportContent(reportData, container);
-    }
+    // Step 1 File Input
+    elements.studentPopFile = document.getElementById('studentPopFile');
+
+    // Modals & Settings
+    elements.versionModal = document.getElementById('versionModal');
+    elements.closeVersionBtn = document.getElementById('closeVersionBtn');
 }
 
-function simpleMarkdownToHtml(markdown) {
-    let html = markdown
-        .replace(/\\([^\w\s])/g, '$1')
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/^# (.*$)/gim, '<h1>$1</h1>')
-        .replace(/^## (.*$)/gim, '<h2>$1</h2>')
-        .replace(/^### (.*$)/gim, '<h3>$1</h3>')
-        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-        .replace(/\*(.*?)\*/g, '<em>$1</em>')
-        .replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>')
-        .replace(/`([^`]+)`/g, '<code>$1</code>');
+function initializeApp() {
+    setupEventListeners();
+    loadStorageData();
+    setActiveStudent(null); 
+}
 
-    html = html.replace(/^\s*[\-\*] (.*)/gm, '<ul><li>$1</li></ul>');
-    html = html.replace(/<\/ul>\n<ul>/g, '');
-    html = html.replace(/^\s*\d+\. (.*)/gm, '<ol><li>$1</li></ol>');
-    html = html.replace(/<\/ol>\n<ol>/g, '');
-    html = html.replace(/```([\s\S]*?)```/g, (match, p1) => {
-        const code = p1.trim();
-        return `<pre><code>${code}</code></pre>`;
+// --- EVENT LISTENERS ---
+function setupEventListeners() {
+    elements.tabs.forEach(tab => {
+        tab.addEventListener('click', () => switchTab(tab.dataset.tab));
     });
-    html = html.split(/\n\n+/).map(p => {
-        if (p.startsWith('<h') || p.startsWith('<ul') || p.startsWith('<ol') || p.startsWith('<pre')) {
-            return p;
-        }
-        return p.trim() ? `<p>${p.replace(/\n/g, '<br>')}</p>` : '';
-    }).join('');
 
-    return html;
+    // --- NEW: DETECT CTRL KEY RELEASE TO SWITCH TAB ---
+    document.addEventListener('keyup', (e) => {
+        // Check for Control (Windows) or Meta (Mac Command)
+        if (e.key === 'Control' || e.key === 'Meta') {
+            // Only switch if we have multiple students selected (Automation Mode)
+            if (selectedQueue.length > 1) {
+                switchTab('contact');
+            }
+        }
+    });
+    // --------------------------------------------------
+
+    if (elements.headerSettingsBtn) elements.headerSettingsBtn.addEventListener('click', () => switchTab('settings'));
+    
+    if (elements.versionText) elements.versionText.addEventListener('click', () => elements.versionModal.style.display = 'flex');
+    if (elements.closeVersionBtn) elements.closeVersionBtn.addEventListener('click', () => elements.versionModal.style.display = 'none');
+    window.addEventListener('click', (e) => {
+        if (elements.versionModal && e.target === elements.versionModal) elements.versionModal.style.display = 'none';
+    });
+
+    if (elements.startBtn) elements.startBtn.addEventListener('click', toggleScanState);
+    if (elements.clearListBtn) elements.clearListBtn.addEventListener('click', () => chrome.storage.local.set({ [STORAGE_KEYS.FOUND_ENTRIES]: [] }));
+
+    if (elements.foundSearch) {
+        elements.foundSearch.addEventListener('input', filterFoundList);
+    }
+
+    if (elements.dialBtn) elements.dialBtn.addEventListener('click', () => toggleCallState());
+    
+    const dispositionContainer = document.querySelector('.disposition-grid');
+    if (dispositionContainer) {
+        dispositionContainer.addEventListener('click', (e) => {
+            const btn = e.target.closest('.disposition-btn');
+            if (!btn) return;
+            if (btn.innerText.includes('Other')) elements.otherInputArea.style.display = 'block';
+            else handleDisposition(btn.innerText.trim());
+        });
+    }
+
+    if (elements.confirmNoteBtn) {
+        elements.confirmNoteBtn.addEventListener('click', () => {
+            const note = elements.customNote.value;
+            handleDisposition(`Custom Note: ${note}`);
+            elements.otherInputArea.style.display = 'none';
+            elements.customNote.value = '';
+        });
+    }
+
+    if (elements.updateMasterBtn) {
+        elements.updateMasterBtn.addEventListener('click', () => {
+            if (elements.updateQueueSection) {
+                elements.updateQueueSection.style.display = 'block';
+                elements.updateQueueSection.scrollIntoView({ behavior: 'smooth' });
+                
+                resetQueueUI();
+                
+                const step1 = document.getElementById('step1');
+                if(step1) {
+                    step1.className = 'queue-item active';
+                    step1.querySelector('i').className = 'fas fa-spinner';
+                }
+
+                if(elements.studentPopFile) {
+                    elements.studentPopFile.click();
+                }
+            }
+        });
+    }
+    
+    if (elements.studentPopFile) {
+        elements.studentPopFile.addEventListener('change', (e) => {
+            handleFileImport(e.target.files[0]);
+        });
+    }
+    
+    if (elements.queueCloseBtn) {
+        elements.queueCloseBtn.addEventListener('click', () => {
+            elements.updateQueueSection.style.display = 'none';
+        });
+    }
+
+    if (elements.masterSearch) elements.masterSearch.addEventListener('input', filterMasterList);
+    if (elements.sortSelect) elements.sortSelect.addEventListener('change', sortMasterList);
+    if (elements.downloadMasterBtn) elements.downloadMasterBtn.addEventListener('click', exportMasterListCSV);
 }
 
-async function loadAboutContent() {
-    const readmeDisplay = document.getElementById('readme-display');
+// --- FILE IMPORT LOGIC (STEP 1) ---
+
+function handleFileImport(file) {
+    if (!file) {
+        resetQueueUI();
+        return;
+    }
+
+    const step1 = document.getElementById('step1');
+    const timeSpan = step1.querySelector('.step-time');
+    const startTime = Date.now();
+
+    const reader = new FileReader();
+
+    reader.onload = function(e) {
+        const content = e.target.result;
+        let students = [];
+
+        try {
+            if (file.name.endsWith('.csv')) {
+                students = parseCSV(content);
+            } else {
+                alert("Unsupported file type. Please use .csv.");
+                resetQueueUI();
+                return;
+            }
+
+            if(students.length === 0) {
+                throw new Error("No valid student data found (Check header row).");
+            }
+
+            const lastUpdated = new Date().toLocaleString();
+            
+            chrome.storage.local.set({ 
+                [STORAGE_KEYS.MASTER_ENTRIES]: students,
+                [STORAGE_KEYS.LAST_UPDATED]: lastUpdated
+            }, () => {
+                const duration = ((Date.now() - startTime) / 1000).toFixed(1);
+                step1.className = 'queue-item completed';
+                step1.querySelector('i').className = 'fas fa-check';
+                timeSpan.textContent = `${duration}s`;
+                
+                if(elements.lastUpdatedText) {
+                    elements.lastUpdatedText.textContent = lastUpdated;
+                }
+
+                renderMasterList(students);
+
+                // --- TRIGGER STEP 2 AUTOMATICALLY ---
+                processStep2(students);
+            });
+
+        } catch (error) {
+            console.error("Error parsing file:", error);
+            step1.querySelector('i').className = 'fas fa-times';
+            step1.style.color = '#ef4444';
+            timeSpan.textContent = 'Error: ' + error.message;
+        }
+        
+        elements.studentPopFile.value = '';
+    };
+
+    reader.readAsText(file);
+}
+
+// --- HELPER: PRELOAD IMAGE ---
+function preloadImage(url) {
+    if (!url) return;
+    const img = new Image();
+    img.src = url;
+}
+
+// --- STEP 2: FETCH CANVAS IDs, COURSES & PHOTOS ---
+
+async function processStep2(students) {
+    const step2 = document.getElementById('step2');
+    const timeSpan = step2.querySelector('.step-time');
+    
+    step2.className = 'queue-item active';
+    step2.querySelector('i').className = 'fas fa-spinner';
+    
+    const startTime = Date.now();
+
     try {
-        const response = await fetch('../README.md');
-        if (!response.ok) throw new Error('Failed to fetch README.md');
-        const rawReadmeContent = await response.text();
-        readmeDisplay.innerHTML = simpleMarkdownToHtml(rawReadmeContent);
-    } catch (error) {
-        console.error("Error loading README content:", error);
-        readmeDisplay.innerHTML = '<p>Error loading content. Please try again.</p>';
-    }
-}
+        console.log(`[Step 2] Pinging Canvas API: ${CANVAS_DOMAIN}`);
 
-// --- DATA & STATE MANAGEMENT ---
-let activeSort = { criterion: 'none', direction: 'none' };
-let connectionToDelete = null;
-let connectionToExport = null;
-let currentSessionId = null;
-let finalReportData = null; 
-let latestReportData = null; 
+        const BATCH_SIZE = 5;
+        let processedCount = 0;
+        let updatedStudents = [...students];
 
-async function displayMasterList() {
-    const { [STORAGE_KEYS.MASTER_ENTRIES]: masterEntries = [] } = await chrome.storage.local.get(STORAGE_KEYS.MASTER_ENTRIES);
-    
-    const searchInput = document.getElementById('newItemInput');
-    const term = searchInput ? searchInput.value.trim() : '';
-    const lowerTerm = term.toLowerCase();
-
-    const advancedMatch = term.match(ADVANCED_FILTER_REGEX);
-
-    const filteredEntries = masterEntries.filter(entry => {
-        if (advancedMatch) {
-            const operator = advancedMatch[1];
-            const value = parseInt(advancedMatch[2], 10);
-            const daysout = entry.daysout;
-
-            if (daysout == null) return false;
-
-            switch (operator) {
-                case '>':  return daysout > value;
-                case '<':  return daysout < value;
-                case '>=': return daysout >= value;
-                case '<=': return daysout <= value;
-                case '=':  return daysout === value;
-                default:   return false;
-            }
-        }
-
-        if (term === '') return true;
-
-        const nameMatch = entry.name.toLowerCase().includes(lowerTerm);
-        let extraMatch = false;
-        
-        if (entry.daysout != null && !isNaN(term) && term !== '') {
-             extraMatch = String(entry.daysout) === term;
-        }
-        
-        return nameMatch || extraMatch;
-    });
-
-    let finalEntries = [...filteredEntries];
-    if (activeSort.criterion === 'daysout') {
-        finalEntries.sort((a, b) => {
-            const valA = a.daysout || 0;
-            const valB = b.daysout || 0;
-            return activeSort.direction === 'desc' ? valB - valA : valA - valB;
-        });
-    } else if (activeSort.criterion === 'name') {
-        finalEntries.sort((a, b) => {
-            return activeSort.direction === 'asc' 
-                ? a.name.localeCompare(b.name) 
-                : b.name.localeCompare(a.name);
-        });
-    }
-
-    renderMasterList(finalEntries, false);
-
-    const badge = document.querySelector('.tab-button[data-tab="master"] .count');
-    if (badge) badge.textContent = finalEntries.length;
-}
-
-async function updateMasterFromClipboard() {
-  const updateBtn = document.getElementById('updateMasterBtn');
-  const list = document.getElementById('masterList');
-  
-  updateBtn.classList.remove('btn-success', 'btn-error');
-  updateBtn.textContent = 'Processing...';
-  list.innerHTML = '<li>Reading from clipboard...</li>';
-
-  try {
-    const clipboardText = await navigator.clipboard.readText();
-    if (!clipboardText) throw new Error("Clipboard is empty.");
-    
-    const data = JSON.parse(clipboardText);
-    if (!Array.isArray(data)) throw new Error("Clipboard data is not a valid JSON array.");
-
-    const entries = data.map(s => {
-        if (!s.StudentName || !s.GradeBook) {
-            console.warn("Skipping invalid entry:", s);
-            return null;
-        }
-        return {
-          name: s.StudentName,
-          url: s.GradeBook,
-          daysout: s.DaysOut,
-          lda: s.LDA,
-          grade: s.Grade,
-          phone: '', 
-          time: ''
-        };
-    }).filter(Boolean);
-
-    const now = new Date();
-    const timestampStr = now.toLocaleDateString('en-US', {
-        month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true
-    }).replace(',', '');
-    
-    await chrome.storage.local.set({ 
-        [STORAGE_KEYS.MASTER_ENTRIES]: entries, 
-        [STORAGE_KEYS.LAST_UPDATED]: timestampStr 
-    });
-    
-    displayMasterList();
-    
-    const lastUpdatedSpan = document.getElementById('lastUpdatedTime');
-    if(lastUpdatedSpan) lastUpdatedSpan.textContent = `Last updated: ${timestampStr}`;
-
-    updateBtn.classList.add('btn-success');
-    updateBtn.textContent = `Success! ${entries.length} students loaded.`;
-
-  } catch (e) {
-    console.error('Failed to update master list from clipboard', e);
-    updateBtn.classList.add('btn-error');
-    updateBtn.textContent = 'Error: Invalid clipboard data.';
-    list.innerHTML = '<li>Error loading list. Please copy the correct JSON data and try again.</li>';
-  } finally {
-    setTimeout(() => {
-        updateBtn.classList.remove('btn-success', 'btn-error');
-        updateBtn.textContent = 'Update Master List';
-    }, 4000);
-  }
-}
-
-async function loadLatestReport() {
-    const { [STORAGE_KEYS.LATEST_MISSING_REPORT]: reportData } = await chrome.storage.local.get(STORAGE_KEYS.LATEST_MISSING_REPORT);
-    renderReportInTab(reportData);
-}
-
-// --- UI HELPER FUNCTIONS ---
-function createRipple(event) {
-    const button = event.currentTarget;
-    const rect = button.getBoundingClientRect();
-    const ripple = document.createElement("span");
-    ripple.className = 'ripple';
-    ripple.style.height = ripple.style.width = Math.max(rect.width, rect.height) + "px";
-    const x = event.clientX - rect.left - ripple.offsetWidth / 2;
-    const y = event.clientY - rect.top - ripple.offsetHeight / 2;
-    ripple.style.left = `${x}px`;
-    ripple.style.top = `${y}px`;
-    button.appendChild(ripple);
-    setTimeout(() => ripple.remove(), 600);
-}
-
-function switchTab(tabName) {
-    if (tabName !== 'about') {
-        lastActiveTab = tabName;
-    }
-    document.querySelectorAll('.tab-button').forEach(btn => btn.classList.toggle('active', btn.dataset.tab === tabName));
-    document.querySelectorAll('.tab-content').forEach(pane => {
-        const isActive = pane.id === tabName;
-        pane.style.display = isActive ? 'flex' : 'none';
-        pane.classList.toggle('active', isActive);
-    });
-}
-
-function updateExportView() {
-    if (!connectionToExport) return;
-    
-    const includeSecretToggle = document.getElementById('exportIncludeSecretToggle');
-    const includeSecret = includeSecretToggle.checked;
-    const exportableConn = { ...connectionToExport };
-
-    if (!includeSecret) {
-        if (exportableConn.secret) {
-            exportableConn.secret = '';
-        }
-        if (exportableConn.type === CONNECTION_TYPES.POWER_AUTOMATE && exportableConn.url) {
-            exportableConn.url = ''; 
-        }
-    }
-    
-    document.getElementById('exportJsonContent').textContent = JSON.stringify(exportableConn, null, 2);
-}
-
-function updateScheduleDisplay() {
-    chrome.storage.local.get({
-        [STORAGE_KEYS.SCHEDULED_CHECK_ENABLED]: false,
-        [STORAGE_KEYS.SCHEDULED_CHECK_TIME]: '08:00'
-    }, (settings) => {
-        const isEnabled = settings[STORAGE_KEYS.SCHEDULED_CHECK_ENABLED];
-        const time = settings[STORAGE_KEYS.SCHEDULED_CHECK_TIME];
-        const statusEl = document.getElementById('scheduleStatus');
-
-        if (!statusEl) return;
-
-        if (isEnabled && time) {
-            let [hours, minutes] = time.split(':');
-            const ampm = hours >= 12 ? 'PM' : 'AM';
-            hours = hours % 12 || 12; 
-            const formattedTime = `${hours}:${minutes} ${ampm}`;
-
-            statusEl.textContent = `Daily at ${formattedTime}`;
-            statusEl.classList.remove('disabled');
-        } else {
-            statusEl.textContent = 'Not Configured';
-            statusEl.classList.add('disabled');
-        }
-    });
-}
-
-// --- MODAL FUNCTIONS ---
-function openModal(modalId) {
-    const modal = document.getElementById(modalId);
-    if (modal) modal.style.display = 'flex';
-}
-
-function closeModal(modalId) {
-    const modal = document.getElementById(modalId);
-    if (modal) modal.style.display = 'none';
-
-    if (modalId === 'connections-modal') {
-        document.getElementById('connection-chooser').style.display = 'block';
-        document.getElementById('connection-form-container').style.display = 'none';
-        document.querySelectorAll('.connection-form').forEach(f => {
-            f.style.display = 'none';
-            f.reset();
-            const status = f.querySelector('.test-status');
-            if (status) {
-                status.textContent = '';
-                status.className = 'test-status';
-            }
-            delete f.dataset.editingId;
-        });
-        document.querySelectorAll('.connection-choice-btn').forEach(btn => {
-            btn.classList.remove('clipboard-match');
-        });
-    }
-}
-
-function openEditConnectionModal(connection, index) {
-  openModal('connections-modal');
-  document.getElementById('connection-chooser').style.display = 'none';
-  document.getElementById('connection-form-container').style.display = 'block';
-  
-  const form = document.getElementById(`${connection.type}-form`);
-  form.style.display = 'block';
-  form.dataset.editingId = connection.id;
-
-  if (connection.type === CONNECTION_TYPES.POWER_AUTOMATE) {
-      document.getElementById('pa-name').value = connection.name;
-      document.getElementById('pa-url').value = connection.url;
-  } else if (connection.type === CONNECTION_TYPES.PUSHER) {
-      document.getElementById('pusher-name').value = connection.name;
-      document.getElementById('pusher-key').value = connection.key;
-      document.getElementById('pusher-cluster').value = connection.cluster;
-      document.getElementById('pusher-secret').value = connection.secret;
-      document.getElementById('pusher-channel').value = connection.channel.replace('private-', '');
-      document.getElementById('pusher-event').value = connection.event.replace('client-', '');
-  }
-}
-
-function escapeCsvCell(cell) {
-    let cellString = String(cell == null ? '' : cell);
-    if (cellString.includes(',') || cellString.includes('"') || cellString.includes('\n')) {
-        cellString = '"' + cellString.replace(/"/g, '""') + '"';
-    }
-    return cellString;
-}
-
-function generateCsvContent(reportData) {
-    const students = reportData?.CUSTOM_IMPORT?.data;
-    if (!students || students.length === 0) {
-        return '';
-    }
-
-    const headers = [
-        "Student Name", "Current Grade", "Total Missing", 
-        "Grade Book", "Assignment Title", "Due Date", "Score", "Link", "Submission Link"
-    ];
-        
-    const rows = [headers];
-
-    students.forEach(student => {
-        if (student.assignments && student.assignments.length > 0) {
-            student.assignments.forEach(assignment => {
-                const row = [
-                    student.studentName,
-                    student.studentGrade,
-                    student.totalMissing,
-                    student.gradeBook,
-                    assignment.assignmentTitle,
-                    assignment.dueDate,
-                    assignment.score,
-                    assignment.link,
-                    assignment.submissionLink
-                ];
-                rows.push(row);
+        for (let i = 0; i < updatedStudents.length; i += BATCH_SIZE) {
+            const batch = updatedStudents.slice(i, i + BATCH_SIZE);
+            const promises = batch.map(student => fetchCanvasDetails(student));
+            
+            const results = await Promise.all(promises);
+            
+            results.forEach((updatedStudent, index) => {
+                updatedStudents[i + index] = updatedStudent;
             });
-        } else {
-            const row = [
-                student.studentName,
-                student.studentGrade,
-                student.totalMissing,
-                student.gradeBook,
-                "", "", "", "", ""
-            ];
-            rows.push(row);
+
+            processedCount += batch.length;
+            timeSpan.textContent = `${Math.round((processedCount / updatedStudents.length) * 100)}%`;
         }
-    });
-    
-    return rows.map(row => row.map(escapeCsvCell).join(',')).join('\n');
+
+        await chrome.storage.local.set({ [STORAGE_KEYS.MASTER_ENTRIES]: updatedStudents });
+        
+        const duration = ((Date.now() - startTime) / 1000).toFixed(1);
+        step2.className = 'queue-item completed';
+        step2.querySelector('i').className = 'fas fa-check';
+        timeSpan.textContent = `${duration}s`;
+        
+        renderMasterList(updatedStudents);
+
+    } catch (error) {
+        console.error("[Step 2 Error]", error);
+        step2.querySelector('i').className = 'fas fa-times';
+        step2.style.color = '#ef4444';
+        timeSpan.textContent = 'Error';
+    }
 }
 
-function downloadFile(content, filename, contentType) {
-    const blob = new Blob([content], { type: contentType });
+async function fetchCanvasDetails(student) {
+    if (!student.SyStudentId) return student;
+
+    try {
+        const userUrl = `${CANVAS_DOMAIN}/api/v1/users/sis_user_id:${student.SyStudentId}`;
+        const userResp = await fetch(userUrl, { headers: { 'Accept': 'application/json' } });
+        
+        if (!userResp.ok) return student;
+        const userData = await userResp.json();
+        
+        if (userData.name) student.name = userData.name; 
+        if (userData.sortable_name) student.sortable_name = userData.sortable_name;
+
+        if (userData.avatar_url && userData.avatar_url !== GENERIC_AVATAR_URL) {
+            student.Photo = userData.avatar_url;
+            preloadImage(userData.avatar_url);
+        }
+
+        if (userData.created_at) {
+            student.created_at = userData.created_at;
+            const createdDate = new Date(userData.created_at);
+            const today = new Date();
+            const timeDiff = today - createdDate;
+            const daysDiff = timeDiff / (1000 * 3600 * 24);
+            
+            if (daysDiff < 60) {
+                student.isNew = true;
+            }
+        }
+
+        const canvasUserId = userData.id;
+
+        if (canvasUserId) {
+            const coursesUrl = `${CANVAS_DOMAIN}/api/v1/users/${canvasUserId}/courses?include[]=enrollments&enrollment_state=active&per_page=100`;
+            const coursesResp = await fetch(coursesUrl, { headers: { 'Accept': 'application/json' } });
+
+            if (coursesResp.ok) {
+                const courses = await coursesResp.json();
+                
+                const now = new Date();
+                const validCourses = courses.filter(c => c.name && !c.name.toUpperCase().includes('CAPV'));
+
+                let activeCourse = null;
+
+                activeCourse = validCourses.find(c => {
+                    if (!c.start_at || !c.end_at) return false;
+                    const start = new Date(c.start_at);
+                    const end = new Date(c.end_at);
+                    return now >= start && now <= end;
+                });
+
+                if (!activeCourse && validCourses.length > 0) {
+                    validCourses.sort((a, b) => {
+                        const dateA = a.start_at ? new Date(a.start_at) : new Date(0);
+                        const dateB = b.start_at ? new Date(b.start_at) : new Date(0);
+                        return dateB - dateA;
+                    });
+                    activeCourse = validCourses[0];
+                }
+
+                if (activeCourse) {
+                    student.url = `${CANVAS_DOMAIN}/courses/${activeCourse.id}/grades/${canvasUserId}`;
+                    
+                    if (activeCourse.enrollments && activeCourse.enrollments.length > 0) {
+                        const enrollment = activeCourse.enrollments.find(e => e.type === 'StudentEnrollment') || activeCourse.enrollments[0];
+                        if (enrollment && enrollment.grades && enrollment.grades.current_score) {
+                            student.grade = enrollment.grades.current_score + '%';
+                        }
+                    }
+                } else {
+                    student.url = `${CANVAS_DOMAIN}/users/${canvasUserId}/grades`;
+                }
+            }
+        }
+        return student;
+
+    } catch (e) {
+        return student;
+    }
+}
+
+function parseCSV(csvText) {
+    const lines = csvText.split(/\r\n|\n/).filter(line => line.trim() !== '');
+    if (lines.length < 2) return [];
+
+    const aliases = {
+        name: ['student name', 'name', 'studentname', 'student'],
+        phone: ['primaryphone', 'phone', 'phone number', 'mobile', 'cell', 'cell phone', 'contact', 'telephone'],
+        grade: ['grade', 'grade level', 'level'],
+        StudentNumber: ['studentnumber', 'student id', 'sis id'],
+        SyStudentId: ['systudentid', 'student sis'],
+        daysOut: ['days out', 'dayssincepriorlda', 'days inactive', 'days']
+    };
+
+    let headerRowIndex = -1;
+    let bestHeaders = [];
+
+    for (let i = 0; i < lines.length; i++) {
+        const currentHeaders = lines[i].split(',').map(h => h.trim().replace(/^"|"$/g, '').toLowerCase());
+        const hasName = currentHeaders.some(h => aliases.name.includes(h));
+        if (hasName) {
+            headerRowIndex = i;
+            bestHeaders = currentHeaders;
+            break; 
+        }
+    }
+
+    if (headerRowIndex === -1) return [];
+
+    const idx = {
+        name: bestHeaders.findIndex(h => aliases.name.includes(h)),
+        phone: bestHeaders.findIndex(h => aliases.phone.includes(h)),
+        grade: bestHeaders.findIndex(h => aliases.grade.includes(h)),
+        StudentNumber: bestHeaders.findIndex(h => aliases.StudentNumber.includes(h)),
+        SyStudentId: bestHeaders.findIndex(h => aliases.SyStudentId.includes(h)),
+        daysOut: bestHeaders.findIndex(h => aliases.daysOut.includes(h))
+    };
+
+    const students = [];
+
+    for (let i = headerRowIndex + 1; i < lines.length; i++) {
+        const row = lines[i].match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g);
+        if (!row) continue;
+        
+        const cleanRow = row.map(val => val.replace(/^"|"$/g, '').trim());
+        const rawName = cleanRow[idx.name];
+        
+        if (!rawName || /^\d+$/.test(rawName) || rawName.includes('/')) continue;
+
+        const entry = {
+            name: rawName,
+            phone: idx.phone !== -1 ? cleanRow[idx.phone] : null,
+            grade: idx.grade !== -1 ? cleanRow[idx.grade] : null,
+            StudentNumber: idx.StudentNumber !== -1 ? cleanRow[idx.StudentNumber] : null,
+            SyStudentId: idx.SyStudentId !== -1 ? cleanRow[idx.SyStudentId] : null,
+            daysout: idx.daysOut !== -1 ? parseInt(cleanRow[idx.daysOut]) || 0 : 0,
+            
+            missingCount: 0,
+            url: null,
+            assignments: []
+        };
+        students.push(entry);
+    }
+    
+    return students;
+}
+
+function resetQueueUI() {
+    const steps = ['step1', 'step2', 'step3', 'step4'];
+    steps.forEach(id => {
+        const el = document.getElementById(id);
+        if(!el) return;
+        el.className = 'queue-item';
+        el.querySelector('i').className = 'far fa-circle';
+        el.querySelector('.step-time').textContent = '';
+        el.style.color = '';
+    });
+    const totalTimeDisplay = document.getElementById('queueTotalTime');
+    if(totalTimeDisplay) totalTimeDisplay.style.display = 'none';
+}
+
+// --- LOGIC: STORAGE & RENDERING ---
+async function loadStorageData() {
+    const data = await chrome.storage.local.get([
+        STORAGE_KEYS.FOUND_ENTRIES,
+        STORAGE_KEYS.MASTER_ENTRIES,
+        STORAGE_KEYS.LAST_UPDATED,
+        STORAGE_KEYS.EXTENSION_STATE
+    ]);
+
+    renderFoundList(data[STORAGE_KEYS.FOUND_ENTRIES] || []);
+    renderMasterList(data[STORAGE_KEYS.MASTER_ENTRIES] || []);
+
+    if (elements.lastUpdatedText && data[STORAGE_KEYS.LAST_UPDATED]) {
+        elements.lastUpdatedText.textContent = data[STORAGE_KEYS.LAST_UPDATED];
+    }
+    
+    updateButtonVisuals(data[STORAGE_KEYS.EXTENSION_STATE] || EXTENSION_STATES.OFF);
+}
+
+chrome.storage.onChanged.addListener((changes) => {
+    if (changes[STORAGE_KEYS.FOUND_ENTRIES]) {
+        renderFoundList(changes[STORAGE_KEYS.FOUND_ENTRIES].newValue);
+        updateTabBadge('checker', (changes[STORAGE_KEYS.FOUND_ENTRIES].newValue || []).length);
+    }
+    if (changes[STORAGE_KEYS.MASTER_ENTRIES]) {
+        renderMasterList(changes[STORAGE_KEYS.MASTER_ENTRIES].newValue);
+    }
+    if (changes[STORAGE_KEYS.EXTENSION_STATE]) {
+        updateButtonVisuals(changes[STORAGE_KEYS.EXTENSION_STATE].newValue);
+    }
+});
+
+function updateTabBadge(tabId, count) {
+    const badge = document.querySelector(`.tab-button[data-tab="${tabId}"] .badge`);
+    if (badge) {
+        badge.textContent = count;
+        badge.style.display = count > 0 ? 'flex' : 'none';
+    }
+}
+
+// --- HELPER: DATA NORMALIZATION ---
+function resolveStudentData(entry) {
+    return {
+        name: entry.name || 'Unknown Student',
+        sortable_name: entry.sortable_name || null,
+        phone: entry.phone || null,
+        daysOut: parseInt(entry.daysout || 0),
+        missing: parseInt(entry.missingCount || 0),
+        StudentNumber: entry.StudentNumber || null,
+        SyStudentId: entry.SyStudentId || null,
+        url: entry.url || null,
+        Photo: entry.Photo || null,
+        isNew: entry.isNew || false, 
+        created_at: entry.created_at || null, 
+        timestamp: entry.timestamp || null,
+        assignment: entry.assignment || null
+    };
+}
+
+// --- STUDENT & CALL MANAGEMENT ---
+
+function setActiveStudent(rawEntry) {
+    const contactTab = document.getElementById('contact');
+    if (!contactTab) return;
+
+    // --- NEW: RESET AUTOMATION STYLES WHEN SWITCHING ---
+    if (elements.dialBtn) {
+        elements.dialBtn.classList.remove('automation');
+        elements.dialBtn.innerHTML = '<i class="fas fa-phone"></i>'; 
+    }
+    if (elements.callStatusText) {
+        elements.callStatusText.innerHTML = '<span class="status-indicator ready"></span> Ready to Connect';
+    }
+    // ---------------------------------------------------
+
+    // 1. Handle "No Student Selected" State
+    if (!rawEntry) {
+        Array.from(contactTab.children).forEach(child => {
+            if (child.id === 'contactPlaceholder') {
+                child.style.display = 'flex';
+            } else {
+                child.style.display = 'none';
+            }
+        });
+        return;
+    }
+
+    // 2. Handle "Student Selected" State
+    Array.from(contactTab.children).forEach(child => {
+        if (child.id === 'contactPlaceholder') {
+            child.style.display = 'none';
+        } else {
+            child.style.display = ''; 
+        }
+    });
+
+    const data = resolveStudentData(rawEntry);
+
+    const nameParts = data.name.trim().split(/\s+/);
+    let initials = '';
+    if (nameParts.length > 0) {
+        const firstInitial = nameParts[0][0] || '';
+        const lastInitial = nameParts.length > 1 ? nameParts[nameParts.length - 1][0] : '';
+        initials = (firstInitial + lastInitial).toUpperCase();
+        if (!initials) initials = '?';
+    }
+
+    const displayPhone = data.phone ? data.phone : "No Phone Listed";
+
+    // AVATAR LOGIC
+    if (elements.contactAvatar) {
+        elements.contactAvatar.style.color = ''; // Reset potential automation color
+        if (data.Photo && data.Photo !== GENERIC_AVATAR_URL) {
+            elements.contactAvatar.textContent = '';
+            elements.contactAvatar.style.backgroundImage = `url('${data.Photo}')`;
+            elements.contactAvatar.style.backgroundSize = 'cover';
+            elements.contactAvatar.style.backgroundPosition = 'center';
+            elements.contactAvatar.style.backgroundColor = 'transparent';
+        } else {
+            elements.contactAvatar.style.backgroundImage = 'none';
+            elements.contactAvatar.textContent = initials;
+            elements.contactAvatar.style.backgroundColor = '#e0e7ff';
+        }
+    }
+
+    if (elements.contactName) elements.contactName.textContent = data.name;
+    if (elements.contactPhone) elements.contactPhone.textContent = displayPhone;
+
+    if (elements.contactDetail) {
+        elements.contactDetail.textContent = `${data.daysOut} Days Inactive`;
+        elements.contactDetail.style.display = 'block';
+    }
+
+    let colorCode = '#10b981'; 
+    if (data.daysOut > 10) colorCode = '#ef4444';
+    else if (data.daysOut > 5) colorCode = '#f97316';
+    else if (data.daysOut > 2) colorCode = '#f59e0b';
+
+    if (elements.contactCard) {
+        elements.contactCard.style.borderLeftColor = colorCode;
+    }
+}
+
+// --- NEW: MULTI-SELECT HELPERS ---
+function toggleMultiSelection(entry, liElement) {
+    const index = selectedQueue.findIndex(s => s.name === entry.name);
+    
+    if (index > -1) {
+        // Deselect
+        selectedQueue.splice(index, 1);
+        liElement.classList.remove('multi-selected');
+    } else {
+        // Select
+        selectedQueue.push(entry);
+        liElement.classList.add('multi-selected');
+    }
+
+    // Update UI based on queue size
+    if (selectedQueue.length === 1) {
+        setActiveStudent(selectedQueue[0]); // Revert to single view
+    } else if (selectedQueue.length > 1) {
+        setAutomationModeUI(); // Switch to Automation View
+    } else {
+        setActiveStudent(null); // Clear view
+    }
+}
+
+function setAutomationModeUI() {
+    const contactTab = document.getElementById('contact');
+    if (!contactTab) return;
+    
+    // Ensure content is visible (hide placeholder)
+    Array.from(contactTab.children).forEach(child => {
+        if (child.id === 'contactPlaceholder') {
+            child.style.display = 'none';
+        } else {
+            child.style.display = ''; 
+        }
+    });
+
+    // 1. Update Contact Card (Placeholder for Batch)
+    if (elements.contactName) elements.contactName.textContent = "Automation Mode";
+    if (elements.contactDetail) elements.contactDetail.textContent = `${selectedQueue.length} Students Selected`;
+    if (elements.contactPhone) elements.contactPhone.textContent = "Multi-Dial Queue";
+    
+    // Create/Update visual badge for count
+    if (elements.contactAvatar) {
+        elements.contactAvatar.textContent = selectedQueue.length;
+        elements.contactAvatar.style.backgroundImage = 'none';
+        elements.contactAvatar.style.backgroundColor = '#8b5cf6'; // Purple
+        elements.contactAvatar.style.color = '#ffffff';
+    }
+
+    // 2. Transform the Dial Button to Purple
+    if (elements.dialBtn) {
+        elements.dialBtn.classList.add('automation');
+        elements.dialBtn.innerHTML = '<i class="fas fa-robot"></i>'; // Change icon to Robot
+    }
+
+    // 3. Update Status Text
+    if (elements.callStatusText) {
+        elements.callStatusText.innerHTML = `<span class="status-indicator" style="background:#8b5cf6;"></span> Ready to Auto-Dial`;
+    }
+    
+    if (elements.contactCard) {
+        elements.contactCard.style.borderLeftColor = '#8b5cf6';
+    }
+    
+    // REMOVED: switchTab('contact'); - Now handled by keyup event
+}
+
+// --- RENDERING LISTS ---
+
+function renderFoundList(rawEntries) {
+    if (!elements.foundList) return;
+    elements.foundList.innerHTML = '';
+
+    if (!rawEntries || rawEntries.length === 0) {
+        elements.foundList.innerHTML = '<li style="justify-content:center; color:gray;">No submissions found yet.</li>';
+        return;
+    }
+
+    const entries = rawEntries.map(resolveStudentData);
+    entries.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+    entries.forEach(data => {
+        const li = document.createElement('li');
+        let timeDisplay = 'Just now';
+        if (data.timestamp) {
+            timeDisplay = new Date(data.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        }
+
+        const assignmentTitle = data.assignment || 'Untitled Assignment';
+
+        li.innerHTML = `
+            <div style="display: flex; align-items: center; width:100%;">
+                <div class="heatmap-indicator heatmap-green"></div>
+                <div style="flex-grow:1; display:flex; justify-content:space-between; align-items:center;">
+                    <div style="display:flex; flex-direction:column;">
+                        <span class="student-name" style="font-weight:500; color:var(--primary-color); cursor:pointer;">${data.name}</span>
+                        <span style="font-size:0.8em; color:var(--text-secondary);">${assignmentTitle}</span>
+                    </div>
+                    <span class="timestamp-pill">${timeDisplay}</span>
+                </div>
+            </div>
+        `;
+        
+        const nameLink = li.querySelector('.student-name');
+        nameLink.addEventListener('click', (e) => {
+             e.stopPropagation();
+             if(data.url) chrome.tabs.create({ url: data.url });
+        });
+        nameLink.addEventListener('mouseenter', () => nameLink.style.textDecoration = 'underline');
+        nameLink.addEventListener('mouseleave', () => nameLink.style.textDecoration = 'none');
+
+        elements.foundList.appendChild(li);
+    });
+}
+
+function filterFoundList(e) {
+    const term = e.target.value.toLowerCase();
+    const items = elements.foundList.querySelectorAll('li');
+    items.forEach(li => {
+        const text = li.textContent.toLowerCase();
+        li.style.display = text.includes(term) ? 'flex' : 'none';
+    });
+}
+
+function renderMasterList(rawEntries) {
+    if (!elements.masterList) return;
+    elements.masterList.innerHTML = '';
+
+    if (!rawEntries || rawEntries.length === 0) {
+        elements.masterList.innerHTML = '<li style="justify-content:center;">Master list is empty.</li>';
+        return;
+    }
+
+    rawEntries.forEach(rawEntry => {
+        const data = resolveStudentData(rawEntry);
+        
+        const li = document.createElement('li');
+        li.className = 'expandable';
+        li.style.cursor = 'pointer'; 
+        
+        li.setAttribute('data-name', data.name);
+        li.setAttribute('data-missing', data.missing);
+        li.setAttribute('data-days', data.daysOut);
+        li.setAttribute('data-created', data.created_at || '');
+
+        let heatmapClass = data.daysOut > 10 ? 'heatmap-red' : (data.daysOut > 5 ? 'heatmap-orange' : (data.daysOut > 2 ? 'heatmap-yellow' : 'heatmap-green'));
+
+        let missingPillHtml = '';
+        if(data.missing > 0) {
+            missingPillHtml = `<span class="missing-pill">${data.missing} Missing <i class="fas fa-chevron-down" style="font-size:0.8em; margin-left:4px;"></i></span>`;
+        }
+
+        let newTagHtml = '';
+        if(data.isNew) {
+            newTagHtml = `<span style="background:#e0f2fe; color:#0369a1; font-size:0.7em; padding:2px 6px; border-radius:8px; margin-left:6px; font-weight:bold; border:1px solid #bae6fd;">New</span>`;
+        }
+
+        li.innerHTML = `
+            <div style="display: flex; align-items: center; width:100%;">
+                <div class="heatmap-indicator ${heatmapClass}"></div>
+                <div style="flex-grow:1;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; width:100%;">
+                        <div style="display:flex; align-items:center;">
+                            <span class="student-name" style="font-weight: 500; color:var(--text-main); position:relative; z-index:2;">${data.name}</span>
+                            ${newTagHtml}
+                        </div>
+                        ${missingPillHtml}
+                    </div>
+                    <span style="font-size:0.8em; color:gray;">${data.daysOut} Days Out</span>
+                </div>
+            </div>
+            <div class="missing-details" style="display: none; margin-top: 10px; border-top: 1px solid rgba(0,0,0,0.05); padding-top: 8px; cursor: default;">
+                <ul style="padding: 0; margin: 0; font-size: 0.85em; color: #4b5563; list-style-type: none;">
+                    <li><em>Details not loaded.</em></li>
+                </ul>
+            </div>
+        `;
+
+        // --- UPDATED CLICK LISTENER FOR MULTI-SELECT ---
+        li.addEventListener('click', (e) => {
+            // Check for CTRL (Windows) or COMMAND (Mac)
+            if (e.ctrlKey || e.metaKey) {
+                toggleMultiSelection(rawEntry, li);
+            } else {
+                // Standard Single Select (Clears previous multi-selection)
+                selectedQueue = [rawEntry]; 
+                
+                // Visually clear other rows
+                document.querySelectorAll('.glass-list li').forEach(el => el.classList.remove('multi-selected'));
+                li.classList.add('multi-selected');
+                
+                setActiveStudent(rawEntry);
+                switchTab('contact');
+            }
+        });
+
+        const nameLink = li.querySelector('.student-name');
+        if(nameLink) {
+            nameLink.addEventListener('click', (e) => {
+                e.stopPropagation(); 
+                if(data.url) chrome.tabs.create({ url: data.url });
+            });
+            nameLink.addEventListener('mouseenter', () => {
+                nameLink.style.textDecoration = 'underline';
+                nameLink.style.color = 'var(--primary-color)';
+            });
+            nameLink.addEventListener('mouseleave', () => {
+                nameLink.style.textDecoration = 'none';
+                nameLink.style.color = 'var(--text-main)';
+            });
+        }
+
+        const pill = li.querySelector('.missing-pill');
+        if(pill) {
+            pill.addEventListener('click', (e) => {
+                e.stopPropagation(); 
+                const details = li.querySelector('.missing-details');
+                const icon = pill.querySelector('i');
+                if (details) {
+                    const isHidden = details.style.display === 'none' || !details.style.display;
+                    details.style.display = isHidden ? 'block' : 'none';
+                    if (icon) icon.style.transform = isHidden ? 'rotate(180deg)' : 'rotate(0deg)';
+                }
+            });
+        }
+
+        const detailsDiv = li.querySelector('.missing-details');
+        if(detailsDiv) {
+            detailsDiv.addEventListener('click', (e) => {
+                e.stopPropagation();
+            });
+        }
+
+        elements.masterList.appendChild(li);
+    });
+}
+
+// --- LOGIC: TABS & SCANNER ---
+function switchTab(targetId) {
+    elements.tabs.forEach(t => t.classList.remove('active'));
+    elements.contents.forEach(c => c.classList.remove('active'));
+    
+    const targetContent = document.getElementById(targetId);
+    if (targetContent) targetContent.classList.add('active');
+    
+    const targetTab = document.querySelector(`.tab-button[data-tab="${targetId}"]`);
+    if (targetTab) targetTab.classList.add('active');
+}
+
+function toggleScanState() {
+    isScanning = !isScanning;
+    const newState = isScanning ? EXTENSION_STATES.ON : EXTENSION_STATES.OFF;
+    chrome.storage.local.set({ [STORAGE_KEYS.EXTENSION_STATE]: newState });
+}
+
+function updateButtonVisuals(state) {
+    if (!elements.startBtn) return;
+    isScanning = (state === EXTENSION_STATES.ON);
+
+    if (isScanning) {
+        elements.startBtn.style.background = '#ef4444';
+        elements.startBtnText.textContent = 'Stop';
+        elements.startBtnIcon.className = 'fas fa-stop';
+        elements.statusDot.style.background = '#10b981';
+        elements.statusDot.style.animation = 'pulse 2s infinite';
+        elements.statusText.textContent = 'Monitoring...';
+    } else {
+        elements.startBtn.style.background = 'rgba(0, 90, 156, 0.7)';
+        elements.startBtnText.textContent = 'Start';
+        elements.startBtnIcon.className = 'fas fa-play';
+        elements.statusDot.style.background = '#cbd5e1';
+        elements.statusDot.style.animation = 'none';
+        elements.statusText.textContent = 'Ready to Scan';
+    }
+}
+
+// --- LOGIC: CALL INTERFACE ---
+function toggleCallState(forceEnd = false) {
+    // --- NEW: CHECK FOR AUTOMATION MODE ---
+    if (selectedQueue.length > 1 && !isCallActive) {
+        startAutomationSequence();
+        return;
+    }
+    // --------------------------------------
+
+    if (forceEnd && !isCallActive) return;
+    isCallActive = !isCallActive;
+    if (forceEnd) isCallActive = false;
+
+    if (isCallActive) {
+        elements.dialBtn.style.background = '#ef4444'; 
+        elements.dialBtn.style.transform = 'rotate(135deg)';
+        elements.callStatusText.innerHTML = '<span class="status-indicator" style="background:#ef4444; animation: blink 1s infinite;"></span> Connected';
+        startCallTimer();
+    } else {
+        elements.dialBtn.style.background = '#10b981';
+        elements.dialBtn.style.transform = 'rotate(0deg)';
+        elements.callStatusText.innerHTML = '<span class="status-indicator ready"></span> Ready to Connect';
+        stopCallTimer();
+    }
+}
+
+function startAutomationSequence() {
+    alert(`Starting automation for ${selectedQueue.length} students...\n(Logic to be implemented)`);
+    // Placeholder for future logic
+}
+
+function startCallTimer() {
+    let seconds = 0;
+    elements.callTimer.textContent = "00:00";
+    clearInterval(callTimerInterval);
+    callTimerInterval = setInterval(() => {
+        seconds++;
+        const m = Math.floor(seconds / 60).toString().padStart(2, '0');
+        const s = (seconds % 60).toString().padStart(2, '0');
+        elements.callTimer.textContent = `${m}:${s}`;
+    }, 1000);
+}
+
+function stopCallTimer() {
+    clearInterval(callTimerInterval);
+    elements.callTimer.textContent = "00:00";
+}
+
+function handleDisposition(type) {
+    console.log("Logged Disposition:", type);
+    toggleCallState(true);
+}
+
+// --- LOGIC: QUEUE SIMULATION ---
+function runQueueSimulation() {
+    // Only runs for later steps now
+}
+
+// --- LOGIC: FILTER & SORT ---
+function filterMasterList(e) {
+    const term = e.target.value.toLowerCase();
+    const listItems = elements.masterList.querySelectorAll('li.expandable');
+    listItems.forEach(li => {
+        const name = li.getAttribute('data-name').toLowerCase();
+        li.style.display = name.includes(term) ? 'flex' : 'none';
+    });
+}
+
+function sortMasterList() {
+    const criteria = elements.sortSelect.value;
+    const listItems = Array.from(elements.masterList.querySelectorAll('li.expandable'));
+
+    listItems.sort((a, b) => {
+        if (criteria === 'name') {
+            return a.getAttribute('data-name').localeCompare(b.getAttribute('data-name'));
+        } else if (criteria === 'missing') {
+            return parseInt(b.getAttribute('data-missing')) - parseInt(a.getAttribute('data-missing'));
+        } else if (criteria === 'days') {
+            return parseInt(b.getAttribute('data-days')) - parseInt(a.getAttribute('data-days'));
+        } else if (criteria === 'newest') {
+            const dateA = new Date(a.getAttribute('data-created') || 0);
+            const dateB = new Date(b.getAttribute('data-created') || 0);
+            return dateB - dateA;
+        }
+    });
+    listItems.forEach(item => elements.masterList.appendChild(item));
+}
+
+function exportMasterListCSV() {
+    const listItems = elements.masterList.querySelectorAll('li.expandable');
+    const rows = [["Student Name", "Missing Assignments", "Days Out"]];
+    listItems.forEach(li => {
+        rows.push([
+            `"${li.getAttribute('data-name')}"`,
+            li.getAttribute('data-missing'),
+            li.getAttribute('data-days')
+        ]);
+    });
+    const csvContent = "data:text/csv;charset=utf-8," + rows.map(e => e.join(",")).join("\n");
     const link = document.createElement("a");
-    const url = URL.createObjectURL(blob);
-    link.setAttribute("href", url);
-    link.setAttribute("download", filename);
-    link.style.visibility = 'hidden';
+    link.setAttribute("href", encodeURI(csvContent));
+    link.setAttribute("download", "master_student_list.csv");
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    URL.revokeObjectURL(url);
 }
-
-function downloadCsv(reportData) {
-    const csvContent = generateCsvContent(reportData);
-    if (!csvContent) {
-        alert("There is no data to export.");
-        return;
-    }
-    const today = new Date();
-    const dateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-    const filename = `Missing_Assignments_Report_${dateStr}.csv`;
-    downloadFile(csvContent, filename, 'text/csv;charset=utf-8;');
-}
-
-function downloadJson(reportData) {
-    const jsonString = JSON.stringify(reportData, null, 2);
-    const today = new Date();
-    const dateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-    const filename = `Missing_Assignments_Report_${dateStr}.json`;
-    downloadFile(jsonString, filename, 'application/json;charset=utf-8;');
-}
-
-async function checkClipboardForConnection() {
-    try {
-        const text = await navigator.clipboard.readText();
-        const data = JSON.parse(text);
-
-        const paBtn = document.querySelector('.connection-choice-btn[data-type="power-automate"]');
-        const pusherBtn = document.querySelector('.connection-choice-btn[data-type="pusher"]');
-
-        paBtn.classList.remove('clipboard-match');
-        pusherBtn.classList.remove('clipboard-match');
-
-        if (data.type === CONNECTION_TYPES.POWER_AUTOMATE && data.name && data.url) {
-            paBtn.classList.add('clipboard-match');
-        } else if (data.type === CONNECTION_TYPES.PUSHER && data.name && data.key && data.cluster && data.secret && data.channel && data.event) {
-            pusherBtn.classList.add('clipboard-match');
-        }
-    } catch (e) {
-    }
-}
-
-function autoFillForm(type) {
-    navigator.clipboard.readText().then(text => {
-        const data = JSON.parse(text);
-        const form = document.getElementById(`${type}-form`);
-        
-        document.getElementById('connection-chooser').style.display = 'none';
-        document.getElementById('connection-form-container').style.display = 'block';
-        form.style.display = 'block';
-        
-        const inputsToHighlight = [];
-
-        if (type === CONNECTION_TYPES.POWER_AUTOMATE) {
-            document.getElementById('pa-name').value = data.name;
-            document.getElementById('pa-url').value = data.url;
-            inputsToHighlight.push(document.getElementById('pa-name'), document.getElementById('pa-url'));
-        } else if (type === CONNECTION_TYPES.PUSHER) {
-            document.getElementById('pusher-name').value = data.name;
-            document.getElementById('pusher-key').value = data.key;
-            document.getElementById('pusher-cluster').value = data.cluster;
-            document.getElementById('pusher-secret').value = data.secret;
-            document.getElementById('pusher-channel').value = data.channel.replace('private-', '');
-            document.getElementById('pusher-event').value = data.event.replace('client-', '');
-            inputsToHighlight.push(
-                document.getElementById('pusher-name'),
-                document.getElementById('pusher-key'),
-                document.getElementById('pusher-cluster'),
-                document.getElementById('pusher-secret'),
-                form.querySelector('#pusher-channel'),
-                form.querySelector('#pusher-event')
-            );
-        }
-
-        inputsToHighlight.forEach(input => {
-            input.classList.add('auto-filled');
-            setTimeout(() => input.classList.remove('auto-filled'), 2500);
-        });
-    }).catch(err => {
-        console.error("Failed to auto-fill from clipboard:", err);
-    });
-}
-
-// --- DOMContentLoaded: MAIN SETUP ---
-
-document.addEventListener('DOMContentLoaded', () => {
-
-  function setupDebugConsole() {
-      const consoleEl = document.getElementById('debug-console');
-      const consoleContent = document.getElementById('debug-console-content');
-      const consoleHeader = document.getElementById('debug-console-header');
-      const logArea = document.getElementById('debug-console-log-area');
-      const toggleBtn = document.getElementById('toggleConsoleBtn');
-      const closeBtn = document.getElementById('closeConsoleBtn');
-      const clearBtn = document.getElementById('clearConsoleBtn');
-
-      toggleBtn.addEventListener('click', () => {
-          const isHidden = !consoleEl.classList.contains('visible');
-          consoleEl.classList.toggle('visible', isHidden);
-          toggleBtn.textContent = isHidden ? 'Hide Console' : 'Show Console';
-      });
-
-      closeBtn.addEventListener('click', () => {
-          consoleEl.classList.remove('visible');
-          toggleBtn.textContent = 'Show Console';
-      });
-
-      clearBtn.addEventListener('click', () => {
-          logArea.innerHTML = '';
-      });
-
-      makeDraggable(consoleContent, consoleHeader);
-      overrideConsole(logArea);
-      console.log("Debug console initialized.");
-  }
-
-  function makeDraggable(element, handle) {
-      let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
-
-      handle.onmousedown = dragMouseDown;
-
-      function dragMouseDown(e) {
-          e.preventDefault();
-          pos3 = e.clientX;
-          pos4 = e.clientY;
-          document.onmouseup = closeDragElement;
-          document.onmousemove = elementDrag;
-      }
-
-      function elementDrag(e) {
-          e.preventDefault();
-          pos1 = pos3 - e.clientX;
-          pos2 = pos4 - e.clientY;
-          pos3 = e.clientX;
-          pos4 = e.clientY;
-          element.style.top = (element.offsetTop - pos2) + "px";
-          element.style.left = (element.offsetLeft - pos1) + "px";
-      }
-
-      function closeDragElement() {
-          document.onmouseup = null;
-          document.onmousemove = null;
-      }
-  }
-
-  function overrideConsole(logArea) {
-      const originalLog = console.log;
-      const originalWarn = console.warn;
-      const originalError = console.error;
-
-      const createLogEntry = (args, type) => {
-        const entry = document.createElement('div');
-        entry.className = `log-entry ${type}`;
-
-        if (typeof args[0] === 'object' && args[0] !== null && args[0].type === 'sessionStart') {
-            const { sessionId, title } = args[0];
-            entry.innerHTML = `<details class="log-details" id="${sessionId}" open><summary class="log-summary">${title} (<span>...</span>)</summary><div class="session-body"></div></details>`;
-        }
-        else if (Array.isArray(args)) {
-            const title = args[0];
-            const payload = args[1];
-
-            if (typeof payload === 'object' && payload !== null) {
-                entry.innerHTML = `<details class="log-details"><summary class="log-summary">${title}</summary><pre>${JSON.stringify(payload, null, 2)}</pre></details>`;
-            } else {
-                entry.textContent = title;
-            }
-        }
-        else {
-            const message = Array.from(args).map(arg => {
-                if (typeof arg === 'object' && arg !== null) {
-                    try {
-                        return JSON.stringify(arg, null, 2);
-                    } catch (e) {
-                        return '[Unserializable Object]';
-                    }
-                }
-                return String(arg);
-            }).join(' ');
-            entry.textContent = message;
-        }
-
-        logArea.appendChild(entry);
-        logArea.scrollTop = logArea.scrollHeight;
-      };
-
-      console.log = function(...args) {
-          originalLog.apply(console, args);
-          createLogEntry(args, 'log');
-      };
-      console.warn = function(...args) {
-          originalWarn.apply(console, args);
-          createLogEntry(args, 'warn');
-      };
-      console.error = function(...args) {
-          originalError.apply(console, args);
-          createLogEntry(args, 'error');
-      };
-  }
-
-  chrome.runtime.onMessage.addListener((msg) => {
-    if (msg.type === MESSAGE_TYPES.LOG_TO_PANEL) {
-        const { level, payload, args } = msg;
-
-        if (payload && payload.type === 'SUBMISSION' && currentSessionId) {
-            const sessionLog = document.getElementById(currentSessionId);
-            if (sessionLog) {
-                const sessionBody = sessionLog.querySelector('.session-body');
-                const studentEntry = document.createElement('div');
-                studentEntry.className = 'log-entry log';
-                studentEntry.textContent = `Found: ${payload.name} at ${payload.time}`;
-                sessionBody.appendChild(studentEntry);
-                return; 
-            }
-        }
-        
-        const logFunction = level === 'warn' ? console.warn : console.log;
-        if (args) {
-            logFunction(...args);
-        } else {
-            logFunction(payload);
-        }
-    } else if (msg.type === MESSAGE_TYPES.SHOW_MISSING_ASSIGNMENTS_REPORT) {
-        finalReportData = msg.payload;
-        const summaryEl = document.getElementById('reportSummaryText');
-        const formattedView = document.getElementById('report-formatted-view');
-        const jsonView = document.getElementById('report-json-view');
-        const toggleBtn = document.getElementById('toggleReportViewBtn');
-        
-        const reportDataForSummary = finalReportData?.CUSTOM_IMPORT?.data || [];
-        if (reportDataForSummary.length > 0) {
-            summaryEl.textContent = `Scan complete. Found missing assignments for ${finalReportData.totalStudentsWithMissing} student(s).`;
-        } else {
-            summaryEl.textContent = "Scan complete. No missing assignments were found for any students in the list.";
-        }
-        
-        renderFormattedReport(finalReportData);
-        formattedView.style.display = 'block';
-        jsonView.style.display = 'none';
-        toggleBtn.textContent = 'View JSON';
-
-        openModal('report-modal');
-    }
-  });
-
-  const manifest = chrome.runtime.getManifest();
-  document.getElementById('version-display').textContent = `Version ${manifest.version}`;
-  const keywordDisplay = document.getElementById('keyword');
-  const loopCounterDisplay = document.getElementById('loop-counter');
-  let contextMenuEntry = null;
-
-  function updateLoopCounter() {
-    chrome.storage.local.get([STORAGE_KEYS.LOOP_STATUS, STORAGE_KEYS.EXTENSION_STATE], (data) => {
-        const loopStatus = data[STORAGE_KEYS.LOOP_STATUS];
-        const extensionState = data[STORAGE_KEYS.EXTENSION_STATE];
-        const counterText = (loopStatus && loopStatus.total > 0) ? `${loopStatus.current} / ${loopStatus.total}` : '';
-
-        if (extensionState === EXTENSION_STATES.ON && counterText) {
-            loopCounterDisplay.textContent = counterText;
-            loopCounterDisplay.style.display = 'block';
-
-            if (currentSessionId) {
-                const sessionLog = document.getElementById(currentSessionId);
-                if (sessionLog) {
-                    const counterSpan = sessionLog.querySelector('.log-summary span');
-                    if(counterSpan) counterSpan.textContent = counterText;
-                }
-            }
-        } else {
-            loopCounterDisplay.style.display = 'none';
-        }
-    });
-  }
-
-  function updateKeywordDisplay() {
-    chrome.storage.local.get({ [STORAGE_KEYS.CUSTOM_KEYWORD]: '' }, (data) => {
-        const customKeyword = data[STORAGE_KEYS.CUSTOM_KEYWORD];
-        if (customKeyword) {
-            keywordDisplay.textContent = customKeyword;
-        } else {
-            const now = new Date();
-            const opts = { month: 'short', day: 'numeric' };
-            keywordDisplay.textContent = now.toLocaleDateString('en-US', opts).replace(',', '') + ' at';
-        }
-    });
-  }
-  
-  function updateModeDisplay(mode) {
-    const display = document.getElementById('activeModeDisplay');
-    const keywordSection = document.querySelector('.keyword-section');
-    const foundTabButton = document.querySelector('.tab-button[data-tab="found"]');
-    const reportTabButton = document.querySelector('.tab-button[data-tab="report"]');
-    
-    if (mode === CHECKER_MODES.MISSING) {
-        display.textContent = 'Missing Assignments';
-        keywordSection.style.display = 'none';
-        
-        foundTabButton.style.display = 'none';
-        reportTabButton.style.display = 'flex';
-        
-        if (foundTabButton.classList.contains('active')) {
-            switchTab('report');
-        }
-        
-    } else { 
-        display.textContent = 'Submission Check';
-        keywordSection.style.display = 'block';
-        
-        foundTabButton.style.display = 'flex';
-        reportTabButton.style.display = 'none';
-        
-        if (reportTabButton.classList.contains('active')) {
-            switchTab('found');
-        }
-    }
-  }
-
-  updateKeywordDisplay();
-  updateLoopCounter();
-  displayMasterList();
-  loadLatestReport();
-  updateScheduleDisplay();
-  
-  chrome.storage.local.get({ [STORAGE_KEYS.FOUND_ENTRIES]: [] }, data => {
-    const entries = data[STORAGE_KEYS.FOUND_ENTRIES];
-    const badge = document.querySelector('.tab-button[data-tab="found"] .count');
-    if(badge) badge.textContent = entries.length;
-    renderFoundList(entries);
-  });
-  
-  chrome.storage.local.get([STORAGE_KEYS.LAST_UPDATED], data => {
-    const lastUpdated = data[STORAGE_KEYS.LAST_UPDATED];
-    const lastUpdatedSpan = document.getElementById('lastUpdatedTime');
-    if (lastUpdatedSpan && lastUpdated) { 
-        lastUpdatedSpan.textContent = `Last updated: ${lastUpdated}`; 
-    }
-  });
-  
-  chrome.storage.local.get({ [STORAGE_KEYS.CONNECTIONS]: [] }, data => {
-      renderConnectionsList(data[STORAGE_KEYS.CONNECTIONS]);
-  });
-  
-  chrome.storage.local.get(DEFAULT_SETTINGS, (settings) => {
-    updateModeDisplay(settings[STORAGE_KEYS.CHECKER_MODE]);
-  });
-
-  chrome.storage.onChanged.addListener((changes) => {
-    if (changes[STORAGE_KEYS.FOUND_ENTRIES]) {
-      const newEntries = changes[STORAGE_KEYS.FOUND_ENTRIES].newValue || [];
-      renderFoundList(newEntries);
-      const badge = document.querySelector('.tab-button[data-tab="found"] .count');
-      if (badge) badge.textContent = newEntries.length;
-    }
-    if (changes[STORAGE_KEYS.LOOP_STATUS]) {
-      updateLoopCounter();
-    }
-    if (changes[STORAGE_KEYS.EXTENSION_STATE]) {
-      updateButtonState(changes[STORAGE_KEYS.EXTENSION_STATE].newValue);
-    }
-    if (changes[STORAGE_KEYS.MASTER_ENTRIES]) {
-      displayMasterList();
-    }
-    if (changes[STORAGE_KEYS.CONNECTIONS]) {
-      renderConnectionsList(changes[STORAGE_KEYS.CONNECTIONS].newValue);
-    }
-    if (changes[STORAGE_KEYS.CHECKER_MODE]) {
-      updateModeDisplay(changes[STORAGE_KEYS.CHECKER_MODE].newValue);
-    }
-    if (changes[STORAGE_KEYS.LATEST_MISSING_REPORT]) {
-      renderReportInTab(changes[STORAGE_KEYS.LATEST_MISSING_REPORT].newValue);
-    }
-    if (changes[STORAGE_KEYS.SCHEDULED_CHECK_ENABLED] || changes[STORAGE_KEYS.SCHEDULED_CHECK_TIME]) {
-      updateScheduleDisplay();
-    }
-    if (changes[STORAGE_KEYS.HIGHLIGHT_COLOR]) {
-        updateHighlightColorDisplay(changes[STORAGE_KEYS.HIGHLIGHT_COLOR].newValue);
-    }
-  });
-
-  document.querySelector('.tabs').addEventListener('click', (event) => {
-      const tabButton = event.target.closest('.tab-button');
-      if (tabButton && tabButton.dataset.tab) switchTab(tabButton.dataset.tab);
-  });
-
-  document.getElementById('clearBtn').addEventListener('click', () => {
-    chrome.storage.local.set({ [STORAGE_KEYS.FOUND_ENTRIES]: [] }, () => location.reload());
-  });
-
-  document.getElementById('updateMasterBtn').addEventListener('click', (event) => {
-    createRipple(event);
-    updateMasterFromClipboard();
-  });
-
-  document.getElementById('newItemInput').addEventListener('input', displayMasterList);
-
-  const daysOutSortBtn = document.getElementById('daysOutSortBtn');
-  const nameSortBtn = document.getElementById('nameSortBtn');
-  function updateSortButtons() {
-    daysOutSortBtn.classList.remove('active');
-    nameSortBtn.classList.remove('active');
-    daysOutSortBtn.textContent = 'Sort by Days Out';
-    nameSortBtn.textContent = 'Sort by Name';
-    if (activeSort.criterion === 'daysout') {
-        daysOutSortBtn.classList.add('active');
-        daysOutSortBtn.textContent = activeSort.direction === 'desc' ? 'Days Out (High-Low)' : 'Days Out (Low-High)';
-    } else if (activeSort.criterion === 'name') {
-        nameSortBtn.classList.add('active');
-        nameSortBtn.textContent = activeSort.direction === 'asc' ? 'Name (A-Z)' : 'Name (Z-A)';
-    }
-  }
-  daysOutSortBtn.addEventListener('click', () => {
-      if (activeSort.criterion !== 'daysout') {
-          activeSort.criterion = 'daysout';
-          activeSort.direction = 'desc';
-      } else {
-          activeSort.direction = activeSort.direction === 'desc' ? 'asc' : 'asc';
-      }
-      updateSortButtons();
-      displayMasterList();
-  });
-  nameSortBtn.addEventListener('click', () => {
-      if (activeSort.criterion !== 'name') {
-          activeSort.criterion = 'name';
-          activeSort.direction = 'asc';
-      } else {
-          activeSort.direction = activeSort.direction === 'asc' ? 'desc' : 'asc';
-      }
-      updateSortButtons();
-      displayMasterList();
-  });
-
-  const startBtn = document.getElementById('startBtn');
-  const startBtnText = document.getElementById('startBtnText');
-  let isStarted;
-
-  function updateDebugUI(isEnabled) {
-    const toggleConsoleBtn = document.getElementById('toggleConsoleBtn');
-    const consoleEl = document.getElementById('debug-console');
-    
-    document.body.classList.toggle('debug-mode', isEnabled);
-    toggleConsoleBtn.style.display = isEnabled ? 'block' : 'none';
-
-    if (isEnabled) {
-        consoleEl.classList.add('visible');
-        toggleConsoleBtn.textContent = 'Hide Console';
-    } else {
-        consoleEl.classList.remove('visible');
-        toggleConsoleBtn.textContent = 'Show Console';
-    }
-  }
-
-  function updateButtonState(state) {
-    isStarted = (state === EXTENSION_STATES.ON || state === EXTENSION_STATES.PAUSED);
-    startBtn.classList.toggle('active', isStarted);
-    startBtnText.textContent = isStarted ? (state === EXTENSION_STATES.PAUSED ? 'Paused' : 'Stop') : 'Start';
-    
-    if (state === EXTENSION_STATES.PAUSED) {
-        startBtn.style.background = 'rgba(245, 166, 35, 0.8)'; 
-        startBtn.style.borderColor = 'rgba(255, 255, 255, 0.2)';
-    } else {
-        startBtn.style.background = ''; 
-        startBtn.style.borderColor = '';
-    }
-
-    if (!isStarted) {
-        currentSessionId = null; 
-    }
-    updateLoopCounter();
-  }
-  chrome.storage.local.get({ [STORAGE_KEYS.EXTENSION_STATE]: EXTENSION_STATES.OFF }, data => updateButtonState(data[STORAGE_KEYS.EXTENSION_STATE]));
-  startBtn.addEventListener('click', (event) => {
-    createRipple(event);
-    const newState = !isStarted ? EXTENSION_STATES.ON : EXTENSION_STATES.OFF;
-    
-    if (newState === EXTENSION_STATES.ON) {
-        currentSessionId = `run_${Date.now()}`;
-        chrome.storage.local.get({ [STORAGE_KEYS.CHECKER_MODE]: CHECKER_MODES.SUBMISSION }, (settings) => {
-            const mode = settings[STORAGE_KEYS.CHECKER_MODE];
-            const modeText = mode === CHECKER_MODES.MISSING ? 'Missing Assignments' : 'Submission Check';
-            console.log({ type: 'sessionStart', sessionId: currentSessionId, title: `Checker started in ${modeText} mode` });
-        });
-    } else {
-        console.log("Checker stopped.");
-    }
-
-    chrome.storage.local.set({ [STORAGE_KEYS.EXTENSION_STATE]: newState });
-  });
-
-  document.getElementById('showJsonExampleBtn').addEventListener('click', () => openModal('json-modal'));
-  document.getElementById('payloadExampleBtn').addEventListener('click', () => openModal('payload-modal'));
-  document.getElementById('createConnectionBtn').addEventListener('click', () => {
-      openModal('connections-modal');
-      checkClipboardForConnection();
-  });
-  document.getElementById('confirmDeleteBtn').addEventListener('click', async () => {
-      if (connectionToDelete) {
-          const { [STORAGE_KEYS.CONNECTIONS]: currentConnections = [] } = await chrome.storage.local.get(STORAGE_KEYS.CONNECTIONS);
-          const updatedConnections = currentConnections.filter(c => c.id !== connectionToDelete);
-          await chrome.storage.local.set({ [STORAGE_KEYS.CONNECTIONS]: updatedConnections });
-          connectionToDelete = null;
-          closeModal('delete-confirm-modal');
-      }
-  });
-  document.getElementById('cancelDeleteBtn').addEventListener('click', () => closeModal('delete-confirm-modal'));
-  document.getElementById('copyExportBtn').addEventListener('click', (event) => {
-    const text = document.getElementById('exportJsonContent').textContent;
-    navigator.clipboard.writeText(text);
-    const btn = event.target;
-    btn.textContent = 'Copied!';
-    setTimeout(() => { btn.textContent = 'Copy to Clipboard'; }, 2000);
-  });
-  document.getElementById('exportIncludeSecretToggle').addEventListener('change', updateExportView);
-
-  document.getElementById('scheduleCardBtn').addEventListener('click', () => {
-      openModal('schedule-modal');
-  });
-
-  document.getElementById('toggleReportViewBtn').addEventListener('click', (e) => {
-      const btn = e.target;
-      const formattedView = document.getElementById('report-formatted-view');
-      const jsonView = document.getElementById('report-json-view');
-      const isJsonVisible = jsonView.style.display === 'block';
-
-      if (isJsonVisible) {
-          jsonView.style.display = 'none';
-          formattedView.style.display = 'block';
-          btn.textContent = 'View JSON';
-      } else {
-          jsonView.style.display = 'block';
-          formattedView.style.display = 'none';
-          btn.textContent = 'Formatted View';
-          const jsonContent = document.getElementById('reportJsonContent');
-          if (finalReportData) {
-              jsonContent.textContent = JSON.stringify(finalReportData, null, 2);
-          }
-      }
-  });
-
-  document.getElementById('downloadReportJsonBtn').addEventListener('click', () => {
-      if (!finalReportData) return;
-      downloadCsv(finalReportData); 
-  });
-
-  document.getElementById('downloadOptionsToggle').addEventListener('click', (e) => {
-      e.stopPropagation();
-      document.getElementById('downloadOptions').classList.toggle('active');
-  });
-
-  document.getElementById('downloadReportCsvBtn').addEventListener('click', () => {
-      if (!finalReportData) return;
-      downloadJson(finalReportData); 
-      document.getElementById('downloadOptions').classList.remove('active');
-  });
-  
-  document.getElementById('downloadReportJsonBtnSidePanel').addEventListener('click', () => {
-      if (!latestReportData) return;
-      downloadCsv(latestReportData); 
-  });
-
-  document.getElementById('downloadOptionsToggleSidePanel').addEventListener('click', (e) => {
-      e.stopPropagation();
-      document.getElementById('downloadOptionsSidePanel').classList.toggle('active');
-  });
-  
-  document.getElementById('downloadReportCsvBtnSidePanel').addEventListener('click', () => {
-      if (!latestReportData) return;
-      downloadJson(latestReportData); 
-      document.getElementById('downloadOptionsSidePanel').classList.remove('active');
-  });
-
-  document.getElementById('toggleReportViewBtnSidePanel').addEventListener('click', (e) => {
-      const btn = e.target;
-      const formattedView = document.getElementById('report-formatted-view-sidepanel');
-      const jsonView = document.getElementById('report-json-view-sidepanel');
-      const isJsonVisible = jsonView.style.display === 'block';
-
-      if (isJsonVisible) {
-          jsonView.style.display = 'none';
-          formattedView.style.display = 'block';
-          btn.textContent = 'View JSON';
-      } else {
-          formattedView.style.display = 'none';
-          jsonView.style.display = 'block';
-          btn.textContent = 'Formatted View';
-          const jsonContentEl = document.getElementById('reportJsonContentSidePanel');
-          if (latestReportData && jsonContentEl) {
-              jsonContentEl.textContent = JSON.stringify(latestReportData, null, 2);
-          }
-      }
-  });
-  
-  document.getElementById('copyReportJsonBtnSidePanel').addEventListener('click', (e) => {
-      const btn = e.currentTarget;
-      const jsonText = document.getElementById('reportJsonContentSidePanel').textContent;
-      
-      navigator.clipboard.writeText(jsonText).then(() => {
-          const copyIcon = btn.querySelector('.copy-icon');
-          const checkmarkIcon = btn.querySelector('.checkmark-icon');
-          copyIcon.style.display = 'none';
-          checkmarkIcon.style.display = 'inline-block';
-          
-          setTimeout(() => {
-              copyIcon.style.display = 'inline-block';
-              checkmarkIcon.style.display = 'none';
-          }, 2000);
-      }).catch(err => {
-          console.error('Failed to copy side panel JSON: ', err);
-      });
-  });
-
-  document.getElementById('copyReportJsonBtn').addEventListener('click', (e) => {
-      const btn = e.currentTarget;
-      const jsonText = document.getElementById('reportJsonContent').textContent;
-      
-      navigator.clipboard.writeText(jsonText).then(() => {
-          const copyIcon = btn.querySelector('.copy-icon');
-          const checkmarkIcon = btn.querySelector('.checkmark-icon');
-          copyIcon.style.display = 'none';
-          checkmarkIcon.style.display = 'inline-block';
-          
-          setTimeout(() => {
-              copyIcon.style.display = 'inline-block';
-              checkmarkIcon.style.display = 'none';
-          }, 2000);
-      }).catch(err => {
-          console.error('Failed to copy JSON: ', err);
-      });
-  });
-
-
-  document.querySelectorAll('.modal-close').forEach(btn => {
-      btn.addEventListener('click', () => closeModal(btn.dataset.modalId));
-  });
-  window.addEventListener('click', (event) => {
-      if (event.target.classList.contains('modal-overlay')) {
-          closeModal(event.target.id);
-      }
-      if (!event.target.closest('.connection-actions')) {
-        document.querySelectorAll('.connection-menu.active').forEach(menu => {
-            menu.classList.remove('active');
-            menu.closest('li').querySelector('.connections-list')?.classList.remove('overflow-visible');
-        });
-      }
-      if (!event.target.closest('#list-context-menu')) {
-          document.getElementById('list-context-menu').style.display = 'none';
-      }
-      if (!event.target.closest('.download-actions-wrapper')) {
-        document.querySelectorAll('.download-options.active').forEach(menu => {
-            menu.classList.remove('active');
-        });
-      }
-  });
-  
-  document.querySelectorAll('.connection-choice-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-          const type = btn.dataset.type;
-          if (btn.classList.contains('clipboard-match')) {
-              autoFillForm(type);
-          } else {
-              document.getElementById('connection-chooser').style.display = 'none';
-              document.getElementById('connection-form-container').style.display = 'block';
-              document.getElementById(`${type}-form`).style.display = 'block';
-          }
-      });
-  });
-
-  document.querySelectorAll('.form-cancel-btn').forEach(btn => {
-      btn.addEventListener('click', () => closeModal('connections-modal'));
-  });
-
-  document.getElementById('power-automate-form').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const form = e.target;
-      const editingId = form.dataset.editingId;
-      const { [STORAGE_KEYS.CONNECTIONS]: connections = [] } = await chrome.storage.local.get(STORAGE_KEYS.CONNECTIONS);
-      
-      const connectionData = {
-          type: CONNECTION_TYPES.POWER_AUTOMATE,
-          name: document.getElementById('pa-name').value,
-          url: document.getElementById('pa-url').value
-      };
-
-      if (editingId) {
-          const updatedConnections = connections.map(conn => conn.id === editingId ? { ...conn, ...connectionData } : conn);
-          await chrome.storage.local.set({ [STORAGE_KEYS.CONNECTIONS]: updatedConnections });
-      } else {
-          const newConnection = { id: `conn_${Date.now()}`, ...connectionData };
-          await chrome.storage.local.set({ [STORAGE_KEYS.CONNECTIONS]: [...connections, newConnection] });
-      }
-      closeModal('connections-modal');
-  });
-
-  document.getElementById('pusher-form').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const form = e.target;
-      const editingId = form.dataset.editingId;
-      const { [STORAGE_KEYS.CONNECTIONS]: connections = [] } = await chrome.storage.local.get(STORAGE_KEYS.CONNECTIONS);
-      
-      const connectionData = {
-          type: CONNECTION_TYPES.PUSHER,
-          name: document.getElementById('pusher-name').value,
-          key: document.getElementById('pusher-key').value,
-          cluster: document.getElementById('pusher-cluster').value,
-          secret: document.getElementById('pusher-secret').value,
-          channel: 'private-' + document.getElementById('pusher-channel').value,
-          event: 'client-' + document.getElementById('pusher-event').value
-      };
-
-      if (editingId) {
-          const updatedConnections = connections.map(conn => conn.id === editingId ? { ...conn, ...connectionData } : conn);
-          await chrome.storage.local.set({ [STORAGE_KEYS.CONNECTIONS]: updatedConnections });
-      } else {
-          const newConnection = { id: `conn_${Date.now()}`, ...connectionData };
-          await chrome.storage.local.set({ [STORAGE_KEYS.CONNECTIONS]: [...connections, newConnection] });
-      }
-      closeModal('connections-modal');
-  });
-
-  function str2ab(str) {
-    const buf = new ArrayBuffer(str.length);
-    const bufView = new Uint8Array(buf);
-    for (let i = 0, strLen = str.length; i < strLen; i++) {
-        bufView[i] = str.charCodeAt(i);
-    }
-    return buf;
-  }
-
-  async function triggerPusher(connection, payload) {
-    try {
-        const pusher = new Pusher(connection.key, {
-            cluster: connection.cluster,
-            authorizer: (channel, options) => {
-                return {
-                    authorize: async (socketId, callback) => {
-                        try {
-                            const stringToSign = `${socketId}:${connection.channel}`;
-                            const cryptoKey = await crypto.subtle.importKey(
-                                "raw",
-                                str2ab(connection.secret),
-                                { name: "HMAC", hash: "SHA-256" },
-                                false,
-                                ["sign"]
-                            );
-                            const signature = await crypto.subtle.sign("HMAC", cryptoKey, str2ab(stringToSign));
-                            const signatureHex = Array.from(new Uint8Array(signature)).map(b => b.toString(16).padStart(2, '0')).join('');
-                            callback(null, { auth: `${connection.key}:${signatureHex}` });
-                        } catch (err) {
-                            const errorMsg = "Failed to sign auth request. Check App Secret.";
-                            console.error(errorMsg, err);
-                            callback(new Error(errorMsg), null);
-                        }
-                    }
-                };
-            }
-        });
-
-        const channel = pusher.subscribe(connection.channel);
-        await new Promise((resolve, reject) => {
-            channel.bind('pusher:subscription_succeeded', () => {
-                channel.trigger(connection.event, payload);
-                console.log("Pusher event triggered from popup.");
-                setTimeout(() => {
-                    pusher.disconnect();
-                    resolve();
-                }, 500);
-            });
-            channel.bind('pusher:subscription_error', (status) => {
-                console.error("Pusher subscription error:", JSON.stringify(status, null, 2));
-                pusher.disconnect();
-                reject(new Error(`Subscription failed with status: ${status.status}`));
-            });
-        });
-        return { success: true };
-    } catch (e) {
-        console.error("Pusher error:", e);
-        return { success: false, error: e.message };
-    }
-  }
-
-  document.querySelector('#power-automate-form .form-test-btn').addEventListener('click', async () => {
-      const url = document.getElementById('pa-url').value;
-      const statusEl = document.getElementById('pa-test-status');
-      if (!url) {
-          statusEl.textContent = 'URL is required.';
-          statusEl.className = 'test-status error';
-          return;
-      }
-      statusEl.textContent = 'Testing...';
-      statusEl.className = 'test-status';
-      chrome.runtime.sendMessage({
-          type: MESSAGE_TYPES.TEST_CONNECTION_PA,
-          connection: { type: CONNECTION_TYPES.POWER_AUTOMATE, url }
-      });
-  });
-
-  document.querySelector('#pusher-form .form-test-btn').addEventListener('click', async () => {
-      const statusEl = document.getElementById('pusher-test-status');
-      
-      const connection = {
-          name: document.getElementById('pusher-name').value,
-          key: document.getElementById('pusher-key').value,
-          cluster: document.getElementById('pusher-cluster').value,
-          secret: document.getElementById('pusher-secret').value,
-          channel: 'private-' + document.getElementById('pusher-channel').value,
-          event: 'client-' + document.getElementById('pusher-event').value
-      };
-
-      if (!connection.name || !connection.key || !connection.cluster || !connection.secret || !connection.channel || !connection.event) {
-          statusEl.textContent = 'All fields are required.';
-          statusEl.className = 'test-status error';
-          return;
-      }
-      statusEl.textContent = 'Testing...';
-      statusEl.className = 'test-status';
-      const testPayload = {
-          name: "Jane Doe (Test Submission)",
-          grade: "95%",
-          timestamp: new Date().toISOString(),
-          url: "#test-url",
-          test: true 
-      };
-      const result = await triggerPusher(connection, testPayload);
-
-      if (result.success) {
-          statusEl.textContent = 'Success! Test event sent.';
-          statusEl.className = 'test-status success';
-      } else {
-          statusEl.textContent = `Failed: ${result.error}`;
-          statusEl.className = 'test-status error';
-      }
-  });
-
-  chrome.runtime.onMessage.addListener(async (message) => {
-      if (message.type === MESSAGE_TYPES.CONNECTION_TEST_RESULT && message.connectionType === CONNECTION_TYPES.POWER_AUTOMATE) {
-          const { success, error } = message;
-          const statusEl = document.getElementById('pa-test-status');
-          if (success) {
-              statusEl.textContent = 'Success! Connection is working.';
-              statusEl.className = 'test-status success';
-          } else {
-              statusEl.textContent = `Failed: ${error}`;
-              statusEl.className = 'test-status error';
-          }
-      } else if (message.type === MESSAGE_TYPES.TRIGGER_PUSHER) {
-          await triggerPusher(message.connection, message.payload);
-      }
-  });
-
-
-    function getBrightness(hex) {
-        const r = parseInt(hex.slice(1, 3), 16);
-        const g = parseInt(hex.slice(3, 5), 16);
-        const b = parseInt(hex.slice(5, 7), 16);
-        return (r * 299 + g * 587 + b * 114) / 1000;
-    }
-
-    function updateHighlightColorDisplay(color) {
-        const colorCard = document.getElementById('colorPickerCard');
-        if (colorCard) {
-            colorCard.style.backgroundColor = color;
-            const label = colorCard.querySelector('label');
-            if (getBrightness(color) < 128) {
-                label.style.color = 'white';
-            } else {
-                label.style.color = '#4a5568';
-            }
-        }
-    }
-
-  const settingsToSync = {
-    looperDaysOutFilterInput: { key: STORAGE_KEYS.LOOPER_DAYS_OUT_FILTER, type: 'text' },
-    customKeywordInput: { key: STORAGE_KEYS.CUSTOM_KEYWORD, type: 'text' },
-  };
-
-  chrome.storage.local.get(DEFAULT_SETTINGS, (settings) => {
-    Object.entries(settingsToSync).forEach(([id, { key, type }]) => {
-      const input = document.getElementById(id);
-      if (input) {
-        input.value = (key === STORAGE_KEYS.LOOPER_DAYS_OUT_FILTER && settings[key] === 'all') ? '' : settings[key];
-      }
-    });
-
-    const colorPicker = document.getElementById('colorPicker');
-    const colorValue = settings[STORAGE_KEYS.HIGHLIGHT_COLOR];
-    colorPicker.value = colorValue;
-    updateHighlightColorDisplay(colorValue);
-
-    const debugToggle = document.getElementById('debugToggle');
-    const isDebugEnabled = settings[STORAGE_KEYS.DEBUG_MODE];
-    debugToggle.checked = isDebugEnabled;
-    updateDebugUI(isDebugEnabled);
-
-    // NEW: Load Embed in Canvas
-    const embedInCanvasToggle = document.getElementById('embedInCanvasToggle');
-    if (embedInCanvasToggle) {
-        embedInCanvasToggle.checked = settings[STORAGE_KEYS.EMBED_IN_CANVAS];
-    }
-
-    const includeAllToggle = document.getElementById('includeAllToggle');
-    if (includeAllToggle) {
-        includeAllToggle.checked = settings[STORAGE_KEYS.INCLUDE_ALL_ASSIGNMENTS];
-    }
-
-    const scheduleToggle = document.getElementById('scheduleToggle');
-    const scheduleTime = document.getElementById('scheduleTime');
-    const scheduleMasterList = document.getElementById('scheduleMasterList');
-
-    if (scheduleToggle && scheduleTime && scheduleMasterList) {
-        scheduleToggle.checked = settings[STORAGE_KEYS.SCHEDULED_CHECK_ENABLED];
-        scheduleTime.value = settings[STORAGE_KEYS.SCHEDULED_CHECK_TIME];
-        scheduleMasterList.value = settings[STORAGE_KEYS.SCHEDULED_MASTER_LIST];
-        scheduleTime.disabled = !settings[STORAGE_KEYS.SCHEDULED_CHECK_ENABLED];
-    }
-  });
-
-  Object.entries(settingsToSync).forEach(([id, { key, type }]) => {
-    const input = document.getElementById(id);
-    if (!input) return;
-    input.addEventListener('change', (event) => {
-        let value = event.target.value.trim();
-        if (type === 'number') {
-            value = parseInt(value, 10);
-            if (isNaN(value) || value < 1) value = 1;
-            if (value > 10) value = 10;
-            event.target.value = value;
-        }
-        chrome.storage.local.set({ [key]: value });
-        if (key === STORAGE_KEYS.CUSTOM_KEYWORD) updateKeywordDisplay();
-    });
-  });
-  
-  document.getElementById('colorPicker').addEventListener('input', (event) => {
-    const newColor = event.target.value;
-    chrome.storage.local.set({ [STORAGE_KEYS.HIGHLIGHT_COLOR]: newColor });
-    updateHighlightColorDisplay(newColor);
-  });
-
-  document.getElementById('debugToggle').addEventListener('change', (event) => {
-    const isEnabled = event.target.checked;
-    chrome.storage.local.set({ [STORAGE_KEYS.DEBUG_MODE]: isEnabled });
-    updateDebugUI(isEnabled);
-  });
-
-  // NEW: Add listener for Embed in Canvas
-  const embedInCanvasToggle = document.getElementById('embedInCanvasToggle');
-  if (embedInCanvasToggle) {
-    embedInCanvasToggle.addEventListener('change', (event) => {
-        chrome.storage.local.set({ [STORAGE_KEYS.EMBED_IN_CANVAS]: event.target.checked });
-    });
-  }
-
-  const includeAllToggle = document.getElementById('includeAllToggle');
-  if (includeAllToggle) {
-    includeAllToggle.addEventListener('change', (event) => {
-        chrome.storage.local.set({ [STORAGE_KEYS.INCLUDE_ALL_ASSIGNMENTS]: event.target.checked });
-    });
-  }
-
-  const scheduleToggle = document.getElementById('scheduleToggle');
-  const scheduleTime = document.getElementById('scheduleTime');
-  const scheduleMasterList = document.getElementById('scheduleMasterList');
-
-  if (scheduleToggle && scheduleTime && scheduleMasterList) {
-      scheduleToggle.addEventListener('change', (event) => {
-          const isEnabled = event.target.checked;
-          scheduleTime.disabled = !isEnabled;
-          chrome.storage.local.set({ [STORAGE_KEYS.SCHEDULED_CHECK_ENABLED]: isEnabled }, () => {
-              chrome.runtime.sendMessage({ type: MESSAGE_TYPES.UPDATE_SCHEDULE });
-          });
-      });
-    
-      scheduleTime.addEventListener('change', (event) => {
-          const time = event.target.value;
-          chrome.storage.local.set({ [STORAGE_KEYS.SCHEDULED_CHECK_TIME]: time }, () => {
-              chrome.runtime.sendMessage({ type: MESSAGE_TYPES.UPDATE_SCHEDULE });
-          });
-      });
-
-      scheduleMasterList.addEventListener('change', (event) => {
-        const listJson = event.target.value;
-        chrome.storage.local.set({ [STORAGE_KEYS.SCHEDULED_MASTER_LIST]: listJson });
-      });
-  }
-  
-  const modeDisplayBtn = document.getElementById('activeModeDisplay');
-    modeDisplayBtn.addEventListener('click', () => {
-      chrome.storage.local.get({ [STORAGE_KEYS.CHECKER_MODE]: CHECKER_MODES.SUBMISSION }, (data) => {
-        const currentMode = data[STORAGE_KEYS.CHECKER_MODE];
-        const newMode = currentMode === CHECKER_MODES.SUBMISSION ? CHECKER_MODES.MISSING : CHECKER_MODES.SUBMISSION;
-        chrome.storage.local.set({ [STORAGE_KEYS.CHECKER_MODE]: newMode });
-        
-        modeDisplayBtn.classList.add('animate-pop');
-        modeDisplayBtn.addEventListener('animationend', () => {
-          modeDisplayBtn.classList.remove('animate-pop');
-        }, { once: true });
-      });
-    });
-
-  document.getElementById('sharepointBtn').addEventListener('click', (event) => {
-      createRipple(event);
-      chrome.tabs.create({ url: SHAREPOINT_URL });
-  });
-
-  // --- Tooltip & Context Menu Logic ---
-  document.addEventListener('mouseover', event => {
-      const icon = event.target.closest('.info-icon');
-      if (icon) {
-          const rect = icon.getBoundingClientRect();
-          const containerRect = document.querySelector('.container').getBoundingClientRect();
-          
-          icon.classList.remove('tooltip-left', 'tooltip-right');
-
-          if (rect.left < containerRect.left + 10) {
-              icon.classList.add('tooltip-right');
-          } else if (rect.right > containerRect.right - 10) {
-              icon.classList.add('tooltip-left');
-          }
-      }
-  });
-  
-  const showContextMenu = (e) => {
-      const listItem = e.target.closest('li');
-      if (listItem && listItem.dataset.entry) {
-          e.preventDefault();
-          contextMenuEntry = JSON.parse(listItem.dataset.entry);
-          
-          const menu = document.getElementById('list-context-menu');
-          const copyUrlBtn = document.getElementById('copyUrlBtn');
-          const debugSendBtn = document.getElementById('debugSendBtn');
-          
-          const hasValidUrl = contextMenuEntry.url && contextMenuEntry.url.startsWith('http');
-          copyUrlBtn.disabled = !hasValidUrl;
-          debugSendBtn.disabled = !hasValidUrl;
-
-          menu.style.display = 'block';
-          menu.style.left = `${e.clientX}px`;
-          menu.style.top = `${e.clientY}px`;
-      }
-  };
-
-  document.getElementById('foundList').addEventListener('contextmenu', showContextMenu);
-  document.getElementById('masterList').addEventListener('contextmenu', showContextMenu);
-
-  document.getElementById('copyNameBtn').addEventListener('click', () => {
-    if (contextMenuEntry && contextMenuEntry.name) {
-        navigator.clipboard.writeText(contextMenuEntry.name);
-    }
-    document.getElementById('list-context-menu').style.display = 'none';
-  });
-  
-  document.getElementById('copyUrlBtn').addEventListener('click', () => {
-    if (contextMenuEntry && contextMenuEntry.url) {
-        navigator.clipboard.writeText(contextMenuEntry.url);
-    }
-    document.getElementById('list-context-menu').style.display = 'none';
-  });
-
-  document.getElementById('debugSendBtn').addEventListener('click', () => {
-    if (contextMenuEntry) {
-        const payload = { ...contextMenuEntry, debug: true };
-        chrome.runtime.sendMessage({ type: MESSAGE_TYPES.SEND_DEBUG_PAYLOAD, payload });
-        console.log("Sent debug payload:", payload);
-    }
-    document.getElementById('list-context-menu').style.display = 'none';
-  });
-
-  // --- ABOUT TAB LOGIC ---
-  loadAboutContent();
-
-  // Final setup
-    document.getElementById('version-display').addEventListener('click', () => {
-        const aboutTab = document.getElementById('about');
-        if (aboutTab.classList.contains('active')) {
-            switchTab(lastActiveTab);
-        } else {
-            switchTab('about');
-        }
-    });
-
-  // Set the default active tab based on the current mode
-  chrome.storage.local.get({ [STORAGE_KEYS.CHECKER_MODE]: CHECKER_MODES.SUBMISSION }, (data) => {
-      const initialTab = data[STORAGE_KEYS.CHECKER_MODE] === CHECKER_MODES.MISSING ? 'report' : 'found';
-      switchTab(initialTab);
-  });
-  
-  // SWAP UI LABELS: Update the text of download buttons to reflect the swapped logic
-  try {
-      const jsonBtnSide = document.getElementById('downloadReportJsonBtnSidePanel');
-      const csvBtnSide = document.getElementById('downloadReportCsvBtnSidePanel');
-      const jsonBtnModal = document.getElementById('downloadReportJsonBtn');
-      const csvBtnModal = document.getElementById('downloadReportCsvBtn');
-
-      // Update text to match the new behavior (JSON ID -> CSV Action)
-      if (jsonBtnSide) jsonBtnSide.childNodes[0].nodeValue = "Download CSV"; // Preserves icon if present as child
-      if (csvBtnSide) csvBtnSide.textContent = "Download JSON";
-      
-      if (jsonBtnModal) jsonBtnModal.textContent = "Download CSV";
-      if (csvBtnModal) csvBtnModal.textContent = "Download JSON";
-      
-  } catch (e) {
-      console.warn("Could not auto-update button labels:", e);
-  }
-
-  setupDebugConsole();
-});
