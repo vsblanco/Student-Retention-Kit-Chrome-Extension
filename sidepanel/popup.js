@@ -1,3 +1,5 @@
+// [2025-12-17 02:08 PM]
+// Version: 10.8 - JSON Import Update (Included PrimaryPhone)
 import { STORAGE_KEYS, EXTENSION_STATES } from '../constants.js';
 
 // --- CONFIGURATION ---
@@ -174,12 +176,35 @@ function setupEventListeners() {
     }
 
     if (elements.updateMasterBtn) {
-        elements.updateMasterBtn.addEventListener('click', () => {
+        elements.updateMasterBtn.addEventListener('click', async () => {
             if (elements.updateQueueSection) {
                 elements.updateQueueSection.style.display = 'block';
                 elements.updateQueueSection.scrollIntoView({ behavior: 'smooth' });
                 
                 resetQueueUI();
+
+                // --- CHECK CLIPBOARD FOR JSON ---
+                try {
+                    const text = await navigator.clipboard.readText();
+                    const trimmed = text ? text.trim() : '';
+                    if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+                        let jsonData;
+                        try {
+                            jsonData = JSON.parse(trimmed);
+                        } catch (e) { /* invalid json */ }
+
+                        if (jsonData && Array.isArray(jsonData) && jsonData.length > 0) {
+                            handleJsonClipboardProcess(jsonData);
+                            return;
+                        }
+                    }
+                } catch (err) {
+                    console.log("Clipboard check failed or empty:", err);
+                }
+                // -------------------------------------
+                
+                // Fallback to Standard CSV Upload
+                restoreDefaultQueueUI();
                 
                 const step1 = document.getElementById('step1');
                 if(step1) {
@@ -274,6 +299,116 @@ function handleFileImport(file) {
     };
 
     reader.readAsText(file);
+}
+
+// --- SPECIAL JSON IMPORT LOGIC ---
+
+function handleJsonClipboardProcess(data) {
+    // 1. UI Setup for JSON Mode
+    const step1 = document.getElementById('step1');
+    const step2 = document.getElementById('step2');
+    const step3 = document.getElementById('step3');
+    const step4 = document.getElementById('step4');
+
+    // Rename Step 1
+    if (step1) {
+        step1.querySelector('.queue-content').innerHTML = '<i class="fas fa-spinner"></i> Read JSON from Clipboard';
+        step1.className = 'queue-item active';
+    }
+    
+    // Hide intermediate steps (skipping API calls)
+    if (step2) step2.style.display = 'none';
+    if (step3) step3.style.display = 'none';
+
+    // Step 4 "Compiling Report"
+    
+    // Process Data
+    setTimeout(async () => {
+        const startTime = Date.now();
+        
+        // Mark Step 1 complete
+        if (step1) {
+            step1.className = 'queue-item completed';
+            step1.querySelector('i').className = 'fas fa-check';
+            step1.querySelector('.step-time').textContent = '0.1s';
+        }
+
+        // Activate Step 4 (Compiling)
+        if (step4) {
+            step4.className = 'queue-item active';
+            step4.querySelector('i').className = 'fas fa-spinner';
+        }
+
+        try {
+            // Normalize Data (map various potential formats to internal structure)
+            const normalized = data.map(entry => {
+                return {
+                    name: entry.name || entry.StudentName || 'Unknown',
+                    // UPDATED: Mapped 'GradeBook' to internal 'url'
+                    url: entry.GradeBook || entry.url || entry.link || null,
+                    daysout: parseInt(entry.daysout || entry.DaysOut || 0),
+                    missingCount: parseInt(entry.missing || entry.missingCount || entry.Missing || 0),
+                    grade: entry.grade || entry.Grade || null,
+                    // UPDATED: Mapping PrimaryPhone from JSON (Assuming 'except' was typo for 'accept')
+                    phone: entry.phone || entry.Phone || entry.PrimaryPhone || null,
+                    // UPDATED: Explicitly capture LDA
+                    lda: entry.LDA || entry.lda || null,
+                    StudentNumber: entry.StudentNumber || null,
+                    SyStudentId: entry.SyStudentId || null,
+                    lastSubmission: entry.lastSubmission || null,
+                    isNew: entry.isNew || false,
+                    Photo: entry.Photo || null
+                };
+            });
+
+            const lastUpdated = new Date().toLocaleString();
+            
+            await chrome.storage.local.set({ 
+                [STORAGE_KEYS.MASTER_ENTRIES]: normalized,
+                [STORAGE_KEYS.LAST_UPDATED]: lastUpdated
+            });
+
+            const duration = ((Date.now() - startTime) / 1000).toFixed(1);
+            
+            if (step4) {
+                step4.className = 'queue-item completed';
+                step4.querySelector('i').className = 'fas fa-check';
+                step4.querySelector('.step-time').textContent = `${duration}s`;
+            }
+
+            if (elements.lastUpdatedText) {
+                elements.lastUpdatedText.textContent = lastUpdated;
+            }
+
+            renderMasterList(normalized);
+
+        } catch (e) {
+            console.error("JSON Import Error", e);
+            if (step4) {
+                step4.querySelector('i').className = 'fas fa-times';
+                step4.style.color = '#ef4444';
+                step4.querySelector('.step-time').textContent = 'Error';
+            }
+        }
+    }, 500); 
+}
+
+function restoreDefaultQueueUI() {
+    const s1 = document.getElementById('step1');
+    const s2 = document.getElementById('step2');
+    const s3 = document.getElementById('step3');
+    const s4 = document.getElementById('step4');
+
+    if(s1) { 
+        s1.style.display = ''; 
+        s1.querySelector('.queue-content').innerHTML = '<i class="far fa-circle"></i> Student Population Report'; 
+    }
+    if(s2) { s2.style.display = ''; }
+    if(s3) { s3.style.display = ''; }
+    if(s4) { 
+        s4.style.display = ''; 
+        s4.querySelector('.queue-content').innerHTML = '<i class="far fa-circle"></i> Compiling Report'; 
+    }
 }
 
 // --- HELPER: PRELOAD IMAGE ---
@@ -622,7 +757,7 @@ function setActiveStudent(rawEntry) {
     if (elements.contactPhone) elements.contactPhone.textContent = displayPhone;
 
     if (elements.contactDetail) {
-        elements.contactDetail.textContent = `${data.daysOut} Days Inactive`;
+        elements.contactDetail.textContent = `${data.daysOut} Days Out`;
         elements.contactDetail.style.display = 'block';
     }
 
