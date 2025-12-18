@@ -129,6 +129,13 @@ function cacheDomElements() {
     elements.versionModal = document.getElementById('versionModal');
     elements.closeVersionBtn = document.getElementById('closeVersionBtn');
 
+    // Queue Modal
+    elements.queueModal = document.getElementById('queueModal');
+    elements.closeQueueModalBtn = document.getElementById('closeQueueModalBtn');
+    elements.manageQueueBtn = document.getElementById('manageQueueBtn');
+    elements.queueList = document.getElementById('queueList');
+    elements.queueCount = document.getElementById('queueCount');
+
     // Cache Management
     elements.cacheStatsText = document.getElementById('cacheStatsText');
     elements.clearCacheBtn = document.getElementById('clearCacheBtn');
@@ -144,6 +151,25 @@ async function initializeApp() {
     const uiCallbacks = {
         updateCurrentStudent: (student) => {
             setActiveStudent(student);
+        },
+        finalizeAutomation: (lastStudent) => {
+            // Reset to single-student mode with the last student
+            selectedQueue = [lastStudent];
+            callManager.updateQueue(selectedQueue);
+
+            // Clear multi-selection visual indicators
+            document.querySelectorAll('.glass-list li').forEach(el => el.classList.remove('multi-selected'));
+
+            // Find and highlight the last student in the list
+            const listItems = document.querySelectorAll('.glass-list li.expandable');
+            listItems.forEach(li => {
+                const name = li.getAttribute('data-name');
+                if (name === lastStudent.name) {
+                    li.classList.add('multi-selected');
+                }
+            });
+
+            setActiveStudent(lastStudent);
         }
     };
     callManager = new CallManager(elements, uiCallbacks);
@@ -174,8 +200,14 @@ function setupEventListeners() {
     
     if (elements.versionText) elements.versionText.addEventListener('click', () => elements.versionModal.style.display = 'flex');
     if (elements.closeVersionBtn) elements.closeVersionBtn.addEventListener('click', () => elements.versionModal.style.display = 'none');
+
+    // Queue Modal
+    if (elements.manageQueueBtn) elements.manageQueueBtn.addEventListener('click', openQueueModal);
+    if (elements.closeQueueModalBtn) elements.closeQueueModalBtn.addEventListener('click', closeQueueModal);
+
     window.addEventListener('click', (e) => {
         if (elements.versionModal && e.target === elements.versionModal) elements.versionModal.style.display = 'none';
+        if (elements.queueModal && e.target === elements.queueModal) closeQueueModal();
     });
 
     // Cache Management
@@ -900,6 +932,10 @@ function setActiveStudent(rawEntry) {
         if (elements.upNextCard) {
             elements.upNextCard.style.display = 'none';
         }
+        // Hide Manage Queue button in single student mode
+        if (elements.manageQueueBtn) {
+            elements.manageQueueBtn.style.display = 'none';
+        }
     }
     // ---------------------------------------------------
 
@@ -1038,6 +1074,11 @@ function setAutomationModeUI() {
 
     if (elements.contactCard) {
         elements.contactCard.style.borderLeftColor = '#6b7280';
+    }
+
+    // 4. Show Manage Queue Button
+    if (elements.manageQueueBtn) {
+        elements.manageQueueBtn.style.display = 'block';
     }
 }
 
@@ -1286,6 +1327,180 @@ function updateDebugModeUI() {
         elements.debugModeToggle.className = 'fas fa-toggle-off';
         elements.debugModeToggle.style.color = 'gray';
     }
+}
+
+// --- QUEUE MANAGEMENT MODAL ---
+function openQueueModal() {
+    if (!elements.queueModal || !elements.queueList) return;
+
+    // Render current queue
+    renderQueueModal();
+
+    // Show modal
+    elements.queueModal.style.display = 'flex';
+}
+
+function closeQueueModal() {
+    if (!elements.queueModal) return;
+    elements.queueModal.style.display = 'none';
+}
+
+function renderQueueModal() {
+    if (!elements.queueList || !elements.queueCount) return;
+
+    elements.queueList.innerHTML = '';
+
+    if (selectedQueue.length === 0) {
+        elements.queueList.innerHTML = '<li style="justify-content:center; color:gray;">No students in queue</li>';
+        elements.queueCount.textContent = '0 students';
+        return;
+    }
+
+    elements.queueCount.textContent = `${selectedQueue.length} student${selectedQueue.length !== 1 ? 's' : ''}`;
+
+    selectedQueue.forEach((student, index) => {
+        const li = document.createElement('li');
+        li.className = 'queue-item-draggable';
+        li.draggable = true;
+        li.dataset.index = index;
+
+        const data = resolveStudentData(student);
+
+        li.innerHTML = `
+            <div style="display: flex; align-items: center; width: 100%; justify-content: space-between;">
+                <div style="display: flex; align-items: center; flex-grow: 1;">
+                    <i class="fas fa-grip-vertical queue-drag-handle"></i>
+                    <div style="margin-right: 10px; font-weight: 600; color: var(--text-secondary); min-width: 20px;">#${index + 1}</div>
+                    <div>
+                        <div style="font-weight: 500; color: var(--text-main);">${data.name}</div>
+                        <div style="font-size: 0.8em; color: var(--text-secondary);">${data.daysOut} Days Out</div>
+                    </div>
+                </div>
+                <button class="queue-remove-btn" data-index="${index}" title="Remove from queue">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        `;
+
+        // Drag events
+        li.addEventListener('dragstart', handleDragStart);
+        li.addEventListener('dragend', handleDragEnd);
+        li.addEventListener('dragover', handleDragOver);
+        li.addEventListener('drop', handleDrop);
+        li.addEventListener('dragleave', handleDragLeave);
+
+        // Remove button
+        const removeBtn = li.querySelector('.queue-remove-btn');
+        removeBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            removeFromQueue(index);
+        });
+
+        elements.queueList.appendChild(li);
+    });
+}
+
+let draggedElement = null;
+let draggedIndex = null;
+
+function handleDragStart(e) {
+    draggedElement = e.currentTarget;
+    draggedIndex = parseInt(e.currentTarget.dataset.index);
+    e.currentTarget.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/html', e.currentTarget.innerHTML);
+}
+
+function handleDragEnd(e) {
+    e.currentTarget.classList.remove('dragging');
+    // Remove all drag-over indicators
+    document.querySelectorAll('.queue-item-draggable').forEach(item => {
+        item.classList.remove('drag-over');
+    });
+}
+
+function handleDragOver(e) {
+    if (e.preventDefault) {
+        e.preventDefault();
+    }
+    e.dataTransfer.dropEffect = 'move';
+
+    const afterElement = e.currentTarget;
+    if (afterElement !== draggedElement) {
+        afterElement.classList.add('drag-over');
+    }
+
+    return false;
+}
+
+function handleDragLeave(e) {
+    e.currentTarget.classList.remove('drag-over');
+}
+
+function handleDrop(e) {
+    if (e.stopPropagation) {
+        e.stopPropagation();
+    }
+
+    const dropIndex = parseInt(e.currentTarget.dataset.index);
+
+    if (draggedIndex !== dropIndex) {
+        // Reorder the queue
+        const [movedStudent] = selectedQueue.splice(draggedIndex, 1);
+        selectedQueue.splice(dropIndex, 0, movedStudent);
+
+        // Update call manager
+        callManager.updateQueue(selectedQueue);
+
+        // Update automation mode UI if needed
+        if (selectedQueue.length > 1) {
+            setAutomationModeUI();
+        }
+
+        // Re-render modal
+        renderQueueModal();
+    }
+
+    return false;
+}
+
+function removeFromQueue(index) {
+    selectedQueue.splice(index, 1);
+
+    // Update call manager
+    callManager.updateQueue(selectedQueue);
+
+    // Update master list visual selection
+    updateMasterListSelection();
+
+    // Update UI based on remaining queue size
+    if (selectedQueue.length === 0) {
+        setActiveStudent(null);
+        closeQueueModal();
+    } else if (selectedQueue.length === 1) {
+        setActiveStudent(selectedQueue[0]);
+        closeQueueModal();
+    } else {
+        setAutomationModeUI();
+        renderQueueModal();
+    }
+}
+
+function updateMasterListSelection() {
+    // Clear all selections first
+    document.querySelectorAll('.glass-list li.expandable').forEach(el => {
+        el.classList.remove('multi-selected');
+    });
+
+    // Re-apply selections based on current queue
+    const listItems = document.querySelectorAll('.glass-list li.expandable');
+    listItems.forEach(li => {
+        const name = li.getAttribute('data-name');
+        const isInQueue = selectedQueue.some(s => s.name === name);
+        if (isInQueue) {
+            li.classList.add('multi-selected');
+        }
+    });
 }
 
 // --- LOGIC: FILTER & SORT ---
