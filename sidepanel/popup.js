@@ -1,5 +1,5 @@
 // [2025-12-18 09:30 AM]
-// Version: 10.15 - Moved constants to centralized constants.js
+// Version: 10.16 - Refactored call logic to dedicated callManager.js
 import {
     STORAGE_KEYS,
     EXTENSION_STATES,
@@ -13,12 +13,12 @@ import {
     getCacheStats,
     clearAllCache
 } from '../canvasCache.js';
+import CallManager from './callManager.js';
 
 // --- STATE MANAGEMENT ---
 let isScanning = false;
-let isCallActive = false;
-let callTimerInterval = null;
 let selectedQueue = []; // Tracks multiple selected students
+let callManager; // Manages all call-related functionality
 
 // --- DOM ELEMENTS CACHE ---
 const elements = {};
@@ -136,7 +136,10 @@ function cacheDomElements() {
 function initializeApp() {
     setupEventListeners();
     loadStorageData();
-    setActiveStudent(null); 
+    setActiveStudent(null);
+
+    // Initialize call manager after DOM elements are cached
+    callManager = new CallManager(elements);
 }
 
 // --- EVENT LISTENERS ---
@@ -182,7 +185,7 @@ function setupEventListeners() {
         elements.foundSearch.addEventListener('input', filterFoundList);
     }
 
-    if (elements.dialBtn) elements.dialBtn.addEventListener('click', () => toggleCallState());
+    if (elements.dialBtn) elements.dialBtn.addEventListener('click', () => callManager.toggleCallState());
     
     const dispositionContainer = document.querySelector('.disposition-grid');
     if (dispositionContainer) {
@@ -190,14 +193,14 @@ function setupEventListeners() {
             const btn = e.target.closest('.disposition-btn');
             if (!btn) return;
             if (btn.innerText.includes('Other')) elements.otherInputArea.style.display = 'block';
-            else handleDisposition(btn.innerText.trim());
+            else callManager.handleDisposition(btn.innerText.trim());
         });
     }
 
     if (elements.confirmNoteBtn) {
         elements.confirmNoteBtn.addEventListener('click', () => {
             const note = elements.customNote.value;
-            handleDisposition(`Custom Note: ${note}`);
+            callManager.handleDisposition(`Custom Note: ${note}`);
             elements.otherInputArea.style.display = 'none';
             elements.customNote.value = '';
         });
@@ -943,7 +946,7 @@ function setActiveStudent(rawEntry) {
 // --- NEW: MULTI-SELECT HELPERS ---
 function toggleMultiSelection(entry, liElement) {
     const index = selectedQueue.findIndex(s => s.name === entry.name);
-    
+
     if (index > -1) {
         // Deselect
         selectedQueue.splice(index, 1);
@@ -953,6 +956,9 @@ function toggleMultiSelection(entry, liElement) {
         selectedQueue.push(entry);
         liElement.classList.add('multi-selected');
     }
+
+    // Update call manager's queue reference
+    callManager.updateQueue(selectedQueue);
 
     // Update UI based on queue size
     if (selectedQueue.length === 1) {
@@ -1145,12 +1151,13 @@ function renderMasterList(rawEntries) {
                 toggleMultiSelection(rawEntry, li);
             } else {
                 // Standard Single Select (Clears previous multi-selection)
-                selectedQueue = [rawEntry]; 
-                
+                selectedQueue = [rawEntry];
+                callManager.updateQueue(selectedQueue);
+
                 // Visually clear other rows
                 document.querySelectorAll('.glass-list li').forEach(el => el.classList.remove('multi-selected'));
                 li.classList.add('multi-selected');
-                
+
                 setActiveStudent(rawEntry);
                 switchTab('contact');
             }
@@ -1241,69 +1248,8 @@ function updateButtonVisuals(state) {
     }
 }
 
-// --- LOGIC: CALL INTERFACE ---
-function toggleCallState(forceEnd = false) {
-    // --- NEW: CHECK FOR AUTOMATION MODE ---
-    if (selectedQueue.length > 1 && !isCallActive) {
-        startAutomationSequence();
-        return;
-    }
-    // --------------------------------------
-
-    if (forceEnd && !isCallActive) return;
-    isCallActive = !isCallActive;
-    if (forceEnd) isCallActive = false;
-
-    if (isCallActive) {
-        elements.dialBtn.style.background = '#ef4444'; 
-        elements.dialBtn.style.transform = 'rotate(135deg)';
-        elements.callStatusText.innerHTML = '<span class="status-indicator" style="background:#ef4444; animation: blink 1s infinite;"></span> Connected';
-        // --- V10.12 UPDATE: Show Disposition Grid ---
-        if(elements.callDispositionSection) elements.callDispositionSection.style.display = 'flex';
-        startCallTimer();
-    } else {
-        elements.dialBtn.style.background = '#10b981';
-        elements.dialBtn.style.transform = 'rotate(0deg)';
-        elements.callStatusText.innerHTML = '<span class="status-indicator ready"></span> Ready to Connect';
-        // --- V10.12 UPDATE: Hide Disposition Grid ---
-        if(elements.callDispositionSection) elements.callDispositionSection.style.display = 'none';
-        // Hide custom input area if it was open
-        if(elements.otherInputArea) elements.otherInputArea.style.display = 'none';
-        stopCallTimer();
-    }
-}
-
-function startAutomationSequence() {
-    alert(`Starting automation for ${selectedQueue.length} students...\n(Logic to be implemented)`);
-    // Placeholder for future logic
-}
-
-function startCallTimer() {
-    let seconds = 0;
-    elements.callTimer.textContent = "00:00";
-    clearInterval(callTimerInterval);
-    callTimerInterval = setInterval(() => {
-        seconds++;
-        const m = Math.floor(seconds / 60).toString().padStart(2, '0');
-        const s = (seconds % 60).toString().padStart(2, '0');
-        elements.callTimer.textContent = `${m}:${s}`;
-    }, 1000);
-}
-
-function stopCallTimer() {
-    clearInterval(callTimerInterval);
-    elements.callTimer.textContent = "00:00";
-}
-
-function handleDisposition(type) {
-    console.log("Logged Disposition:", type);
-    toggleCallState(true);
-}
-
-// --- LOGIC: QUEUE SIMULATION ---
-function runQueueSimulation() {
-    // Only runs for later steps now
-}
+// --- CALL LOGIC NOW HANDLED BY callManager.js ---
+// All call-related functions have been moved to the CallManager class
 
 // --- LOGIC: FILTER & SORT ---
 function filterMasterList(e) {
