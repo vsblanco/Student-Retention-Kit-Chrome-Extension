@@ -62,7 +62,7 @@ export const STORAGE_KEYS = {
     LOOP_STATUS: 'loopStatus',
     CONNECTIONS: 'connections',
     DEBUG_MODE: 'debugMode',
-    LATEST_MISSING_REPORT: 'latestMissingReport', 
+    LATEST_MISSING_REPORT: 'latestMissingReport',
     // Settings
     CHECKER_MODE: 'checkerMode',
     CONCURRENT_TABS: 'concurrentTabs',
@@ -74,7 +74,10 @@ export const STORAGE_KEYS = {
     SCHEDULED_CHECK_TIME: 'scheduledCheckTime',
     SCHEDULED_MASTER_LIST: 'scheduledMasterList',
     INCLUDE_ALL_ASSIGNMENTS: 'includeAllAssignments',
-    CANVAS_API_CACHE: 'canvasApiCache'
+    CANVAS_API_CACHE: 'canvasApiCache',
+    // Scan Filter Settings
+    SCAN_FILTER_DAYS_OUT: 'scanFilterDaysOut',
+    SCAN_FILTER_INCLUDE_FAILING: 'scanFilterIncludeFailing'
 };
 
 /**
@@ -91,7 +94,9 @@ export const DEFAULT_SETTINGS = {
     [STORAGE_KEYS.SCHEDULED_CHECK_ENABLED]: false,
     [STORAGE_KEYS.SCHEDULED_CHECK_TIME]: '08:00',
     [STORAGE_KEYS.SCHEDULED_MASTER_LIST]: '',
-    [STORAGE_KEYS.INCLUDE_ALL_ASSIGNMENTS]: false
+    [STORAGE_KEYS.INCLUDE_ALL_ASSIGNMENTS]: false,
+    [STORAGE_KEYS.SCAN_FILTER_DAYS_OUT]: '>=5',
+    [STORAGE_KEYS.SCAN_FILTER_INCLUDE_FAILING]: false
 };
 
 /**

@@ -130,6 +130,16 @@ function cacheDomElements() {
     elements.versionModal = document.getElementById('versionModal');
     elements.closeVersionBtn = document.getElementById('closeVersionBtn');
 
+    // Scan Filter Modal
+    elements.scanFilterModal = document.getElementById('scanFilterModal');
+    elements.scanFilterBtn = document.getElementById('scanFilterBtn');
+    elements.closeScanFilterBtn = document.getElementById('closeScanFilterBtn');
+    elements.daysOutOperator = document.getElementById('daysOutOperator');
+    elements.daysOutValue = document.getElementById('daysOutValue');
+    elements.failingToggle = document.getElementById('failingToggle');
+    elements.saveScanFilterBtn = document.getElementById('saveScanFilterBtn');
+    elements.studentCountValue = document.getElementById('studentCountValue');
+
     // Queue Modal
     elements.queueModal = document.getElementById('queueModal');
     elements.closeQueueModalBtn = document.getElementById('closeQueueModalBtn');
@@ -225,12 +235,24 @@ function setupEventListeners() {
     if (elements.versionText) elements.versionText.addEventListener('click', () => elements.versionModal.style.display = 'flex');
     if (elements.closeVersionBtn) elements.closeVersionBtn.addEventListener('click', () => elements.versionModal.style.display = 'none');
 
+    // Scan Filter Modal
+    if (elements.scanFilterBtn) elements.scanFilterBtn.addEventListener('click', openScanFilterModal);
+    if (elements.closeScanFilterBtn) elements.closeScanFilterBtn.addEventListener('click', closeScanFilterModal);
+    if (elements.failingToggle) elements.failingToggle.addEventListener('click', () => {
+        toggleFailingFilter();
+        updateScanFilterCount();
+    });
+    if (elements.daysOutOperator) elements.daysOutOperator.addEventListener('change', updateScanFilterCount);
+    if (elements.daysOutValue) elements.daysOutValue.addEventListener('input', updateScanFilterCount);
+    if (elements.saveScanFilterBtn) elements.saveScanFilterBtn.addEventListener('click', saveScanFilterSettings);
+
     // Queue Modal
     if (elements.manageQueueBtn) elements.manageQueueBtn.addEventListener('click', openQueueModal);
     if (elements.closeQueueModalBtn) elements.closeQueueModalBtn.addEventListener('click', closeQueueModal);
 
     window.addEventListener('click', (e) => {
         if (elements.versionModal && e.target === elements.versionModal) elements.versionModal.style.display = 'none';
+        if (elements.scanFilterModal && e.target === elements.scanFilterModal) closeScanFilterModal();
         if (elements.queueModal && e.target === elements.queueModal) closeQueueModal();
     });
 
@@ -1431,6 +1453,138 @@ function renderQueueModal() {
 
         elements.queueList.appendChild(li);
     });
+}
+
+// --- SCAN FILTER MODAL ---
+async function openScanFilterModal() {
+    if (!elements.scanFilterModal) return;
+
+    // Load current settings
+    const settings = await chrome.storage.local.get([
+        STORAGE_KEYS.SCAN_FILTER_DAYS_OUT,
+        STORAGE_KEYS.SCAN_FILTER_INCLUDE_FAILING
+    ]);
+
+    const daysOutFilter = settings[STORAGE_KEYS.SCAN_FILTER_DAYS_OUT] || '>=5';
+    const includeFailing = settings[STORAGE_KEYS.SCAN_FILTER_INCLUDE_FAILING] || false;
+
+    // Parse days out filter (e.g., ">=5" -> operator: ">=", value: "5")
+    const match = daysOutFilter.match(/^\s*([><]=?|=)\s*(\d+)\s*$/);
+    if (match && elements.daysOutOperator && elements.daysOutValue) {
+        elements.daysOutOperator.value = match[1];
+        elements.daysOutValue.value = match[2];
+    }
+
+    // Set failing toggle state
+    if (elements.failingToggle) {
+        if (includeFailing) {
+            elements.failingToggle.className = 'fas fa-toggle-on';
+            elements.failingToggle.style.color = 'var(--primary-color)';
+        } else {
+            elements.failingToggle.className = 'fas fa-toggle-off';
+            elements.failingToggle.style.color = 'gray';
+        }
+    }
+
+    // Calculate and display initial count
+    await updateScanFilterCount();
+
+    // Show modal
+    elements.scanFilterModal.style.display = 'flex';
+}
+
+function closeScanFilterModal() {
+    if (!elements.scanFilterModal) return;
+    elements.scanFilterModal.style.display = 'none';
+}
+
+async function updateScanFilterCount() {
+    if (!elements.daysOutOperator || !elements.daysOutValue || !elements.failingToggle || !elements.studentCountValue) return;
+
+    // Get current filter settings from UI
+    const operator = elements.daysOutOperator.value;
+    const value = parseInt(elements.daysOutValue.value, 10);
+    const includeFailing = elements.failingToggle.classList.contains('fa-toggle-on');
+
+    // Get master entries from storage
+    const data = await chrome.storage.local.get([STORAGE_KEYS.MASTER_ENTRIES]);
+    const masterEntries = data[STORAGE_KEYS.MASTER_ENTRIES] || [];
+
+    // Apply the same filter logic as looper.js
+    let filteredCount = 0;
+
+    masterEntries.forEach(entry => {
+        const daysout = entry.daysout;
+
+        // Check if student meets days out criteria
+        let meetsDaysOutCriteria = false;
+        if (daysout != null) {
+            switch (operator) {
+                case '>':  meetsDaysOutCriteria = daysout > value; break;
+                case '<':  meetsDaysOutCriteria = daysout < value; break;
+                case '>=': meetsDaysOutCriteria = daysout >= value; break;
+                case '<=': meetsDaysOutCriteria = daysout <= value; break;
+                case '=':  meetsDaysOutCriteria = daysout === value; break;
+                default:   meetsDaysOutCriteria = false;
+            }
+        }
+
+        // Check if student is failing (grade < 60)
+        let isFailing = false;
+        if (includeFailing && entry.grade != null) {
+            const grade = parseFloat(entry.grade);
+            if (!isNaN(grade) && grade < 60) {
+                isFailing = true;
+            }
+        }
+
+        // Include student if they meet days out criteria OR are failing (if toggle is enabled)
+        if (meetsDaysOutCriteria || isFailing) {
+            filteredCount++;
+        }
+    });
+
+    // Update the display
+    elements.studentCountValue.textContent = filteredCount;
+}
+
+function toggleFailingFilter() {
+    if (!elements.failingToggle) return;
+
+    const isOn = elements.failingToggle.classList.contains('fa-toggle-on');
+    if (isOn) {
+        elements.failingToggle.className = 'fas fa-toggle-off';
+        elements.failingToggle.style.color = 'gray';
+    } else {
+        elements.failingToggle.className = 'fas fa-toggle-on';
+        elements.failingToggle.style.color = 'var(--primary-color)';
+    }
+}
+
+async function saveScanFilterSettings() {
+    if (!elements.daysOutOperator || !elements.daysOutValue || !elements.failingToggle) return;
+
+    const operator = elements.daysOutOperator.value;
+    const value = elements.daysOutValue.value;
+    const daysOutFilter = `${operator}${value}`;
+    const includeFailing = elements.failingToggle.classList.contains('fa-toggle-on');
+
+    // Save to storage
+    await chrome.storage.local.set({
+        [STORAGE_KEYS.SCAN_FILTER_DAYS_OUT]: daysOutFilter,
+        [STORAGE_KEYS.SCAN_FILTER_INCLUDE_FAILING]: includeFailing
+    });
+
+    // Also update the legacy LOOPER_DAYS_OUT_FILTER for backward compatibility
+    await chrome.storage.local.set({
+        [STORAGE_KEYS.LOOPER_DAYS_OUT_FILTER]: daysOutFilter
+    });
+
+    // Close modal
+    closeScanFilterModal();
+
+    // Show confirmation (optional)
+    console.log('Scan filter settings saved:', { daysOutFilter, includeFailing });
 }
 
 let draggedElement = null;
