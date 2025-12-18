@@ -1,5 +1,5 @@
 // [2025-12-18 09:30 AM]
-// Version: 10.15 - Moved constants to centralized constants.js
+// Version: 10.16 - Refactored call logic to dedicated callManager.js
 import {
     STORAGE_KEYS,
     EXTENSION_STATES,
@@ -13,12 +13,13 @@ import {
     getCacheStats,
     clearAllCache
 } from '../canvasCache.js';
+import CallManager from './callManager.js';
 
 // --- STATE MANAGEMENT ---
 let isScanning = false;
-let isCallActive = false;
-let callTimerInterval = null;
 let selectedQueue = []; // Tracks multiple selected students
+let callManager; // Manages all call-related functionality
+let isDebugMode = false; // Controls whether call functionality is enabled
 
 // --- DOM ELEMENTS CACHE ---
 const elements = {};
@@ -131,12 +132,24 @@ function cacheDomElements() {
     // Cache Management
     elements.cacheStatsText = document.getElementById('cacheStatsText');
     elements.clearCacheBtn = document.getElementById('clearCacheBtn');
+
+    // Debug Mode Toggle
+    elements.debugModeToggle = document.getElementById('debugModeToggle');
 }
 
-function initializeApp() {
+async function initializeApp() {
     setupEventListeners();
-    loadStorageData();
-    setActiveStudent(null); 
+
+    // Initialize call manager with UI callbacks
+    const uiCallbacks = {
+        updateCurrentStudent: (student) => {
+            setActiveStudent(student);
+        }
+    };
+    callManager = new CallManager(elements, uiCallbacks);
+
+    await loadStorageData();
+    setActiveStudent(null);
 }
 
 // --- EVENT LISTENERS ---
@@ -175,6 +188,11 @@ function setupEventListeners() {
         });
     }
 
+    // Debug Mode Toggle
+    if (elements.debugModeToggle) {
+        elements.debugModeToggle.addEventListener('click', toggleDebugMode);
+    }
+
     if (elements.startBtn) elements.startBtn.addEventListener('click', toggleScanState);
     if (elements.clearListBtn) elements.clearListBtn.addEventListener('click', () => chrome.storage.local.set({ [STORAGE_KEYS.FOUND_ENTRIES]: [] }));
 
@@ -182,7 +200,7 @@ function setupEventListeners() {
         elements.foundSearch.addEventListener('input', filterFoundList);
     }
 
-    if (elements.dialBtn) elements.dialBtn.addEventListener('click', () => toggleCallState());
+    if (elements.dialBtn) elements.dialBtn.addEventListener('click', () => callManager.toggleCallState());
     
     const dispositionContainer = document.querySelector('.disposition-grid');
     if (dispositionContainer) {
@@ -190,14 +208,14 @@ function setupEventListeners() {
             const btn = e.target.closest('.disposition-btn');
             if (!btn) return;
             if (btn.innerText.includes('Other')) elements.otherInputArea.style.display = 'block';
-            else handleDisposition(btn.innerText.trim());
+            else callManager.handleDisposition(btn.innerText.trim());
         });
     }
 
     if (elements.confirmNoteBtn) {
         elements.confirmNoteBtn.addEventListener('click', () => {
             const note = elements.customNote.value;
-            handleDisposition(`Custom Note: ${note}`);
+            callManager.handleDisposition(`Custom Note: ${note}`);
             elements.otherInputArea.style.display = 'none';
             elements.customNote.value = '';
         });
@@ -796,7 +814,8 @@ async function loadStorageData() {
         STORAGE_KEYS.FOUND_ENTRIES,
         STORAGE_KEYS.MASTER_ENTRIES,
         STORAGE_KEYS.LAST_UPDATED,
-        STORAGE_KEYS.EXTENSION_STATE
+        STORAGE_KEYS.EXTENSION_STATE,
+        STORAGE_KEYS.DEBUG_MODE
     ]);
 
     const foundEntries = data[STORAGE_KEYS.FOUND_ENTRIES] || [];
@@ -808,8 +827,15 @@ async function loadStorageData() {
     if (elements.lastUpdatedText && data[STORAGE_KEYS.LAST_UPDATED]) {
         elements.lastUpdatedText.textContent = data[STORAGE_KEYS.LAST_UPDATED];
     }
-    
+
     updateButtonVisuals(data[STORAGE_KEYS.EXTENSION_STATE] || EXTENSION_STATES.OFF);
+
+    // Load debug mode state
+    isDebugMode = data[STORAGE_KEYS.DEBUG_MODE] || false;
+    updateDebugModeUI();
+    if (callManager) {
+        callManager.setDebugMode(isDebugMode);
+    }
 }
 
 chrome.storage.onChanged.addListener((changes) => {
@@ -858,17 +884,22 @@ function setActiveStudent(rawEntry) {
     const contactTab = document.getElementById('contact');
     if (!contactTab) return;
 
-    // --- NEW: RESET AUTOMATION STYLES WHEN SWITCHING ---
-    if (elements.dialBtn) {
-        elements.dialBtn.classList.remove('automation');
-        elements.dialBtn.innerHTML = '<i class="fas fa-phone"></i>'; 
-    }
-    if (elements.callStatusText) {
-        elements.callStatusText.innerHTML = '<span class="status-indicator ready"></span> Ready to Connect';
-    }
-    // Hide Up Next Card in standard mode
-    if (elements.upNextCard) {
-        elements.upNextCard.style.display = 'none';
+    // --- RESET AUTOMATION STYLES WHEN SWITCHING (but not during active automation) ---
+    // Only reset if not in active automation mode
+    if (!callManager?.automationMode) {
+        if (elements.dialBtn) {
+            elements.dialBtn.classList.remove('automation');
+            elements.dialBtn.innerHTML = '<i class="fas fa-phone"></i>';
+        }
+        if (elements.callStatusText && !callManager?.debugMode) {
+            elements.callStatusText.innerHTML = '<span class="status-indicator" style="background:#f59e0b;"></span> Calls Disabled (Enable Debug Mode)';
+        } else if (elements.callStatusText) {
+            elements.callStatusText.innerHTML = '<span class="status-indicator ready"></span> Ready to Connect';
+        }
+        // Hide Up Next Card in standard mode
+        if (elements.upNextCard) {
+            elements.upNextCard.style.display = 'none';
+        }
     }
     // ---------------------------------------------------
 
@@ -943,7 +974,7 @@ function setActiveStudent(rawEntry) {
 // --- NEW: MULTI-SELECT HELPERS ---
 function toggleMultiSelection(entry, liElement) {
     const index = selectedQueue.findIndex(s => s.name === entry.name);
-    
+
     if (index > -1) {
         // Deselect
         selectedQueue.splice(index, 1);
@@ -953,6 +984,9 @@ function toggleMultiSelection(entry, liElement) {
         selectedQueue.push(entry);
         liElement.classList.add('multi-selected');
     }
+
+    // Update call manager's queue reference
+    callManager.updateQueue(selectedQueue);
 
     // Update UI based on queue size
     if (selectedQueue.length === 1) {
@@ -964,17 +998,17 @@ function toggleMultiSelection(entry, liElement) {
     }
 }
 
-// --- UPDATED: Uses Gray Color Scheme + Up Next Card ---
+// --- UPDATED: Uses Gray Color Scheme for Automation Mode ---
 function setAutomationModeUI() {
     const contactTab = document.getElementById('contact');
     if (!contactTab) return;
-    
+
     // Ensure content is visible (hide placeholder)
     Array.from(contactTab.children).forEach(child => {
         if (child.id === 'contactPlaceholder') {
             child.style.display = 'none';
         } else {
-            child.style.display = ''; 
+            child.style.display = '';
         }
     });
 
@@ -982,7 +1016,7 @@ function setAutomationModeUI() {
     if (elements.contactName) elements.contactName.textContent = "Automation Mode";
     if (elements.contactDetail) elements.contactDetail.textContent = `${selectedQueue.length} Students Selected`;
     if (elements.contactPhone) elements.contactPhone.textContent = "Multi-Dial Queue";
-    
+
     // Create/Update visual badge for count
     if (elements.contactAvatar) {
         elements.contactAvatar.textContent = selectedQueue.length;
@@ -1001,22 +1035,9 @@ function setAutomationModeUI() {
     if (elements.callStatusText) {
         elements.callStatusText.innerHTML = `<span class="status-indicator" style="background:#6b7280;"></span> Ready to Auto-Dial`;
     }
-    
+
     if (elements.contactCard) {
         elements.contactCard.style.borderLeftColor = '#6b7280';
-    }
-
-    // 4. Update 'Up Next' Card (New v10.14)
-    if (elements.upNextCard) {
-        if (selectedQueue.length > 1) {
-            elements.upNextCard.style.display = 'block';
-            // Show the name of the *next* person (index 1), assuming index 0 is active
-            if (elements.upNextName && selectedQueue[1]) {
-                elements.upNextName.textContent = selectedQueue[1].name;
-            }
-        } else {
-            elements.upNextCard.style.display = 'none';
-        }
     }
 }
 
@@ -1145,12 +1166,13 @@ function renderMasterList(rawEntries) {
                 toggleMultiSelection(rawEntry, li);
             } else {
                 // Standard Single Select (Clears previous multi-selection)
-                selectedQueue = [rawEntry]; 
-                
+                selectedQueue = [rawEntry];
+                callManager.updateQueue(selectedQueue);
+
                 // Visually clear other rows
                 document.querySelectorAll('.glass-list li').forEach(el => el.classList.remove('multi-selected'));
                 li.classList.add('multi-selected');
-                
+
                 setActiveStudent(rawEntry);
                 switchTab('contact');
             }
@@ -1241,68 +1263,29 @@ function updateButtonVisuals(state) {
     }
 }
 
-// --- LOGIC: CALL INTERFACE ---
-function toggleCallState(forceEnd = false) {
-    // --- NEW: CHECK FOR AUTOMATION MODE ---
-    if (selectedQueue.length > 1 && !isCallActive) {
-        startAutomationSequence();
-        return;
+// --- CALL LOGIC NOW HANDLED BY callManager.js ---
+// All call-related functions have been moved to the CallManager class
+
+// --- DEBUG MODE MANAGEMENT ---
+async function toggleDebugMode() {
+    isDebugMode = !isDebugMode;
+    await chrome.storage.local.set({ [STORAGE_KEYS.DEBUG_MODE]: isDebugMode });
+    updateDebugModeUI();
+    if (callManager) {
+        callManager.setDebugMode(isDebugMode);
     }
-    // --------------------------------------
+}
 
-    if (forceEnd && !isCallActive) return;
-    isCallActive = !isCallActive;
-    if (forceEnd) isCallActive = false;
+function updateDebugModeUI() {
+    if (!elements.debugModeToggle) return;
 
-    if (isCallActive) {
-        elements.dialBtn.style.background = '#ef4444'; 
-        elements.dialBtn.style.transform = 'rotate(135deg)';
-        elements.callStatusText.innerHTML = '<span class="status-indicator" style="background:#ef4444; animation: blink 1s infinite;"></span> Connected';
-        // --- V10.12 UPDATE: Show Disposition Grid ---
-        if(elements.callDispositionSection) elements.callDispositionSection.style.display = 'flex';
-        startCallTimer();
+    if (isDebugMode) {
+        elements.debugModeToggle.className = 'fas fa-toggle-on';
+        elements.debugModeToggle.style.color = 'var(--primary-color)';
     } else {
-        elements.dialBtn.style.background = '#10b981';
-        elements.dialBtn.style.transform = 'rotate(0deg)';
-        elements.callStatusText.innerHTML = '<span class="status-indicator ready"></span> Ready to Connect';
-        // --- V10.12 UPDATE: Hide Disposition Grid ---
-        if(elements.callDispositionSection) elements.callDispositionSection.style.display = 'none';
-        // Hide custom input area if it was open
-        if(elements.otherInputArea) elements.otherInputArea.style.display = 'none';
-        stopCallTimer();
+        elements.debugModeToggle.className = 'fas fa-toggle-off';
+        elements.debugModeToggle.style.color = 'gray';
     }
-}
-
-function startAutomationSequence() {
-    alert(`Starting automation for ${selectedQueue.length} students...\n(Logic to be implemented)`);
-    // Placeholder for future logic
-}
-
-function startCallTimer() {
-    let seconds = 0;
-    elements.callTimer.textContent = "00:00";
-    clearInterval(callTimerInterval);
-    callTimerInterval = setInterval(() => {
-        seconds++;
-        const m = Math.floor(seconds / 60).toString().padStart(2, '0');
-        const s = (seconds % 60).toString().padStart(2, '0');
-        elements.callTimer.textContent = `${m}:${s}`;
-    }, 1000);
-}
-
-function stopCallTimer() {
-    clearInterval(callTimerInterval);
-    elements.callTimer.textContent = "00:00";
-}
-
-function handleDisposition(type) {
-    console.log("Logged Disposition:", type);
-    toggleCallState(true);
-}
-
-// --- LOGIC: QUEUE SIMULATION ---
-function runQueueSimulation() {
-    // Only runs for later steps now
 }
 
 // --- LOGIC: FILTER & SORT ---
