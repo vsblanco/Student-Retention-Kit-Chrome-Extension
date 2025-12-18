@@ -554,69 +554,134 @@ async function fetchCanvasDetails(student) {
     }
 }
 
-function parseCSV(csvText) {
-    const lines = csvText.split(/\r\n|\n/).filter(line => line.trim() !== '');
-    if (lines.length < 2) return [];
+/**
+ * CSV field aliases for flexible header matching
+ */
+const CSV_FIELD_ALIASES = {
+    name: ['student name', 'name', 'studentname', 'student'],
+    phone: ['primaryphone', 'phone', 'phone number', 'mobile', 'cell', 'cell phone', 'contact', 'telephone'],
+    grade: ['grade', 'grade level', 'level'],
+    StudentNumber: ['studentnumber', 'student id', 'sis id'],
+    SyStudentId: ['systudentid', 'student sis'],
+    daysOut: ['days out', 'dayssincepriorlda', 'days inactive', 'days']
+};
 
-    const aliases = {
-        name: ['student name', 'name', 'studentname', 'student'],
-        phone: ['primaryphone', 'phone', 'phone number', 'mobile', 'cell', 'cell phone', 'contact', 'telephone'],
-        grade: ['grade', 'grade level', 'level'],
-        StudentNumber: ['studentnumber', 'student id', 'sis id'],
-        SyStudentId: ['systudentid', 'student sis'],
-        daysOut: ['days out', 'dayssincepriorlda', 'days inactive', 'days']
-    };
+/**
+ * Normalizes a header string by removing quotes and converting to lowercase
+ */
+function normalizeHeader(header) {
+    return header.trim().replace(/^"|"$/g, '').toLowerCase();
+}
 
-    let headerRowIndex = -1;
-    let bestHeaders = [];
-
+/**
+ * Finds the header row in CSV lines by looking for required fields
+ * Returns { rowIndex, headers } or null if not found
+ */
+function findHeaderRow(lines, aliases) {
     for (let i = 0; i < lines.length; i++) {
-        const currentHeaders = lines[i].split(',').map(h => h.trim().replace(/^"|"$/g, '').toLowerCase());
-        const hasName = currentHeaders.some(h => aliases.name.includes(h));
-        if (hasName) {
-            headerRowIndex = i;
-            bestHeaders = currentHeaders;
-            break; 
+        const headers = lines[i].split(',').map(normalizeHeader);
+        const hasRequiredField = headers.some(h => aliases.name.includes(h));
+
+        if (hasRequiredField) {
+            return { rowIndex: i, headers };
         }
     }
+    return null;
+}
 
-    if (headerRowIndex === -1) return [];
+/**
+ * Maps header names to their column indices using aliases
+ */
+function mapHeaderIndices(headers, aliases) {
+    const indices = {};
 
-    const idx = {
-        name: bestHeaders.findIndex(h => aliases.name.includes(h)),
-        phone: bestHeaders.findIndex(h => aliases.phone.includes(h)),
-        grade: bestHeaders.findIndex(h => aliases.grade.includes(h)),
-        StudentNumber: bestHeaders.findIndex(h => aliases.StudentNumber.includes(h)),
-        SyStudentId: bestHeaders.findIndex(h => aliases.SyStudentId.includes(h)),
-        daysOut: bestHeaders.findIndex(h => aliases.daysOut.includes(h))
+    for (const [fieldName, aliasArray] of Object.entries(aliases)) {
+        indices[fieldName] = headers.findIndex(h => aliasArray.includes(h));
+    }
+
+    return indices;
+}
+
+/**
+ * Parses a single CSV row, handling quoted values correctly
+ * Returns array of cell values or null if invalid
+ */
+function parseCSVRow(line) {
+    // Match quoted strings or unquoted values, separated by commas
+    const matches = line.match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g);
+
+    if (!matches) return null;
+
+    return matches.map(value => value.replace(/^"|"$/g, '').trim());
+}
+
+/**
+ * Validates if a string is a valid student name
+ * Rejects numeric-only strings and strings containing forward slashes
+ */
+function isValidStudentName(name) {
+    if (!name) return false;
+    if (/^\d+$/.test(name)) return false;  // All digits
+    if (name.includes('/')) return false;   // Contains date-like patterns
+    return true;
+}
+
+/**
+ * Creates a student entry object from parsed row data
+ */
+function createStudentEntry(rowData, columnIndices) {
+    const getValue = (field) => {
+        const index = columnIndices[field];
+        return index !== -1 ? rowData[index] : null;
     };
 
+    return {
+        name: rowData[columnIndices.name],
+        phone: getValue('phone'),
+        grade: getValue('grade'),
+        StudentNumber: getValue('StudentNumber'),
+        SyStudentId: getValue('SyStudentId'),
+        daysout: parseInt(getValue('daysOut')) || 0,
+        missingCount: 0,
+        url: null,
+        assignments: []
+    };
+}
+
+/**
+ * Parses CSV text into an array of student objects
+ * Handles flexible header formats and validates data
+ */
+function parseCSV(csvText) {
+    const lines = csvText.split(/\r\n|\n/).filter(line => line.trim() !== '');
+
+    if (lines.length < 2) {
+        return [];
+    }
+
+    // Find and parse header row
+    const headerInfo = findHeaderRow(lines, CSV_FIELD_ALIASES);
+    if (!headerInfo) {
+        return [];
+    }
+
+    const { rowIndex: headerRowIndex, headers } = headerInfo;
+    const columnIndices = mapHeaderIndices(headers, CSV_FIELD_ALIASES);
+
+    // Parse data rows
     const students = [];
-
     for (let i = headerRowIndex + 1; i < lines.length; i++) {
-        const row = lines[i].match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g);
-        if (!row) continue;
-        
-        const cleanRow = row.map(val => val.replace(/^"|"$/g, '').trim());
-        const rawName = cleanRow[idx.name];
-        
-        if (!rawName || /^\d+$/.test(rawName) || rawName.includes('/')) continue;
+        const rowData = parseCSVRow(lines[i]);
 
-        const entry = {
-            name: rawName,
-            phone: idx.phone !== -1 ? cleanRow[idx.phone] : null,
-            grade: idx.grade !== -1 ? cleanRow[idx.grade] : null,
-            StudentNumber: idx.StudentNumber !== -1 ? cleanRow[idx.StudentNumber] : null,
-            SyStudentId: idx.SyStudentId !== -1 ? cleanRow[idx.SyStudentId] : null,
-            daysout: idx.daysOut !== -1 ? parseInt(cleanRow[idx.daysOut]) || 0 : 0,
-            
-            missingCount: 0,
-            url: null,
-            assignments: []
-        };
+        if (!rowData) continue;
+
+        const studentName = rowData[columnIndices.name];
+        if (!isValidStudentName(studentName)) continue;
+
+        const entry = createStudentEntry(rowData, columnIndices);
         students.push(entry);
     }
-    
+
     return students;
 }
 
