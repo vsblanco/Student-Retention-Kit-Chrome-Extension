@@ -694,11 +694,13 @@ function getNextPageUrl(linkHeader) {
 
 async function fetchMissingAssignments(student) {
     if (!student.url) {
+        console.log(`[Step 3] ${student.name}: No gradebook URL, skipping`);
         return { ...student, missingCount: 0, missingAssignments: [] };
     }
 
     const parsed = parseGradebookUrl(student.url);
     if (!parsed) {
+        console.warn(`[Step 3] ${student.name}: Failed to parse gradebook URL: ${student.url}`);
         return { ...student, missingCount: 0, missingAssignments: [] };
     }
 
@@ -715,7 +717,11 @@ async function fetchMissingAssignments(student) {
         const userObject = users && users.length > 0 ? users[0] : null;
 
         // Analyze for missing assignments
-        const result = analyzeMissingAssignments(submissions, userObject);
+        const result = analyzeMissingAssignments(submissions, userObject, student.name);
+
+        if (result.count > 0) {
+            console.log(`[Step 3] ${student.name}: Found ${result.count} missing assignment(s), Grade: ${result.currentGrade || 'N/A'}`);
+        }
 
         return {
             ...student,
@@ -725,12 +731,12 @@ async function fetchMissingAssignments(student) {
         };
 
     } catch (e) {
-        console.warn(`Failed to fetch missing assignments for ${student.name}:`, e);
+        console.error(`[Step 3] ${student.name}: Error fetching data:`, e);
         return { ...student, missingCount: 0, missingAssignments: [] };
     }
 }
 
-function analyzeMissingAssignments(submissions, userObject) {
+function analyzeMissingAssignments(submissions, userObject, studentName) {
     const now = new Date();
     const collectedAssignments = [];
 
@@ -752,10 +758,11 @@ function analyzeMissingAssignments(submissions, userObject) {
     submissions.forEach(sub => {
         const dueDate = sub.cached_due_date ? new Date(sub.cached_due_date) : null;
 
-        // Skip future assignments
+        // Skip future assignments (assignments without due dates are included)
         if (dueDate && dueDate > now) return;
 
         // Missing if: marked as missing OR unsubmitted + past due OR score is 0
+        // NOTE: This matches the exact logic from background/looper.js analyzeMissingMode
         const isMissing = (sub.missing === true) ||
                           ((sub.workflow_state === 'unsubmitted' || sub.workflow_state === 'unsubmitted (ungraded)') && (dueDate && dueDate < now)) ||
                           (sub.score === 0);
@@ -765,7 +772,8 @@ function analyzeMissingAssignments(submissions, userObject) {
                 title: sub.assignment ? sub.assignment.name : 'Unknown Assignment',
                 submissionLink: sub.preview_url || '',
                 dueDate: sub.cached_due_date ? new Date(sub.cached_due_date).toLocaleDateString() : 'No Date',
-                score: sub.grade || (sub.score !== null ? sub.score : '-')
+                score: sub.grade || (sub.score !== null ? sub.score : '-'),
+                workflow_state: sub.workflow_state // Add for debugging
             });
         }
     });
@@ -1446,6 +1454,22 @@ function renderMasterList(rawEntries) {
             newTagHtml = `<span style="background:#e0f2fe; color:#0369a1; font-size:0.7em; padding:2px 6px; border-radius:8px; margin-left:6px; font-weight:bold; border:1px solid #bae6fd;">New</span>`;
         }
 
+        // Build missing assignments details HTML
+        let missingDetailsHtml = '<li><em>No missing assignments found.</em></li>';
+        if (rawEntry.missingAssignments && rawEntry.missingAssignments.length > 0) {
+            missingDetailsHtml = rawEntry.missingAssignments.map(assignment => {
+                const linkHtml = assignment.submissionLink
+                    ? `<a href="${assignment.submissionLink}" target="_blank" style="color:#2563eb; text-decoration:none;">${assignment.title}</a>`
+                    : assignment.title;
+                return `<li style="margin-bottom:6px;">
+                    ${linkHtml}
+                    <div style="font-size:0.9em; color:#6b7280; margin-top:2px;">
+                        Due: ${assignment.dueDate} | Score: ${assignment.score}
+                    </div>
+                </li>`;
+            }).join('');
+        }
+
         li.innerHTML = `
             <div style="display: flex; align-items: center; width:100%;">
                 <div class="heatmap-indicator ${heatmapClass}"></div>
@@ -1462,7 +1486,7 @@ function renderMasterList(rawEntries) {
             </div>
             <div class="missing-details" style="display: none; margin-top: 10px; border-top: 1px solid rgba(0,0,0,0.05); padding-top: 8px; cursor: default;">
                 <ul style="padding: 0; margin: 0; font-size: 0.85em; color: #4b5563; list-style-type: none;">
-                    <li><em>Details not loaded.</em></li>
+                    ${missingDetailsHtml}
                 </ul>
             </div>
         `;
