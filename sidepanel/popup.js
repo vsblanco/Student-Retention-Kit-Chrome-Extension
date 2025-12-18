@@ -1963,23 +1963,74 @@ function sortMasterList() {
     listItems.forEach(item => elements.masterList.appendChild(item));
 }
 
-function exportMasterListCSV() {
-    const listItems = elements.masterList.querySelectorAll('li.expandable');
-    const rows = [["Student Name", "Missing Assignments", "Days Out"]];
-    listItems.forEach(li => {
-        rows.push([
-            `"${li.getAttribute('data-name')}"`,
-            li.getAttribute('data-missing'),
-            li.getAttribute('data-days')
-        ]);
-    });
-    const csvContent = "data:text/csv;charset=utf-8," + rows.map(e => e.join(",")).join("\n");
-    const link = document.createElement("a");
-    link.setAttribute("href", encodeURI(csvContent));
-    link.setAttribute("download", "master_student_list.csv");
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+async function exportMasterListCSV() {
+    try {
+        // Get the full student data from storage
+        const result = await chrome.storage.local.get([STORAGE_KEYS.MASTER_ENTRIES]);
+        const students = result[STORAGE_KEYS.MASTER_ENTRIES] || [];
+
+        if (students.length === 0) {
+            alert('No data to export. Please update the master list first.');
+            return;
+        }
+
+        // --- SHEET 1: MASTER LIST ---
+        const masterListData = [
+            ['Student Name', 'Missing Assignments', 'Days Out', 'Grade', 'Phone', 'Student Number', 'Gradebook URL']
+        ];
+
+        students.forEach(student => {
+            masterListData.push([
+                student.name || '',
+                student.missingCount || 0,
+                parseInt(student.daysout || 0),
+                student.grade || '',
+                student.phone || '',
+                student.StudentNumber || student.SyStudentId || '',
+                student.url || ''
+            ]);
+        });
+
+        // --- SHEET 2: MISSING ASSIGNMENTS ---
+        const missingAssignmentsData = [
+            ['Student Name', 'Assignment Title', 'Due Date', 'Score', 'Submission Link']
+        ];
+
+        students.forEach(student => {
+            if (student.missingAssignments && student.missingAssignments.length > 0) {
+                student.missingAssignments.forEach(assignment => {
+                    missingAssignmentsData.push([
+                        student.name || '',
+                        assignment.title || '',
+                        assignment.dueDate || '',
+                        assignment.score || '',
+                        assignment.submissionLink || ''
+                    ]);
+                });
+            }
+        });
+
+        // Create workbook with both sheets
+        const wb = XLSX.utils.book_new();
+        const ws1 = XLSX.utils.aoa_to_sheet(masterListData);
+        const ws2 = XLSX.utils.aoa_to_sheet(missingAssignmentsData);
+
+        XLSX.utils.book_append_sheet(wb, ws1, 'Master List');
+        XLSX.utils.book_append_sheet(wb, ws2, 'Missing Assignments');
+
+        // Generate filename with timestamp
+        const timestamp = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+        const filename = `student_report_${timestamp}.xlsx`;
+
+        // Download the Excel file
+        XLSX.writeFile(wb, filename);
+
+        console.log(`✓ Exported ${students.length} students to Excel file: ${filename}`);
+
+    } catch (error) {
+        console.error('Error exporting to Excel:', error);
+        alert('Error creating Excel file. Check console for details.');
+    }
 }
 
 /**
