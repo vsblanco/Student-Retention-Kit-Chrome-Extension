@@ -171,6 +171,18 @@ async function initializeApp() {
             });
 
             setActiveStudent(lastStudent);
+        },
+        updateQueueAfterSkip: (updatedQueue) => {
+            // Update local queue reference
+            selectedQueue = updatedQueue;
+
+            // Update master list selection to reflect removed student
+            updateMasterListSelection();
+
+            // Update automation mode UI with new count
+            if (selectedQueue.length > 1) {
+                setAutomationModeUI();
+            }
         }
     };
     callManager = new CallManager(elements, uiCallbacks);

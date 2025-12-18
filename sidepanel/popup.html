@@ -667,13 +667,19 @@
         flex-shrink: 0;
     }
 
-    .skip-btn:hover {
+    .skip-btn:hover:not(:disabled) {
         background: #4b5563;
         transform: scale(1.1);
     }
 
-    .skip-btn:active {
+    .skip-btn:active:not(:disabled) {
         transform: scale(0.95);
+    }
+
+    .skip-btn:disabled {
+        background: #9ca3af;
+        cursor: not-allowed;
+        opacity: 0.3;
     }
 
   </style>

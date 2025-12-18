@@ -1,5 +1,6 @@
-// [2025-12-18] Version 1.0 - Call Manager Module
+// [2025-12-18] Version 1.1 - Call Manager Module
 // Handles all call state management, automation, and Five9 integration
+// v1.1: Skip button now correctly skips up next student without ending current call
 
 /**
  * CallManager class - Manages call state, timers, and automation sequences
@@ -161,10 +162,13 @@ export default class CallManager {
             // No more students or not in automation
             this.elements.upNextCard.style.display = 'none';
         }
+
+        // Update skip button state
+        this.updateSkipButtonState();
     }
 
     /**
-     * Skips the current student and moves to the next one in automation
+     * Skips the "Up Next" student (removes them from queue without calling)
      */
     skipToNext() {
         if (!this.automationMode) {
@@ -173,26 +177,54 @@ export default class CallManager {
         }
 
         if (!this.isCallActive) {
-            console.warn('No active call to skip');
+            console.warn('No active call');
             return;
         }
 
-        // End current call
-        this.isCallActive = false;
-        this.stopCallTimer();
+        const upNextIndex = this.currentAutomationIndex + 1;
 
-        // Hide disposition section
-        if (this.elements.callDispositionSection) {
-            this.elements.callDispositionSection.style.display = 'none';
+        // Check if there is a student to skip
+        if (upNextIndex >= this.selectedQueue.length) {
+            console.warn('No up next student to skip');
+            return;
         }
 
-        // Move to next student
-        this.currentAutomationIndex++;
+        // Remove the up next student from queue
+        const skippedStudent = this.selectedQueue.splice(upNextIndex, 1)[0];
+        console.log(`Skipped student: ${skippedStudent.name}`);
 
-        // Brief delay before next call (for smooth transition)
-        setTimeout(() => {
-            this.callNextStudentInQueue();
-        }, 300);
+        // Update UI callback if available
+        if (this.uiCallbacks.updateQueueAfterSkip) {
+            this.uiCallbacks.updateQueueAfterSkip(this.selectedQueue);
+        }
+
+        // Update the "Up Next" card with new next student
+        this.updateUpNextCard();
+
+        // Update skip button state
+        this.updateSkipButtonState();
+    }
+
+    /**
+     * Updates skip button enabled/disabled state
+     */
+    updateSkipButtonState() {
+        if (!this.elements.skipStudentBtn) return;
+
+        const upNextIndex = this.currentAutomationIndex + 1;
+        const hasUpNext = this.automationMode && upNextIndex < this.selectedQueue.length;
+
+        if (hasUpNext) {
+            // Enable skip button
+            this.elements.skipStudentBtn.disabled = false;
+            this.elements.skipStudentBtn.style.opacity = '1';
+            this.elements.skipStudentBtn.style.cursor = 'pointer';
+        } else {
+            // Disable skip button
+            this.elements.skipStudentBtn.disabled = true;
+            this.elements.skipStudentBtn.style.opacity = '0.3';
+            this.elements.skipStudentBtn.style.cursor = 'not-allowed';
+        }
     }
 
     /**
