@@ -171,6 +171,29 @@ async function initializeApp() {
             });
 
             setActiveStudent(lastStudent);
+        },
+        cancelAutomation: (currentStudent) => {
+            // Reset to single-student mode with only the current student
+            selectedQueue = [currentStudent];
+            callManager.updateQueue(selectedQueue);
+
+            // Clear multi-selection visual indicators
+            document.querySelectorAll('.glass-list li').forEach(el => el.classList.remove('multi-selected'));
+
+            // Find and highlight the current student in the list
+            const listItems = document.querySelectorAll('.glass-list li.expandable');
+            listItems.forEach(li => {
+                const name = li.getAttribute('data-name');
+                if (name === currentStudent.name) {
+                    li.classList.add('multi-selected');
+                }
+            });
+
+            // Update master list selection
+            updateMasterListSelection();
+
+            // Ensure active student is set
+            setActiveStudent(currentStudent);
         }
     };
     callManager = new CallManager(elements, uiCallbacks);

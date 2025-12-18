@@ -1,6 +1,7 @@
-// [2025-12-18] Version 1.2 - Call Manager Module
+// [2025-12-18] Version 1.3 - Call Manager Module
 // Handles all call state management, automation, and Five9 integration
 // v1.2: Skip button marks students to skip over without removing from queue
+// v1.3: Dial button cancels automation and keeps only current student
 
 /**
  * CallManager class - Manages call state, timers, and automation sequences
@@ -55,6 +56,14 @@ export default class CallManager {
             return;
         }
         // ----------------------
+
+        // --- CANCEL AUTOMATION MODE ---
+        // If in automation mode and call is active, cancel automation
+        if (this.automationMode && this.isCallActive) {
+            this.cancelAutomation();
+            return;
+        }
+        // --------------------------------------
 
         // --- CHECK FOR AUTOMATION MODE ---
         if (this.selectedQueue.length > 1 && !this.isCallActive) {
@@ -296,6 +305,56 @@ export default class CallManager {
 
         // Notify completion
         alert(`Automation complete! Called ${totalCalled} students.`);
+    }
+
+    /**
+     * Cancels the automation sequence and returns to normal calling mode
+     * Keeps only the current student being called
+     */
+    cancelAutomation() {
+        // Get the current student (the one currently being called)
+        const currentStudent = this.selectedQueue[this.currentAutomationIndex];
+
+        // End the current call
+        this.isCallActive = false;
+        this.stopCallTimer();
+
+        // Exit automation mode
+        this.automationMode = false;
+        this.currentAutomationIndex = 0;
+        this.skippedIndices.clear();
+
+        // Hide "Up Next" card
+        if (this.elements.upNextCard) {
+            this.elements.upNextCard.style.display = 'none';
+        }
+
+        // Reset call UI to regular mode
+        if (this.elements.dialBtn) {
+            this.elements.dialBtn.classList.remove('automation');
+            this.elements.dialBtn.innerHTML = '<i class="fas fa-phone"></i>';
+            this.elements.dialBtn.style.background = '#10b981';
+            this.elements.dialBtn.style.transform = 'rotate(0deg)';
+        }
+
+        if (this.elements.callStatusText) {
+            this.elements.callStatusText.innerHTML = '<span class="status-indicator ready"></span> Ready to Connect';
+        }
+
+        // Hide disposition section
+        if (this.elements.callDispositionSection) {
+            this.elements.callDispositionSection.style.display = 'none';
+        }
+
+        // Hide custom input area if it was open
+        if (this.elements.otherInputArea) {
+            this.elements.otherInputArea.style.display = 'none';
+        }
+
+        // Clear queue to only current student and update UI
+        if (currentStudent && this.uiCallbacks.cancelAutomation) {
+            this.uiCallbacks.cancelAutomation(currentStudent);
+        }
     }
 
     /**
