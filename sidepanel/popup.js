@@ -1,10 +1,12 @@
-// [2025-12-18 09:20 AM]
-// Version: 10.14 - Activated 'Up Next' card logic in Automation Mode
-import { STORAGE_KEYS, EXTENSION_STATES } from '../constants.js';
-
-// --- CONFIGURATION ---
-const CANVAS_DOMAIN = "https://nuc.instructure.com";
-const GENERIC_AVATAR_URL = "https://nuc.instructure.com/images/messages/avatar-50.png";
+// [2025-12-18 09:30 AM]
+// Version: 10.15 - Moved constants to centralized constants.js
+import {
+    STORAGE_KEYS,
+    EXTENSION_STATES,
+    CANVAS_DOMAIN,
+    GENERIC_AVATAR_URL,
+    CSV_FIELD_ALIASES
+} from '../constants.js';
 
 // --- STATE MANAGEMENT ---
 let isScanning = false;
@@ -566,18 +568,6 @@ async function fetchCanvasDetails(student) {
         return student;
     }
 }
-
-/**
- * CSV field aliases for flexible header matching
- */
-const CSV_FIELD_ALIASES = {
-    name: ['student name', 'name', 'studentname', 'student'],
-    phone: ['primaryphone', 'phone', 'phone number', 'mobile', 'cell', 'cell phone', 'contact', 'telephone'],
-    grade: ['grade', 'grade level', 'level'],
-    StudentNumber: ['studentnumber', 'student id', 'sis id'],
-    SyStudentId: ['systudentid', 'student sis'],
-    daysOut: ['days out', 'dayssincepriorlda', 'days inactive', 'days']
-};
 
 /**
  * Normalizes a header string by removing quotes and converting to lowercase

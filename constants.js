@@ -1,8 +1,8 @@
-// [2025-10-20 10:00 AM]
-// Version: 14.0
+// [2025-12-18 09:30 AM]
+// Version: 15.0
 /*
-* Timestamp: 2025-10-20 10:00 AM
-* Version: 14.0
+* Timestamp: 2025-12-18 09:30 AM
+* Version: 15.0
 */
 
 // Centralized configuration for the Submission Checker extension.
@@ -112,3 +112,26 @@ export const ADVANCED_FILTER_REGEX = /^\s*([><]=?|=)\s*(\d+)\s*$/;
  * SharePoint URL for the "SharePoint" button in the settings tab.
  */
 export const SHAREPOINT_URL = "https://edukgroup3_sharepoint.com/sites/SM-StudentServices/SitePages/CollabHome.aspx";
+
+/**
+ * Canvas LMS domain URL.
+ */
+export const CANVAS_DOMAIN = "https://nuc.instructure.com";
+
+/**
+ * Generic avatar URL used by Canvas for users without custom avatars.
+ */
+export const GENERIC_AVATAR_URL = "https://nuc.instructure.com/images/messages/avatar-50.png";
+
+/**
+ * CSV field aliases for flexible header matching during file imports.
+ * Maps internal field names to acceptable column header variations.
+ */
+export const CSV_FIELD_ALIASES = {
+    name: ['student name', 'name', 'studentname', 'student'],
+    phone: ['primaryphone', 'phone', 'phone number', 'mobile', 'cell', 'cell phone', 'contact', 'telephone'],
+    grade: ['grade', 'grade level', 'level'],
+    StudentNumber: ['studentnumber', 'student id', 'sis id'],
+    SyStudentId: ['systudentid', 'student sis'],
+    daysOut: ['days out', 'dayssincepriorlda', 'days inactive', 'days']
+};
