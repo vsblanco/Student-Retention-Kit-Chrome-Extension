@@ -273,11 +273,8 @@ function handleFileImport(file) {
         let students = [];
 
         try {
-            if (isCSV) {
-                students = parseCSV(content);
-            } else if (isXLSX) {
-                students = parseXLSX(content);
-            }
+            // Use SheetJS for both CSV and Excel files
+            students = parseFileWithSheetJS(content, isCSV);
 
             if(students.length === 0) {
                 throw new Error("No valid student data found (Check header row).");
@@ -315,6 +312,7 @@ function handleFileImport(file) {
     };
 
     // Use appropriate FileReader method based on file type
+    // Both CSV and Excel can be read as ArrayBuffer with SheetJS
     if (isCSV) {
         reader.readAsText(file);
     } else if (isXLSX) {
@@ -570,55 +568,6 @@ async function fetchCanvasDetails(student) {
 }
 
 /**
- * Normalizes a header string by removing quotes and converting to lowercase
- */
-function normalizeHeader(header) {
-    return header.trim().replace(/^"|"$/g, '').toLowerCase();
-}
-
-/**
- * Finds the header row in CSV lines by looking for required fields
- * Returns { rowIndex, headers } or null if not found
- */
-function findHeaderRow(lines, aliases) {
-    for (let i = 0; i < lines.length; i++) {
-        const headers = lines[i].split(',').map(normalizeHeader);
-        const hasRequiredField = headers.some(h => aliases.name.includes(h));
-
-        if (hasRequiredField) {
-            return { rowIndex: i, headers };
-        }
-    }
-    return null;
-}
-
-/**
- * Maps header names to their column indices using aliases
- */
-function mapHeaderIndices(headers, aliases) {
-    const indices = {};
-
-    for (const [fieldName, aliasArray] of Object.entries(aliases)) {
-        indices[fieldName] = headers.findIndex(h => aliasArray.includes(h));
-    }
-
-    return indices;
-}
-
-/**
- * Parses a single CSV row, handling quoted values correctly
- * Returns array of cell values or null if invalid
- */
-function parseCSVRow(line) {
-    // Match quoted strings or unquoted values, separated by commas
-    const matches = line.match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g);
-
-    if (!matches) return null;
-
-    return matches.map(value => value.replace(/^"|"$/g, '').trim());
-}
-
-/**
  * Validates if a string is a valid student name
  * Rejects numeric-only strings and strings containing forward slashes
  */
@@ -630,133 +579,128 @@ function isValidStudentName(name) {
 }
 
 /**
- * Creates a student entry object from parsed row data
+ * Normalizes a header string by removing quotes and converting to lowercase
  */
-function createStudentEntry(rowData, columnIndices) {
-    const getValue = (field) => {
-        const index = columnIndices[field];
-        return index !== -1 ? rowData[index] : null;
-    };
-
-    return {
-        name: rowData[columnIndices.name],
-        phone: getValue('phone'),
-        grade: getValue('grade'),
-        StudentNumber: getValue('StudentNumber'),
-        SyStudentId: getValue('SyStudentId'),
-        daysout: parseInt(getValue('daysOut')) || 0,
-        missingCount: 0,
-        url: null,
-        assignments: []
-    };
+function normalizeHeader(header) {
+    if (!header) return '';
+    return String(header).trim().toLowerCase();
 }
 
 /**
- * Parses CSV text into an array of student objects
- * Handles flexible header formats and validates data
+ * Finds the column index for a field using aliases
  */
-function parseCSV(csvText) {
-    const lines = csvText.split(/\r\n|\n/).filter(line => line.trim() !== '');
-
-    if (lines.length < 2) {
-        return [];
-    }
-
-    // Find and parse header row
-    const headerInfo = findHeaderRow(lines, CSV_FIELD_ALIASES);
-    if (!headerInfo) {
-        return [];
-    }
-
-    const { rowIndex: headerRowIndex, headers } = headerInfo;
-    const columnIndices = mapHeaderIndices(headers, CSV_FIELD_ALIASES);
-
-    // Parse data rows
-    const students = [];
-    for (let i = headerRowIndex + 1; i < lines.length; i++) {
-        const rowData = parseCSVRow(lines[i]);
-
-        if (!rowData) continue;
-
-        const studentName = rowData[columnIndices.name];
-        if (!isValidStudentName(studentName)) continue;
-
-        const entry = createStudentEntry(rowData, columnIndices);
-        students.push(entry);
-    }
-
-    return students;
+function findColumnIndex(headers, aliases) {
+    return headers.findIndex(h => aliases.includes(normalizeHeader(h)));
 }
 
 /**
- * Parses an Excel (.xlsx) file into an array of student objects
- * Uses the SheetJS library to read Excel workbooks
- *
- * @param {ArrayBuffer} arrayBuffer - The Excel file as an ArrayBuffer
- * @returns {Array} Array of student objects matching CSV format
+ * Unified parser for both CSV and Excel files using SheetJS
+ * @param {String|ArrayBuffer} data - File content (string for CSV, ArrayBuffer for Excel)
+ * @param {Boolean} isCSV - True if parsing CSV, false for Excel
+ * @returns {Array} Array of student objects
  */
-function parseXLSX(arrayBuffer) {
+function parseFileWithSheetJS(data, isCSV) {
     try {
         // Check if XLSX library is loaded
         if (typeof XLSX === 'undefined') {
             throw new Error('XLSX library not loaded. Please refresh the page.');
         }
 
-        // Read the workbook from the array buffer
-        const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+        // Read the file with SheetJS
+        let workbook;
+        if (isCSV) {
+            workbook = XLSX.read(data, { type: 'string' });
+        } else {
+            workbook = XLSX.read(data, { type: 'array' });
+        }
 
         // Get the first sheet
         const firstSheetName = workbook.SheetNames[0];
         const worksheet = workbook.Sheets[firstSheetName];
 
         // Convert sheet to JSON (array of arrays)
-        const data = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: null });
+        const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: null });
 
-        if (data.length < 2) {
+        if (rows.length < 2) {
             return [];
         }
 
-        // Convert array of arrays to CSV-like format for processing
-        const lines = data.map(row =>
-            row.map(cell => {
-                if (cell === null || cell === undefined) return '';
-                // Escape cells that contain commas or quotes
-                const cellStr = String(cell);
-                if (cellStr.includes(',') || cellStr.includes('"')) {
-                    return `"${cellStr.replace(/"/g, '""')}"`;
-                }
-                return cellStr;
-            }).join(',')
-        ).filter(line => line.trim() !== '');
+        // Find header row
+        let headerRowIndex = -1;
+        let headers = [];
 
-        // Find and parse header row
-        const headerInfo = findHeaderRow(lines, CSV_FIELD_ALIASES);
-        if (!headerInfo) {
+        for (let i = 0; i < rows.length; i++) {
+            const row = rows[i];
+            if (!row || row.length === 0) continue;
+
+            // Check if this row contains a name-like header
+            const hasNameField = row.some(cell =>
+                CSV_FIELD_ALIASES.name.includes(normalizeHeader(cell))
+            );
+
+            if (hasNameField) {
+                headerRowIndex = i;
+                headers = row;
+                break;
+            }
+        }
+
+        if (headerRowIndex === -1) {
             return [];
         }
 
-        const { rowIndex: headerRowIndex, headers } = headerInfo;
-        const columnIndices = mapHeaderIndices(headers, CSV_FIELD_ALIASES);
+        // Map column indices using aliases
+        const columnIndices = {
+            name: findColumnIndex(headers, CSV_FIELD_ALIASES.name),
+            phone: findColumnIndex(headers, CSV_FIELD_ALIASES.phone),
+            grade: findColumnIndex(headers, CSV_FIELD_ALIASES.grade),
+            StudentNumber: findColumnIndex(headers, CSV_FIELD_ALIASES.StudentNumber),
+            SyStudentId: findColumnIndex(headers, CSV_FIELD_ALIASES.SyStudentId),
+            daysOut: findColumnIndex(headers, CSV_FIELD_ALIASES.daysOut)
+        };
+
+        // Validate that we at least have a name column
+        if (columnIndices.name === -1) {
+            return [];
+        }
 
         // Parse data rows
         const students = [];
-        for (let i = headerRowIndex + 1; i < lines.length; i++) {
-            const rowData = parseCSVRow(lines[i]);
+        for (let i = headerRowIndex + 1; i < rows.length; i++) {
+            const row = rows[i];
+            if (!row || row.length === 0) continue;
 
-            if (!rowData) continue;
-
-            const studentName = rowData[columnIndices.name];
+            const studentName = row[columnIndices.name];
             if (!isValidStudentName(studentName)) continue;
 
-            const entry = createStudentEntry(rowData, columnIndices);
+            // Helper to safely get cell value
+            const getValue = (field) => {
+                const index = columnIndices[field];
+                if (index === -1 || index >= row.length) return null;
+                const value = row[index];
+                return value !== null && value !== undefined ? String(value) : null;
+            };
+
+            const entry = {
+                name: String(studentName),
+                phone: getValue('phone'),
+                grade: getValue('grade'),
+                StudentNumber: getValue('StudentNumber'),
+                SyStudentId: getValue('SyStudentId'),
+                daysout: parseInt(getValue('daysOut')) || 0,
+                missingCount: 0,
+                url: null,
+                assignments: []
+            };
+
             students.push(entry);
         }
 
         return students;
 
     } catch (error) {
-        console.error('Error parsing XLSX:', error);
-        throw new Error(`Excel parsing failed: ${error.message}`);
+        console.error('Error parsing file with SheetJS:', error);
+        throw new Error(`File parsing failed: ${error.message}`);
     }
 }
 
