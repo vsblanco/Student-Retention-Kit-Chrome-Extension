@@ -10,6 +10,7 @@ export default class CallManager {
         this.isCallActive = false;
         this.callTimerInterval = null;
         this.selectedQueue = [];
+        this.debugMode = false;
     }
 
     /**
@@ -18,6 +19,15 @@ export default class CallManager {
      */
     updateQueue(queue) {
         this.selectedQueue = queue;
+    }
+
+    /**
+     * Sets debug mode state
+     * @param {boolean} enabled - Whether debug mode is enabled
+     */
+    setDebugMode(enabled) {
+        this.debugMode = enabled;
+        this.updateCallInterfaceState();
     }
 
     /**
@@ -34,6 +44,13 @@ export default class CallManager {
      * @param {boolean} forceEnd - Force end the call regardless of current state
      */
     toggleCallState(forceEnd = false) {
+        // --- CHECK DEBUG MODE ---
+        if (!this.debugMode && !this.isCallActive) {
+            alert('Call functionality is disabled.\n\nTo enable the call demo, turn on Debug Mode in Settings.');
+            return;
+        }
+        // ----------------------
+
         // --- CHECK FOR AUTOMATION MODE ---
         if (this.selectedQueue.length > 1 && !this.isCallActive) {
             this.startAutomationSequence();
@@ -169,6 +186,29 @@ export default class CallManager {
         } catch (error) {
             console.error("Error hanging up call:", error);
             return { success: false, error: error.message };
+        }
+    }
+
+    /**
+     * Updates the call interface visual state based on debug mode
+     */
+    updateCallInterfaceState() {
+        if (!this.elements.dialBtn || !this.elements.callStatusText) return;
+
+        if (this.debugMode) {
+            // Enable call interface
+            this.elements.dialBtn.style.opacity = '1';
+            this.elements.dialBtn.style.cursor = 'pointer';
+            this.elements.dialBtn.title = '';
+            if (!this.isCallActive) {
+                this.elements.callStatusText.innerHTML = '<span class="status-indicator ready"></span> Ready to Connect';
+            }
+        } else {
+            // Disable call interface
+            this.elements.dialBtn.style.opacity = '0.5';
+            this.elements.dialBtn.style.cursor = 'not-allowed';
+            this.elements.dialBtn.title = 'Enable Debug Mode in Settings to use call functionality';
+            this.elements.callStatusText.innerHTML = '<span class="status-indicator" style="background:#f59e0b;"></span> Calls Disabled (Enable Debug Mode)';
         }
     }
 

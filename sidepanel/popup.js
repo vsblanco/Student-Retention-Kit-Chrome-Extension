@@ -19,6 +19,7 @@ import CallManager from './callManager.js';
 let isScanning = false;
 let selectedQueue = []; // Tracks multiple selected students
 let callManager; // Manages all call-related functionality
+let isDebugMode = false; // Controls whether call functionality is enabled
 
 // --- DOM ELEMENTS CACHE ---
 const elements = {};
@@ -131,15 +132,19 @@ function cacheDomElements() {
     // Cache Management
     elements.cacheStatsText = document.getElementById('cacheStatsText');
     elements.clearCacheBtn = document.getElementById('clearCacheBtn');
+
+    // Debug Mode Toggle
+    elements.debugModeToggle = document.getElementById('debugModeToggle');
 }
 
-function initializeApp() {
+async function initializeApp() {
     setupEventListeners();
-    loadStorageData();
-    setActiveStudent(null);
 
     // Initialize call manager after DOM elements are cached
     callManager = new CallManager(elements);
+
+    await loadStorageData();
+    setActiveStudent(null);
 }
 
 // --- EVENT LISTENERS ---
@@ -176,6 +181,11 @@ function setupEventListeners() {
                 updateCacheStats();
             }
         });
+    }
+
+    // Debug Mode Toggle
+    if (elements.debugModeToggle) {
+        elements.debugModeToggle.addEventListener('click', toggleDebugMode);
     }
 
     if (elements.startBtn) elements.startBtn.addEventListener('click', toggleScanState);
@@ -799,7 +809,8 @@ async function loadStorageData() {
         STORAGE_KEYS.FOUND_ENTRIES,
         STORAGE_KEYS.MASTER_ENTRIES,
         STORAGE_KEYS.LAST_UPDATED,
-        STORAGE_KEYS.EXTENSION_STATE
+        STORAGE_KEYS.EXTENSION_STATE,
+        STORAGE_KEYS.DEBUG_MODE
     ]);
 
     const foundEntries = data[STORAGE_KEYS.FOUND_ENTRIES] || [];
@@ -811,8 +822,15 @@ async function loadStorageData() {
     if (elements.lastUpdatedText && data[STORAGE_KEYS.LAST_UPDATED]) {
         elements.lastUpdatedText.textContent = data[STORAGE_KEYS.LAST_UPDATED];
     }
-    
+
     updateButtonVisuals(data[STORAGE_KEYS.EXTENSION_STATE] || EXTENSION_STATES.OFF);
+
+    // Load debug mode state
+    isDebugMode = data[STORAGE_KEYS.DEBUG_MODE] || false;
+    updateDebugModeUI();
+    if (callManager) {
+        callManager.setDebugMode(isDebugMode);
+    }
 }
 
 chrome.storage.onChanged.addListener((changes) => {
@@ -1250,6 +1268,28 @@ function updateButtonVisuals(state) {
 
 // --- CALL LOGIC NOW HANDLED BY callManager.js ---
 // All call-related functions have been moved to the CallManager class
+
+// --- DEBUG MODE MANAGEMENT ---
+async function toggleDebugMode() {
+    isDebugMode = !isDebugMode;
+    await chrome.storage.local.set({ [STORAGE_KEYS.DEBUG_MODE]: isDebugMode });
+    updateDebugModeUI();
+    if (callManager) {
+        callManager.setDebugMode(isDebugMode);
+    }
+}
+
+function updateDebugModeUI() {
+    if (!elements.debugModeToggle) return;
+
+    if (isDebugMode) {
+        elements.debugModeToggle.className = 'fas fa-toggle-on';
+        elements.debugModeToggle.style.color = 'var(--primary-color)';
+    } else {
+        elements.debugModeToggle.className = 'fas fa-toggle-off';
+        elements.debugModeToggle.style.color = 'gray';
+    }
+}
 
 // --- LOGIC: FILTER & SORT ---
 function filterMasterList(e) {
