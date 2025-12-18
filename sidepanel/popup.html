@@ -605,6 +605,51 @@
     ::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.2); border-radius: 10px; }
     ::-webkit-scrollbar-thumb:hover { background: rgba(0,0,0,0.3); }
 
+    /* Queue Management Modal */
+    .queue-item-draggable {
+        cursor: move;
+        transition: all 0.2s;
+        position: relative;
+    }
+
+    .queue-item-draggable:hover {
+        background: rgba(200, 200, 200, 0.6) !important;
+    }
+
+    .queue-item-draggable.dragging {
+        opacity: 0.5;
+    }
+
+    .queue-item-draggable.drag-over {
+        border-top: 3px solid var(--primary-color);
+    }
+
+    .queue-remove-btn {
+        background: #ef4444;
+        color: white;
+        border: none;
+        border-radius: 50%;
+        width: 24px;
+        height: 24px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        font-size: 0.9em;
+        transition: all 0.2s;
+    }
+
+    .queue-remove-btn:hover {
+        background: #dc2626;
+        transform: scale(1.1);
+    }
+
+    .queue-drag-handle {
+        color: var(--text-secondary);
+        margin-right: 8px;
+        cursor: move;
+    }
+
   </style>
 </head>
 <body>
@@ -613,7 +658,7 @@
     <div class="header">
       <div class="title-area">
         <h2>Student Retention Kit</h2>
-        <span id="versionText" title="Click to view Version History">Version 10.18</span>
+        <span id="versionText" title="Click to view Version History">Version 10.19</span>
       </div>
       <button id="headerSettingsBtn" class="icon-btn" title="Settings">
         <i class="fas fa-cog"></i>
@@ -668,7 +713,7 @@
                      <div style="font-size:0.8em; color:var(--text-secondary);">Parent: Mrs. Doe</div>
                  </div>
             </div>
-            <button class="btn-secondary" style="width:auto; font-size:0.75em; padding: 4px 8px;">Select</button>
+            <button id="manageQueueBtn" class="btn-secondary" style="display:none; width:auto; font-size:0.75em; padding: 4px 8px;">Manage Queue</button>
         </div>
 
         <div class="call-interface-card">
@@ -848,6 +893,27 @@
         </div>
         <button class="btn-secondary" style="width:100%;">Configure Connections</button>
       </div>
+    </div>
+
+    <div id="queueModal" class="modal-overlay" style="display:none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Automation Queue</h3>
+                <button class="icon-btn" id="closeQueueModalBtn" title="Close"><i class="fas fa-times"></i></button>
+            </div>
+
+            <div style="margin-bottom:10px; font-size:0.85em; color:var(--text-secondary);">
+                <i class="fas fa-info-circle"></i> Drag to reorder • Click × to remove
+            </div>
+
+            <ul id="queueList" class="glass-list" style="min-height:100px;">
+                <!-- Queue items will be populated here -->
+            </ul>
+
+            <div style="text-align:center; margin-top:15px; font-size:0.9em; color:var(--text-secondary);">
+                <span id="queueCount">0 students</span> in queue
+            </div>
+        </div>
     </div>
 
     <div id="versionModal" class="modal-overlay" style="display:none;">
