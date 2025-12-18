@@ -314,20 +314,22 @@ async function performLoop() {
 
     // 1. Fetch Fresh Data
     const data = await chrome.storage.local.get([
-        STORAGE_KEYS.MASTER_ENTRIES, 
-        STORAGE_KEYS.FOUND_ENTRIES, 
-        STORAGE_KEYS.LOOPER_DAYS_OUT_FILTER
+        STORAGE_KEYS.MASTER_ENTRIES,
+        STORAGE_KEYS.FOUND_ENTRIES,
+        STORAGE_KEYS.LOOPER_DAYS_OUT_FILTER,
+        STORAGE_KEYS.SCAN_FILTER_INCLUDE_FAILING
     ]);
 
     const masterEntries = data[STORAGE_KEYS.MASTER_ENTRIES] || [];
     const foundEntries = data[STORAGE_KEYS.FOUND_ENTRIES] || [];
     const filterText = (data[STORAGE_KEYS.LOOPER_DAYS_OUT_FILTER] || 'all').trim().toLowerCase();
+    const includeFailing = data[STORAGE_KEYS.SCAN_FILTER_INCLUDE_FAILING] || false;
 
     // 2. Re-build Cache
     foundUrlCache = new Set(foundEntries.map(e => e.url).filter(Boolean));
 
     let filteredList = masterEntries;
-    
+
     // 3. Apply Filters
     if (filterText !== 'all' && filterText !== '') {
         const match = filterText.match(ADVANCED_FILTER_REGEX);
@@ -336,15 +338,31 @@ async function performLoop() {
                 const operator = match[1];
                 const value = parseInt(match[2], 10);
                 const daysout = entry.daysout;
-                if (daysout == null) return false;
-                switch (operator) {
-                    case '>':  return daysout > value;
-                    case '<':  return daysout < value;
-                    case '>=': return daysout >= value;
-                    case '<=': return daysout <= value;
-                    case '=':  return daysout === value;
-                    default:   return false;
+
+                // Check if student meets days out criteria
+                let meetsDaysOutCriteria = false;
+                if (daysout != null) {
+                    switch (operator) {
+                        case '>':  meetsDaysOutCriteria = daysout > value; break;
+                        case '<':  meetsDaysOutCriteria = daysout < value; break;
+                        case '>=': meetsDaysOutCriteria = daysout >= value; break;
+                        case '<=': meetsDaysOutCriteria = daysout <= value; break;
+                        case '=':  meetsDaysOutCriteria = daysout === value; break;
+                        default:   meetsDaysOutCriteria = false;
+                    }
                 }
+
+                // Check if student is failing (grade < 60)
+                let isFailing = false;
+                if (includeFailing && entry.grade != null) {
+                    const grade = parseFloat(entry.grade);
+                    if (!isNaN(grade) && grade < 60) {
+                        isFailing = true;
+                    }
+                }
+
+                // Include student if they meet days out criteria OR are failing (if toggle is enabled)
+                return meetsDaysOutCriteria || isFailing;
             });
         }
     }

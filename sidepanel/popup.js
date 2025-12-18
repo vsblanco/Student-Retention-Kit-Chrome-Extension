@@ -130,6 +130,15 @@ function cacheDomElements() {
     elements.versionModal = document.getElementById('versionModal');
     elements.closeVersionBtn = document.getElementById('closeVersionBtn');
 
+    // Scan Filter Modal
+    elements.scanFilterModal = document.getElementById('scanFilterModal');
+    elements.scanFilterBtn = document.getElementById('scanFilterBtn');
+    elements.closeScanFilterBtn = document.getElementById('closeScanFilterBtn');
+    elements.daysOutOperator = document.getElementById('daysOutOperator');
+    elements.daysOutValue = document.getElementById('daysOutValue');
+    elements.failingToggle = document.getElementById('failingToggle');
+    elements.saveScanFilterBtn = document.getElementById('saveScanFilterBtn');
+
     // Queue Modal
     elements.queueModal = document.getElementById('queueModal');
     elements.closeQueueModalBtn = document.getElementById('closeQueueModalBtn');
@@ -225,12 +234,19 @@ function setupEventListeners() {
     if (elements.versionText) elements.versionText.addEventListener('click', () => elements.versionModal.style.display = 'flex');
     if (elements.closeVersionBtn) elements.closeVersionBtn.addEventListener('click', () => elements.versionModal.style.display = 'none');
 
+    // Scan Filter Modal
+    if (elements.scanFilterBtn) elements.scanFilterBtn.addEventListener('click', openScanFilterModal);
+    if (elements.closeScanFilterBtn) elements.closeScanFilterBtn.addEventListener('click', closeScanFilterModal);
+    if (elements.failingToggle) elements.failingToggle.addEventListener('click', toggleFailingFilter);
+    if (elements.saveScanFilterBtn) elements.saveScanFilterBtn.addEventListener('click', saveScanFilterSettings);
+
     // Queue Modal
     if (elements.manageQueueBtn) elements.manageQueueBtn.addEventListener('click', openQueueModal);
     if (elements.closeQueueModalBtn) elements.closeQueueModalBtn.addEventListener('click', closeQueueModal);
 
     window.addEventListener('click', (e) => {
         if (elements.versionModal && e.target === elements.versionModal) elements.versionModal.style.display = 'none';
+        if (elements.scanFilterModal && e.target === elements.scanFilterModal) closeScanFilterModal();
         if (elements.queueModal && e.target === elements.queueModal) closeQueueModal();
     });
 
@@ -1431,6 +1447,85 @@ function renderQueueModal() {
 
         elements.queueList.appendChild(li);
     });
+}
+
+// --- SCAN FILTER MODAL ---
+async function openScanFilterModal() {
+    if (!elements.scanFilterModal) return;
+
+    // Load current settings
+    const settings = await chrome.storage.local.get([
+        STORAGE_KEYS.SCAN_FILTER_DAYS_OUT,
+        STORAGE_KEYS.SCAN_FILTER_INCLUDE_FAILING
+    ]);
+
+    const daysOutFilter = settings[STORAGE_KEYS.SCAN_FILTER_DAYS_OUT] || '>=5';
+    const includeFailing = settings[STORAGE_KEYS.SCAN_FILTER_INCLUDE_FAILING] || false;
+
+    // Parse days out filter (e.g., ">=5" -> operator: ">=", value: "5")
+    const match = daysOutFilter.match(/^\s*([><]=?|=)\s*(\d+)\s*$/);
+    if (match && elements.daysOutOperator && elements.daysOutValue) {
+        elements.daysOutOperator.value = match[1];
+        elements.daysOutValue.value = match[2];
+    }
+
+    // Set failing toggle state
+    if (elements.failingToggle) {
+        if (includeFailing) {
+            elements.failingToggle.className = 'fas fa-toggle-on';
+            elements.failingToggle.style.color = 'var(--primary-color)';
+        } else {
+            elements.failingToggle.className = 'fas fa-toggle-off';
+            elements.failingToggle.style.color = 'gray';
+        }
+    }
+
+    // Show modal
+    elements.scanFilterModal.style.display = 'flex';
+}
+
+function closeScanFilterModal() {
+    if (!elements.scanFilterModal) return;
+    elements.scanFilterModal.style.display = 'none';
+}
+
+function toggleFailingFilter() {
+    if (!elements.failingToggle) return;
+
+    const isOn = elements.failingToggle.classList.contains('fa-toggle-on');
+    if (isOn) {
+        elements.failingToggle.className = 'fas fa-toggle-off';
+        elements.failingToggle.style.color = 'gray';
+    } else {
+        elements.failingToggle.className = 'fas fa-toggle-on';
+        elements.failingToggle.style.color = 'var(--primary-color)';
+    }
+}
+
+async function saveScanFilterSettings() {
+    if (!elements.daysOutOperator || !elements.daysOutValue || !elements.failingToggle) return;
+
+    const operator = elements.daysOutOperator.value;
+    const value = elements.daysOutValue.value;
+    const daysOutFilter = `${operator}${value}`;
+    const includeFailing = elements.failingToggle.classList.contains('fa-toggle-on');
+
+    // Save to storage
+    await chrome.storage.local.set({
+        [STORAGE_KEYS.SCAN_FILTER_DAYS_OUT]: daysOutFilter,
+        [STORAGE_KEYS.SCAN_FILTER_INCLUDE_FAILING]: includeFailing
+    });
+
+    // Also update the legacy LOOPER_DAYS_OUT_FILTER for backward compatibility
+    await chrome.storage.local.set({
+        [STORAGE_KEYS.LOOPER_DAYS_OUT_FILTER]: daysOutFilter
+    });
+
+    // Close modal
+    closeScanFilterModal();
+
+    // Show confirmation (optional)
+    console.log('Scan filter settings saved:', { daysOutFilter, includeFailing });
 }
 
 let draggedElement = null;
