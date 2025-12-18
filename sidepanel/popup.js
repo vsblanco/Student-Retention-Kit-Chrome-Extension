@@ -1,5 +1,5 @@
-// [2025-12-17 02:08 PM]
-// Version: 10.8 - JSON Import Update (Included PrimaryPhone)
+// [2025-12-18 09:20 AM]
+// Version: 10.14 - Activated 'Up Next' card logic in Automation Mode
 import { STORAGE_KEYS, EXTENSION_STATES } from '../constants.js';
 
 // --- CONFIGURATION ---
@@ -57,11 +57,16 @@ function cacheDomElements() {
     elements.dialBtn = document.getElementById('dialBtn');
     elements.callStatusText = document.querySelector('.call-status-bar');
     elements.callTimer = document.querySelector('.call-timer');
+    elements.callDispositionSection = document.getElementById('callDispositionSection');
     elements.otherInputArea = document.getElementById('otherInputArea');
     elements.customNote = document.getElementById('customNote');
     elements.confirmNoteBtn = elements.otherInputArea ? elements.otherInputArea.querySelector('.btn-primary') : null;
     elements.dispositionGrid = document.querySelector('.disposition-grid'); 
     
+    // Call Tab - Up Next Card (New v10.14)
+    elements.upNextCard = document.getElementById('upNextCard');
+    elements.upNextName = document.getElementById('upNextName');
+
     // Call Tab - Student Card & Placeholder Logic
     const contactTab = document.getElementById('contact');
     if (contactTab) {
@@ -106,6 +111,7 @@ function cacheDomElements() {
     elements.updateQueueSection = document.getElementById('updateQueueSection');
     elements.queueCloseBtn = elements.updateQueueSection ? elements.updateQueueSection.querySelector('.icon-btn') : null;
     elements.lastUpdatedText = document.getElementById('lastUpdatedText');
+    elements.totalCountText = document.getElementById('totalCountText'); 
     
     // Step 1 File Input
     elements.studentPopFile = document.getElementById('studentPopFile');
@@ -637,7 +643,10 @@ async function loadStorageData() {
         STORAGE_KEYS.EXTENSION_STATE
     ]);
 
-    renderFoundList(data[STORAGE_KEYS.FOUND_ENTRIES] || []);
+    const foundEntries = data[STORAGE_KEYS.FOUND_ENTRIES] || [];
+    renderFoundList(foundEntries);
+    updateTabBadge('checker', foundEntries.length); // --- UPDATED: Load badge count immediately
+
     renderMasterList(data[STORAGE_KEYS.MASTER_ENTRIES] || []);
 
     if (elements.lastUpdatedText && data[STORAGE_KEYS.LAST_UPDATED]) {
@@ -700,6 +709,10 @@ function setActiveStudent(rawEntry) {
     }
     if (elements.callStatusText) {
         elements.callStatusText.innerHTML = '<span class="status-indicator ready"></span> Ready to Connect';
+    }
+    // Hide Up Next Card in standard mode
+    if (elements.upNextCard) {
+        elements.upNextCard.style.display = 'none';
     }
     // ---------------------------------------------------
 
@@ -795,6 +808,7 @@ function toggleMultiSelection(entry, liElement) {
     }
 }
 
+// --- UPDATED: Uses Gray Color Scheme + Up Next Card ---
 function setAutomationModeUI() {
     const contactTab = document.getElementById('contact');
     if (!contactTab) return;
@@ -817,11 +831,11 @@ function setAutomationModeUI() {
     if (elements.contactAvatar) {
         elements.contactAvatar.textContent = selectedQueue.length;
         elements.contactAvatar.style.backgroundImage = 'none';
-        elements.contactAvatar.style.backgroundColor = '#8b5cf6'; // Purple
+        elements.contactAvatar.style.backgroundColor = '#6b7280'; // Updated to Gray
         elements.contactAvatar.style.color = '#ffffff';
     }
 
-    // 2. Transform the Dial Button to Purple
+    // 2. Transform the Dial Button to Gray
     if (elements.dialBtn) {
         elements.dialBtn.classList.add('automation');
         elements.dialBtn.innerHTML = '<i class="fas fa-robot"></i>'; // Change icon to Robot
@@ -829,14 +843,25 @@ function setAutomationModeUI() {
 
     // 3. Update Status Text
     if (elements.callStatusText) {
-        elements.callStatusText.innerHTML = `<span class="status-indicator" style="background:#8b5cf6;"></span> Ready to Auto-Dial`;
+        elements.callStatusText.innerHTML = `<span class="status-indicator" style="background:#6b7280;"></span> Ready to Auto-Dial`;
     }
     
     if (elements.contactCard) {
-        elements.contactCard.style.borderLeftColor = '#8b5cf6';
+        elements.contactCard.style.borderLeftColor = '#6b7280';
     }
-    
-    // REMOVED: switchTab('contact'); - Now handled by keyup event
+
+    // 4. Update 'Up Next' Card (New v10.14)
+    if (elements.upNextCard) {
+        if (selectedQueue.length > 1) {
+            elements.upNextCard.style.display = 'block';
+            // Show the name of the *next* person (index 1), assuming index 0 is active
+            if (elements.upNextName && selectedQueue[1]) {
+                elements.upNextName.textContent = selectedQueue[1].name;
+            }
+        } else {
+            elements.upNextCard.style.display = 'none';
+        }
+    }
 }
 
 // --- RENDERING LISTS ---
@@ -899,6 +924,13 @@ function filterFoundList(e) {
 function renderMasterList(rawEntries) {
     if (!elements.masterList) return;
     elements.masterList.innerHTML = '';
+
+    // --- NEW: UPDATE TOTAL COUNT INDICATOR ---
+    if (elements.totalCountText) {
+        const count = rawEntries ? rawEntries.length : 0;
+        elements.totalCountText.textContent = `Total Students: ${count}`;
+    }
+    // ----------------------------------------
 
     if (!rawEntries || rawEntries.length === 0) {
         elements.masterList.innerHTML = '<li style="justify-content:center;">Master list is empty.</li>';
@@ -1065,11 +1097,17 @@ function toggleCallState(forceEnd = false) {
         elements.dialBtn.style.background = '#ef4444'; 
         elements.dialBtn.style.transform = 'rotate(135deg)';
         elements.callStatusText.innerHTML = '<span class="status-indicator" style="background:#ef4444; animation: blink 1s infinite;"></span> Connected';
+        // --- V10.12 UPDATE: Show Disposition Grid ---
+        if(elements.callDispositionSection) elements.callDispositionSection.style.display = 'flex';
         startCallTimer();
     } else {
         elements.dialBtn.style.background = '#10b981';
         elements.dialBtn.style.transform = 'rotate(0deg)';
         elements.callStatusText.innerHTML = '<span class="status-indicator ready"></span> Ready to Connect';
+        // --- V10.12 UPDATE: Hide Disposition Grid ---
+        if(elements.callDispositionSection) elements.callDispositionSection.style.display = 'none';
+        // Hide custom input area if it was open
+        if(elements.otherInputArea) elements.otherInputArea.style.display = 'none';
         stopCallTimer();
     }
 }

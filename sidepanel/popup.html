@@ -243,9 +243,10 @@
         border-color: rgba(0, 0, 0, 0.1);
     }
     
+    /* UPDATED: Changed from Purple to Gray */
     .glass-list li.multi-selected {
-        background: rgba(139, 92, 246, 0.15) !important;
-        border: 1px solid #8b5cf6 !important;
+        background: rgba(107, 114, 128, 0.15) !important;
+        border: 1px solid #6b7280 !important;
         position: relative;
     }
 
@@ -412,12 +413,13 @@
     }
     .control-btn.dial:hover { background: #059669; }
 
+    /* UPDATED: Changed from Purple to Slate Gray */
     .control-btn.dial.automation {
-        background: #8b5cf6 !important;
-        box-shadow: 0 4px 12px rgba(139, 92, 246, 0.4);
+        background: #6b7280 !important;
+        box-shadow: 0 4px 12px rgba(107, 114, 128, 0.4);
     }
     .control-btn.dial.automation:hover {
-        background: #7c3aed !important;
+        background: #4b5563 !important;
     }
 
     .control-btn.secondary-action {
@@ -611,7 +613,7 @@
     <div class="header">
       <div class="title-area">
         <h2>Student Retention Kit</h2>
-        <span id="versionText" title="Click to view Version History">Version 10.4</span>
+        <span id="versionText" title="Click to view Version History">Version 10.13</span>
       </div>
       <button id="headerSettingsBtn" class="icon-btn" title="Settings">
         <i class="fas fa-cog"></i>
@@ -669,12 +671,12 @@
             <button class="btn-secondary" style="width:auto; font-size:0.75em; padding: 4px 8px;">Select</button>
         </div>
 
-        <div id="upNextCard" class="setting-card" style="display:none; background: rgba(139, 92, 246, 0.1); border-left: 4px solid #8b5cf6; padding: 8px 12px; margin-top: -8px; margin-bottom: 15px;">
+        <div id="upNextCard" class="setting-card" style="display:none; background: rgba(107, 114, 128, 0.1); border-left: 4px solid #6b7280; padding: 8px 12px; margin-top: -8px; margin-bottom: 15px;">
             <div style="display:flex; align-items:center; gap:10px; width: 100%;">
-                <span style="font-size:0.7em; font-weight:700; color:#8b5cf6; text-transform:uppercase; white-space:nowrap;">
+                <span style="font-size:0.7em; font-weight:700; color:#6b7280; text-transform:uppercase; white-space:nowrap;">
                     <i class="fas fa-forward"></i> Up Next
                 </span>
-                <div style="height: 16px; width: 1px; background: rgba(139, 92, 246, 0.3);"></div>
+                <div style="height: 16px; width: 1px; background: rgba(107, 114, 128, 0.3);"></div>
                 <div id="upNextName" style="font-weight:500; font-size:0.85em; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
                     Student Name
                 </div>
@@ -703,7 +705,7 @@
             </div>
         </div>
 
-        <div style="margin-top:5px; flex-grow:1; display:flex; flex-direction:column;">
+        <div id="callDispositionSection" style="display:none; margin-top:5px; flex-grow:1; flex-direction:column;">
             <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
                 <label style="font-size:0.9em; font-weight:500; color:#4b5563;">Call Disposition</label>
                 <span style="font-size:0.8em; color:var(--text-secondary);">Last call: 2 days ago</span>
@@ -777,8 +779,9 @@
              </select>
         </div>
         
-        <div style="font-size: 0.75em; color: var(--text-secondary); text-align: right; margin-bottom: 8px;">
-            <i class="far fa-clock"></i> Last Updated: <span id="lastUpdatedText">Never</span>
+        <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.85em; color: var(--text-secondary); margin-bottom: 8px;">
+            <span id="totalCountText" style="font-weight: 500;">Total Students: 0</span>
+            <span><i class="far fa-clock"></i> Last Updated: <span id="lastUpdatedText">Never</span></span>
         </div>
 
       </div>
@@ -841,11 +844,59 @@
             <ul class="glass-list">
                 <li>
                     <div>
-                        <strong style="color:var(--primary-color);">v10.4</strong>
+                        <strong style="color:var(--primary-color);">v10.13</strong>
+                        <div style="font-size:0.8em; color:var(--text-secondary);">Gray Selection</div>
+                        <div style="font-size:0.8em; margin-top:4px;">- Changed highlight color to gray.</div>
+                    </div>
+                    <span class="timestamp-pill">Now</span>
+                </li>
+                <li>
+                    <div>
+                        <strong>v10.12</strong>
+                        <div style="font-size:0.8em; color:var(--text-secondary);">Call UI Logic</div>
+                        <div style="font-size:0.8em; margin-top:4px;">- Disposition only shows during active call.</div>
+                    </div>
+                    <span class="timestamp-pill">Today</span>
+                </li>
+                <li>
+                    <div>
+                        <strong>v10.11</strong>
+                        <div style="font-size:0.8em; color:var(--text-secondary);">Badge Logic</div>
+                        <div style="font-size:0.8em; margin-top:4px;">- Fixed Badge not loading count on startup.</div>
+                    </div>
+                    <span class="timestamp-pill">Today</span>
+                </li>
+                <li>
+                    <div>
+                        <strong>v10.10</strong>
+                        <div style="font-size:0.8em; color:var(--text-secondary);">UI Improvements</div>
+                        <div style="font-size:0.8em; margin-top:4px;">- Aligned Total Count to Left.<br>- Increased text size for status.</div>
+                    </div>
+                    <span class="timestamp-pill">Today</span>
+                </li>
+                <li>
+                    <div>
+                        <strong>v10.9</strong>
+                        <div style="font-size:0.8em; color:var(--text-secondary);">Count Indicator</div>
+                        <div style="font-size:0.8em; margin-top:4px;">- Added Total Students count.</div>
+                    </div>
+                    <span class="timestamp-pill">Today</span>
+                </li>
+                <li>
+                    <div>
+                        <strong>v10.8</strong>
+                        <div style="font-size:0.8em; color:var(--text-secondary);">JSON & Phone</div>
+                        <div style="font-size:0.8em; margin-top:4px;">- Fixed Phone mapping.<br>- Enhanced JSON import.</div>
+                    </div>
+                    <span class="timestamp-pill">Dec 17</span>
+                </li>
+                <li>
+                    <div>
+                        <strong>v10.4</strong>
                         <div style="font-size:0.8em; color:var(--text-secondary);">Sort & Filter</div>
                         <div style="font-size:0.8em; margin-top:4px;">- Added real-time Search.<br>- Added Sort by Name, Days Out, Missing.</div>
                     </div>
-                    <span class="timestamp-pill">Now</span>
+                    <span class="timestamp-pill">Nov 15</span>
                 </li>
                 <li>
                     <div>
@@ -853,7 +904,7 @@
                         <div style="font-size:0.8em; color:var(--text-secondary);">Interactive History</div>
                         <div style="font-size:0.8em; margin-top:4px;">- Added Version History Modal.</div>
                     </div>
-                    <span class="timestamp-pill">Today</span>
+                    <span class="timestamp-pill">Oct 24</span>
                 </li>
                 <li>
                     <div>
