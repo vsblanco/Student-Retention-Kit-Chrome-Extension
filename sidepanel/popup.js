@@ -5,7 +5,9 @@ import {
     EXTENSION_STATES,
     CANVAS_DOMAIN,
     GENERIC_AVATAR_URL,
-    CSV_FIELD_ALIASES
+    CSV_FIELD_ALIASES,
+    EXPORT_MASTER_LIST_COLUMNS,
+    EXPORT_MISSING_ASSIGNMENTS_COLUMNS
 } from '../constants.js';
 import {
     getCachedData,
@@ -1963,23 +1965,110 @@ function sortMasterList() {
     listItems.forEach(item => elements.masterList.appendChild(item));
 }
 
-function exportMasterListCSV() {
-    const listItems = elements.masterList.querySelectorAll('li.expandable');
-    const rows = [["Student Name", "Missing Assignments", "Days Out"]];
-    listItems.forEach(li => {
-        rows.push([
-            `"${li.getAttribute('data-name')}"`,
-            li.getAttribute('data-missing'),
-            li.getAttribute('data-days')
-        ]);
-    });
-    const csvContent = "data:text/csv;charset=utf-8," + rows.map(e => e.join(",")).join("\n");
-    const link = document.createElement("a");
-    link.setAttribute("href", encodeURI(csvContent));
-    link.setAttribute("download", "master_student_list.csv");
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+/**
+ * Helper function to get a nested property value from an object
+ */
+function getNestedValue(obj, path) {
+    return path.split('.').reduce((current, prop) => current?.[prop], obj);
+}
+
+/**
+ * Helper function to get field value with fallback support
+ */
+function getFieldValue(obj, field, fallback) {
+    let value = getNestedValue(obj, field);
+    if ((value === null || value === undefined || value === '') && fallback) {
+        value = getNestedValue(obj, fallback);
+    }
+    return value || '';
+}
+
+async function exportMasterListCSV() {
+    try {
+        // Get the full student data from storage
+        const result = await chrome.storage.local.get([STORAGE_KEYS.MASTER_ENTRIES]);
+        const students = result[STORAGE_KEYS.MASTER_ENTRIES] || [];
+
+        if (students.length === 0) {
+            alert('No data to export. Please update the master list first.');
+            return;
+        }
+
+        // --- SHEET 1: MASTER LIST ---
+        // Build header row from configuration
+        const masterListHeaders = EXPORT_MASTER_LIST_COLUMNS.map(col => col.header);
+        const masterListData = [masterListHeaders];
+
+        // Build data rows using column configuration
+        students.forEach(student => {
+            const row = EXPORT_MASTER_LIST_COLUMNS.map(col => {
+                let value = getFieldValue(student, col.field, col.fallback);
+
+                // Special handling for missingCount and daysout
+                if (col.field === 'missingCount') {
+                    value = value || 0;
+                } else if (col.field === 'daysout') {
+                    value = parseInt(value || 0);
+                }
+
+                return value;
+            });
+            masterListData.push(row);
+        });
+
+        // --- SHEET 2: MISSING ASSIGNMENTS ---
+        // Build header row from configuration
+        const missingAssignmentsHeaders = EXPORT_MISSING_ASSIGNMENTS_COLUMNS.map(col => col.header);
+        const missingAssignmentsData = [missingAssignmentsHeaders];
+
+        // Build data rows using column configuration
+        students.forEach(student => {
+            if (student.missingAssignments && student.missingAssignments.length > 0) {
+                student.missingAssignments.forEach(assignment => {
+                    // Derive assignment link from submission link by removing /submissions/...
+                    if (assignment.submissionLink) {
+                        assignment.assignmentLink = assignment.submissionLink.replace(/\/submissions\/.*$/, '');
+                    }
+
+                    const row = EXPORT_MISSING_ASSIGNMENTS_COLUMNS.map(col => {
+                        // Handle student.* and assignment.* field paths
+                        if (col.field.startsWith('student.')) {
+                            const field = col.field.replace('student.', '');
+                            return getFieldValue(student, field, col.fallback?.replace('student.', ''));
+                        } else if (col.field.startsWith('assignment.')) {
+                            const field = col.field.replace('assignment.', '');
+                            return getFieldValue(assignment, field, col.fallback?.replace('assignment.', ''));
+                        }
+                        return '';
+                    });
+                    missingAssignmentsData.push(row);
+                });
+            }
+        });
+
+        // Create workbook with both sheets
+        const wb = XLSX.utils.book_new();
+        const ws1 = XLSX.utils.aoa_to_sheet(masterListData);
+        const ws2 = XLSX.utils.aoa_to_sheet(missingAssignmentsData);
+
+        XLSX.utils.book_append_sheet(wb, ws1, 'Master List');
+        XLSX.utils.book_append_sheet(wb, ws2, 'Missing Assignments');
+
+        // Generate filename with timestamp
+        const timestamp = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+        const filename = `student_report_${timestamp}.xlsx`;
+
+        // Download the Excel file
+        XLSX.writeFile(wb, filename);
+
+        console.log(`✓ Exported ${students.length} students to Excel file: ${filename}`);
+        console.log(`  - Master List: ${EXPORT_MASTER_LIST_COLUMNS.length} columns`);
+        console.log(`  - Missing Assignments: ${EXPORT_MISSING_ASSIGNMENTS_COLUMNS.length} columns`);
+
+    } catch (error) {
+        console.error('Error exporting to Excel:', error);
+        alert('Error creating Excel file. Check console for details.');
+    }
 }
 
 /**
