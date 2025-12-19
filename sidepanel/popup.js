@@ -99,6 +99,21 @@ function cacheDomElements() {
         }
         elements.contactPlaceholder = placeholder;
 
+        // --- INJECT FIVE9 CONNECTION INDICATOR ---
+        let five9Indicator = document.getElementById('five9ConnectionIndicator');
+        if (!five9Indicator) {
+            five9Indicator = document.createElement('div');
+            five9Indicator.id = 'five9ConnectionIndicator';
+            five9Indicator.style.cssText = 'display:none; flex-direction:column; align-items:center; justify-content:flex-start; padding-top:80px; height:100%; min-height:400px; color:#6b7280; text-align:center; padding-left:20px; padding-right:20px;';
+            five9Indicator.innerHTML = `
+                <i class="fas fa-spinner fa-spin" style="font-size:3em; margin-bottom:15px; opacity:0.4;"></i>
+                <span style="font-size:1.1em; font-weight:500; color:#374151;">Connecting to Five9...</span>
+                <span style="font-size:0.9em; margin-top:5px; color:#6b7280;">Attempting automatic SSO login in background</span>
+            `;
+            contactTab.insertBefore(five9Indicator, contactTab.firstChild);
+        }
+        elements.five9ConnectionIndicator = five9Indicator;
+
         // Cache Card Details
         if (elements.contactCard) {
             elements.contactAvatar = contactTab.querySelector('.setting-card div[style*="border-radius:50%"]');
@@ -1207,10 +1222,9 @@ function setActiveStudent(rawEntry) {
             elements.dialBtn.classList.remove('automation');
             elements.dialBtn.innerHTML = '<i class="fas fa-phone"></i>';
         }
-        if (elements.callStatusText && !callManager?.debugMode) {
-            elements.callStatusText.innerHTML = '<span class="status-indicator" style="background:#f59e0b;"></span> Calls Disabled (Enable Debug Mode)';
-        } else if (elements.callStatusText) {
-            elements.callStatusText.innerHTML = '<span class="status-indicator ready"></span> Ready to Connect';
+        // Call status is managed by callManager.updateCallInterfaceState()
+        if (callManager) {
+            callManager.updateCallInterfaceState();
         }
         // Hide Up Next Card in standard mode
         if (elements.upNextCard) {
@@ -1228,10 +1242,14 @@ function setActiveStudent(rawEntry) {
         Array.from(contactTab.children).forEach(child => {
             if (child.id === 'contactPlaceholder') {
                 child.style.display = 'flex';
+            } else if (child.id === 'five9ConnectionIndicator') {
+                // Five9 indicator managed separately - don't touch it here
             } else {
                 child.style.display = 'none';
             }
         });
+        // Update Five9 indicator (will hide it since no student selected)
+        updateFive9ConnectionIndicator();
         return;
     }
 
@@ -1239,10 +1257,15 @@ function setActiveStudent(rawEntry) {
     Array.from(contactTab.children).forEach(child => {
         if (child.id === 'contactPlaceholder') {
             child.style.display = 'none';
+        } else if (child.id === 'five9ConnectionIndicator') {
+            // Five9 indicator managed separately - don't touch it here
         } else {
-            child.style.display = ''; 
+            child.style.display = '';
         }
     });
+
+    // Update Five9 indicator (will show if needed)
+    updateFive9ConnectionIndicator();
 
     const data = resolveStudentData(rawEntry);
 
@@ -1615,6 +1638,8 @@ async function toggleDebugMode() {
     if (callManager) {
         callManager.setDebugMode(isDebugMode);
     }
+    // Update Five9 connection indicator when debug mode changes
+    updateFive9ConnectionIndicator();
 }
 
 function updateDebugModeUI() {
@@ -2094,3 +2119,181 @@ async function updateCacheStats() {
         elements.cacheStatsText.textContent = 'Error loading stats';
     }
 }
+
+// ==========================================
+// FIVE9 CONNECTION MONITOR
+// ==========================================
+
+let five9ConnectionCheckInterval = null;
+let lastFive9ConnectionState = false;
+
+/**
+ * Checks if Five9 tab is currently open
+ * @returns {Promise<boolean>} True if Five9 tab exists
+ */
+async function checkFive9Connection() {
+    try {
+        const tabs = await chrome.tabs.query({ url: "https://app-atl.five9.com/*" });
+        return tabs.length > 0;
+    } catch (error) {
+        console.error("Error checking Five9 connection:", error);
+        return false;
+    }
+}
+
+/**
+ * Attempts to auto-connect to Five9 via background SSO
+ */
+async function autoConnectFive9() {
+    try {
+        console.log("🔄 Attempting background Five9 SSO connection...");
+
+        // Open Microsoft SSO in a hidden/background tab
+        const tab = await chrome.tabs.create({
+            url: 'https://m365.cloud.microsoft/',
+            active: false // Don't switch to this tab
+        });
+
+        // Monitor for Five9 tab opening (result of SSO redirect)
+        const checkForFive9 = setInterval(async () => {
+            const five9Tabs = await chrome.tabs.query({ url: "https://app-atl.five9.com/*" });
+
+            if (five9Tabs.length > 0) {
+                // Five9 opened successfully - close the Microsoft tab
+                clearInterval(checkForFive9);
+                try {
+                    await chrome.tabs.remove(tab.id);
+                    console.log("✅ Five9 SSO successful - Microsoft tab closed");
+                } catch (e) {
+                    // Tab might already be closed
+                }
+            }
+        }, 1000);
+
+        // Stop checking after 30 seconds
+        setTimeout(() => {
+            clearInterval(checkForFive9);
+        }, 30000);
+
+    } catch (error) {
+        console.error("❌ Auto-connect failed:", error);
+    }
+}
+
+/**
+ * Updates the Five9 connection indicator visibility
+ * Only shows indicator when:
+ * - Debug mode is OFF (live mode requires Five9)
+ * - Five9 tab is NOT open
+ * - A student is selected (otherwise "No Student Selected" shows)
+ */
+async function updateFive9ConnectionIndicator() {
+    if (!elements.five9ConnectionIndicator) return;
+
+    const isDebugMode = await chrome.storage.local.get(STORAGE_KEYS.DEBUG_MODE)
+        .then(data => data[STORAGE_KEYS.DEBUG_MODE] || false);
+
+    const isFive9Connected = await checkFive9Connection();
+    const hasStudentSelected = selectedQueue.length > 0;
+
+    // Only show Five9 indicator when:
+    // 1. NOT in debug mode (demo mode doesn't need Five9)
+    // 2. Five9 is NOT connected
+    // 3. A student IS selected (otherwise "No Student Selected" placeholder shows)
+    const shouldShowFive9Indicator = !isDebugMode && !isFive9Connected && hasStudentSelected;
+
+    // Auto-connect if needed (only once per session)
+    if (shouldShowFive9Indicator && !window.five9AutoConnectAttempted) {
+        window.five9AutoConnectAttempted = true;
+        autoConnectFive9();
+    }
+
+    // Update visibility
+    const contactTab = document.getElementById('contact');
+    if (contactTab) {
+        Array.from(contactTab.children).forEach(child => {
+            if (child.id === 'five9ConnectionIndicator') {
+                child.style.display = shouldShowFive9Indicator ? 'flex' : 'none';
+            } else if (child.id === 'contactPlaceholder') {
+                // Keep placeholder logic as is - handled by setActiveStudent
+            } else {
+                // Hide other content if Five9 indicator is showing
+                if (shouldShowFive9Indicator) {
+                    child.style.display = 'none';
+                }
+            }
+        });
+    }
+
+    // Log connection state changes
+    if (isFive9Connected !== lastFive9ConnectionState) {
+        lastFive9ConnectionState = isFive9Connected;
+        if (isFive9Connected) {
+            console.log("✅ Five9 connected");
+        } else {
+            console.log("❌ Five9 disconnected");
+        }
+    }
+}
+
+/**
+ * Starts monitoring Five9 connection status
+ */
+function startFive9ConnectionMonitor() {
+    // Initial check
+    updateFive9ConnectionIndicator();
+
+    // Check every 3 seconds
+    five9ConnectionCheckInterval = setInterval(() => {
+        updateFive9ConnectionIndicator();
+    }, 3000);
+}
+
+/**
+ * Stops monitoring Five9 connection status
+ */
+function stopFive9ConnectionMonitor() {
+    if (five9ConnectionCheckInterval) {
+        clearInterval(five9ConnectionCheckInterval);
+        five9ConnectionCheckInterval = null;
+    }
+}
+
+// Start monitoring when extension loads
+startFive9ConnectionMonitor();
+
+// ==========================================
+// FIVE9 STATUS LISTENERS
+// ==========================================
+
+/**
+ * Listen for Five9 call status updates from background.js
+ */
+chrome.runtime.onMessage.addListener((message, sender) => {
+    // Handle Five9 call initiation status
+    if (message.type === 'callStatus') {
+        if (message.success) {
+            console.log("✓ Five9 call initiated successfully");
+            // Call UI is already updated by callManager.toggleCallState()
+            // This just confirms the API call succeeded
+        } else {
+            console.error("✗ Five9 call failed:", message.error);
+            // Revert call UI state if call failed
+            if (callManager && callManager.getCallActiveState()) {
+                callManager.toggleCallState(true); // Force end
+            }
+        }
+    }
+
+    // Handle Five9 hangup status
+    if (message.type === 'hangupStatus') {
+        if (message.success) {
+            console.log("✓ Five9 call ended successfully");
+            // Call UI is already updated by callManager.toggleCallState()
+            // In automation mode, callManager.handleDisposition() moves to next student
+        } else {
+            console.error("✗ Five9 hangup failed:", message.error);
+            // Don't revert UI - user probably wants to try again
+        }
+    }
+});
