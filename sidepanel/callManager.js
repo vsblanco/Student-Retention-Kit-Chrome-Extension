@@ -66,13 +66,6 @@ export default class CallManager {
      * @param {boolean} forceEnd - Force end the call regardless of current state
      */
     toggleCallState(forceEnd = false) {
-        // --- CHECK DEBUG MODE ---
-        if (!this.debugMode && !this.isCallActive) {
-            alert('Call functionality is disabled.\n\nTo enable the call demo, turn on Debug Mode in Settings.');
-            return;
-        }
-        // ----------------------
-
         // --- CANCEL AUTOMATION MODE ---
         // If in automation mode and call is active, cancel automation
         if (this.automationMode && this.isCallActive) {
@@ -93,21 +86,26 @@ export default class CallManager {
         if (forceEnd) this.isCallActive = false;
 
         if (this.isCallActive) {
-            // --- INITIATE FIVE9 CALL (SINGLE-STUDENT MODE) ---
-            const currentStudent = this.selectedQueue[0];
-            if (currentStudent) {
-                const phoneNumber = this.getPhoneNumber(currentStudent);
-                if (phoneNumber && phoneNumber !== "No Phone Listed") {
-                    this.initiateCall(phoneNumber); // Trigger Five9 API call
-                } else {
-                    console.warn("No valid phone number for current student");
+            // --- INITIATE FIVE9 CALL (ONLY IF DEBUG MODE OFF) ---
+            if (!this.debugMode) {
+                const currentStudent = this.selectedQueue[0];
+                if (currentStudent) {
+                    const phoneNumber = this.getPhoneNumber(currentStudent);
+                    if (phoneNumber && phoneNumber !== "No Phone Listed") {
+                        this.initiateCall(phoneNumber); // Trigger Five9 API call
+                    } else {
+                        console.warn("No valid phone number for current student");
+                    }
                 }
+            } else {
+                console.log("📞 [DEMO MODE] Simulating call initiation (Five9 API not called)");
             }
             // --------------------------------------------------
 
             this.elements.dialBtn.style.background = '#ef4444';
             this.elements.dialBtn.style.transform = 'rotate(135deg)';
-            this.elements.callStatusText.innerHTML = '<span class="status-indicator" style="background:#ef4444; animation: blink 1s infinite;"></span> Connected';
+            const statusText = this.debugMode ? '🎭 Demo Call Active' : 'Connected';
+            this.elements.callStatusText.innerHTML = `<span class="status-indicator" style="background:#ef4444; animation: blink 1s infinite;"></span> ${statusText}`;
 
             // Show Disposition Grid
             if (this.elements.callDispositionSection) {
@@ -116,8 +114,12 @@ export default class CallManager {
 
             this.startCallTimer();
         } else {
-            // --- HANGUP FIVE9 CALL ---
-            this.hangupCall(); // Trigger Five9 API hangup
+            // --- HANGUP FIVE9 CALL (ONLY IF DEBUG MODE OFF) ---
+            if (!this.debugMode) {
+                this.hangupCall(); // Trigger Five9 API hangup
+            } else {
+                console.log("📞 [DEMO MODE] Simulating hangup (Five9 API not called)");
+            }
             // -------------------------
 
             this.elements.dialBtn.style.background = '#10b981';
@@ -194,12 +196,16 @@ export default class CallManager {
         // Update "Up Next" card
         this.updateUpNextCard();
 
-        // --- INITIATE FIVE9 CALL (AUTOMATION MODE) ---
-        const phoneNumber = this.getPhoneNumber(currentStudent);
-        if (phoneNumber && phoneNumber !== "No Phone Listed") {
-            this.initiateCall(phoneNumber); // Trigger Five9 API call
+        // --- INITIATE FIVE9 CALL (ONLY IF DEBUG MODE OFF) ---
+        if (!this.debugMode) {
+            const phoneNumber = this.getPhoneNumber(currentStudent);
+            if (phoneNumber && phoneNumber !== "No Phone Listed") {
+                this.initiateCall(phoneNumber); // Trigger Five9 API call
+            } else {
+                console.warn(`No valid phone number for student: ${currentStudent.name || 'Unknown'}`);
+            }
         } else {
-            console.warn(`No valid phone number for student: ${currentStudent.name || 'Unknown'}`);
+            console.log(`📞 [DEMO MODE] Simulating call to: ${currentStudent.name || 'Unknown'}`);
         }
         // ----------------------------------------------
 
@@ -207,7 +213,8 @@ export default class CallManager {
         this.isCallActive = true;
         this.elements.dialBtn.style.background = '#ef4444';
         this.elements.dialBtn.style.transform = 'rotate(135deg)';
-        this.elements.callStatusText.innerHTML = '<span class="status-indicator" style="background:#ef4444; animation: blink 1s infinite;"></span> Connected';
+        const statusText = this.debugMode ? '🎭 Demo Call Active' : 'Connected';
+        this.elements.callStatusText.innerHTML = `<span class="status-indicator" style="background:#ef4444; animation: blink 1s infinite;"></span> ${statusText}`;
 
         // Show Disposition Grid
         if (this.elements.callDispositionSection) {
@@ -436,8 +443,12 @@ export default class CallManager {
         // - Associate with current student
         // - Track disposition history
 
-        // --- HANGUP FIVE9 CALL ---
-        this.hangupCall(); // Trigger Five9 API hangup
+        // --- HANGUP FIVE9 CALL (ONLY IF DEBUG MODE OFF) ---
+        if (!this.debugMode) {
+            this.hangupCall(); // Trigger Five9 API hangup
+        } else {
+            console.log("📞 [DEMO MODE] Simulating hangup after disposition");
+        }
         // -------------------------
 
         // End current call
@@ -513,20 +524,20 @@ export default class CallManager {
     updateCallInterfaceState() {
         if (!this.elements.dialBtn || !this.elements.callStatusText) return;
 
-        if (this.debugMode) {
-            // Enable call interface
-            this.elements.dialBtn.style.opacity = '1';
-            this.elements.dialBtn.style.cursor = 'pointer';
-            this.elements.dialBtn.title = '';
-            if (!this.isCallActive) {
+        // Always enable call interface - debug mode just changes behavior
+        this.elements.dialBtn.style.opacity = '1';
+        this.elements.dialBtn.style.cursor = 'pointer';
+
+        if (!this.isCallActive) {
+            if (this.debugMode) {
+                // Demo mode
+                this.elements.dialBtn.title = 'Demo Mode - Simulates calling without Five9 API';
+                this.elements.callStatusText.innerHTML = '<span class="status-indicator" style="background:#f59e0b;"></span> 🎭 Demo Mode Active';
+            } else {
+                // Five9 mode
+                this.elements.dialBtn.title = 'Live Mode - Calls via Five9 API';
                 this.elements.callStatusText.innerHTML = '<span class="status-indicator ready"></span> Ready to Connect';
             }
-        } else {
-            // Disable call interface
-            this.elements.dialBtn.style.opacity = '0.5';
-            this.elements.dialBtn.style.cursor = 'not-allowed';
-            this.elements.dialBtn.title = 'Enable Debug Mode in Settings to use call functionality';
-            this.elements.callStatusText.innerHTML = '<span class="status-indicator" style="background:#f59e0b;"></span> Calls Disabled (Enable Debug Mode)';
         }
     }
 
