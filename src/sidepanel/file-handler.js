@@ -172,7 +172,13 @@ export function handleFileImport(file, onSuccess) {
                 throw new Error("No valid student data found (Check header row).");
             }
 
-            const lastUpdated = new Date().toLocaleString();
+            const lastUpdated = new Date().toLocaleString('en-US', {
+                year: 'numeric',
+                month: 'numeric',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
 
             chrome.storage.local.set({
                 [STORAGE_KEYS.MASTER_ENTRIES]: students,
@@ -265,7 +271,13 @@ export function handleJsonClipboardProcess(data, onSuccess) {
                 };
             });
 
-            const lastUpdated = new Date().toLocaleString();
+            const lastUpdated = new Date().toLocaleString('en-US', {
+                year: 'numeric',
+                month: 'numeric',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
 
             await chrome.storage.local.set({
                 [STORAGE_KEYS.MASTER_ENTRIES]: normalized,

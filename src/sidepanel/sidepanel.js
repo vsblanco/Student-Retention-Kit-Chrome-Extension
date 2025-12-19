@@ -70,6 +70,12 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 async function initializeApp() {
+    // Set version from manifest
+    const manifest = chrome.runtime.getManifest();
+    if (elements.versionText && manifest.version) {
+        elements.versionText.textContent = `Version ${manifest.version}`;
+    }
+
     // Initialize call manager with UI callbacks
     const uiCallbacks = {
         updateCurrentStudent: (student) => {
