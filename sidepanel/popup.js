@@ -1976,7 +1976,7 @@ async function exportMasterListCSV() {
 
         // --- SHEET 1: MASTER LIST ---
         const masterListData = [
-            ['Student Name', 'Missing Assignments', 'Days Out', 'Grade', 'Phone', 'Student Number', 'Gradebook URL']
+            ['Student Name', 'Missing Assignments', 'Days Out', 'Grade', 'Phone', 'Student Number', 'SyStudentId', 'Gradebook URL']
         ];
 
         students.forEach(student => {
@@ -1984,26 +1984,37 @@ async function exportMasterListCSV() {
                 student.name || '',
                 student.missingCount || 0,
                 parseInt(student.daysout || 0),
-                student.grade || '',
+                student.grade || student.currentGrade || '',
                 student.phone || '',
-                student.StudentNumber || student.SyStudentId || '',
+                student.StudentNumber || '',
+                student.SyStudentId || '',
                 student.url || ''
             ]);
         });
 
         // --- SHEET 2: MISSING ASSIGNMENTS ---
         const missingAssignmentsData = [
-            ['Student Name', 'Assignment Title', 'Due Date', 'Score', 'Submission Link']
+            ['Student Name', 'Assignment Title', 'Due Date', 'Score', 'Overall Grade', 'Grade Book', 'Assignment Link', 'Submission Link']
         ];
 
         students.forEach(student => {
             if (student.missingAssignments && student.missingAssignments.length > 0) {
                 student.missingAssignments.forEach(assignment => {
+                    // Derive assignment link from submission link by removing /submissions/...
+                    let assignmentLink = '';
+                    if (assignment.submissionLink) {
+                        // Remove /submissions/... from the end to get the assignment page
+                        assignmentLink = assignment.submissionLink.replace(/\/submissions\/.*$/, '');
+                    }
+
                     missingAssignmentsData.push([
                         student.name || '',
                         assignment.title || '',
                         assignment.dueDate || '',
                         assignment.score || '',
+                        student.currentGrade || student.grade || '',
+                        student.url || '',
+                        assignmentLink,
                         assignment.submissionLink || ''
                     ]);
                 });
