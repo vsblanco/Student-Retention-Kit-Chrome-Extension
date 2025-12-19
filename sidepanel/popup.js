@@ -5,7 +5,9 @@ import {
     EXTENSION_STATES,
     CANVAS_DOMAIN,
     GENERIC_AVATAR_URL,
-    CSV_FIELD_ALIASES
+    CSV_FIELD_ALIASES,
+    EXPORT_MASTER_LIST_COLUMNS,
+    EXPORT_MISSING_ASSIGNMENTS_COLUMNS
 } from '../constants.js';
 import {
     getCachedData,
@@ -1963,6 +1965,24 @@ function sortMasterList() {
     listItems.forEach(item => elements.masterList.appendChild(item));
 }
 
+/**
+ * Helper function to get a nested property value from an object
+ */
+function getNestedValue(obj, path) {
+    return path.split('.').reduce((current, prop) => current?.[prop], obj);
+}
+
+/**
+ * Helper function to get field value with fallback support
+ */
+function getFieldValue(obj, field, fallback) {
+    let value = getNestedValue(obj, field);
+    if ((value === null || value === undefined || value === '') && fallback) {
+        value = getNestedValue(obj, fallback);
+    }
+    return value || '';
+}
+
 async function exportMasterListCSV() {
     try {
         // Get the full student data from storage
@@ -1975,48 +1995,53 @@ async function exportMasterListCSV() {
         }
 
         // --- SHEET 1: MASTER LIST ---
-        const masterListData = [
-            ['Student Name', 'Missing Assignments', 'Days Out', 'Grade', 'Phone', 'Student Number', 'SyStudentId', 'Gradebook URL']
-        ];
+        // Build header row from configuration
+        const masterListHeaders = EXPORT_MASTER_LIST_COLUMNS.map(col => col.header);
+        const masterListData = [masterListHeaders];
 
+        // Build data rows using column configuration
         students.forEach(student => {
-            masterListData.push([
-                student.name || '',
-                student.missingCount || 0,
-                parseInt(student.daysout || 0),
-                student.grade || student.currentGrade || '',
-                student.phone || '',
-                student.StudentNumber || '',
-                student.SyStudentId || '',
-                student.url || ''
-            ]);
+            const row = EXPORT_MASTER_LIST_COLUMNS.map(col => {
+                let value = getFieldValue(student, col.field, col.fallback);
+
+                // Special handling for missingCount and daysout
+                if (col.field === 'missingCount') {
+                    value = value || 0;
+                } else if (col.field === 'daysout') {
+                    value = parseInt(value || 0);
+                }
+
+                return value;
+            });
+            masterListData.push(row);
         });
 
         // --- SHEET 2: MISSING ASSIGNMENTS ---
-        const missingAssignmentsData = [
-            ['Student Name', 'Assignment Title', 'Due Date', 'Score', 'Overall Grade', 'Grade Book', 'Assignment Link', 'Submission Link']
-        ];
+        // Build header row from configuration
+        const missingAssignmentsHeaders = EXPORT_MISSING_ASSIGNMENTS_COLUMNS.map(col => col.header);
+        const missingAssignmentsData = [missingAssignmentsHeaders];
 
+        // Build data rows using column configuration
         students.forEach(student => {
             if (student.missingAssignments && student.missingAssignments.length > 0) {
                 student.missingAssignments.forEach(assignment => {
                     // Derive assignment link from submission link by removing /submissions/...
-                    let assignmentLink = '';
                     if (assignment.submissionLink) {
-                        // Remove /submissions/... from the end to get the assignment page
-                        assignmentLink = assignment.submissionLink.replace(/\/submissions\/.*$/, '');
+                        assignment.assignmentLink = assignment.submissionLink.replace(/\/submissions\/.*$/, '');
                     }
 
-                    missingAssignmentsData.push([
-                        student.name || '',
-                        assignment.title || '',
-                        assignment.dueDate || '',
-                        assignment.score || '',
-                        student.currentGrade || student.grade || '',
-                        student.url || '',
-                        assignmentLink,
-                        assignment.submissionLink || ''
-                    ]);
+                    const row = EXPORT_MISSING_ASSIGNMENTS_COLUMNS.map(col => {
+                        // Handle student.* and assignment.* field paths
+                        if (col.field.startsWith('student.')) {
+                            const field = col.field.replace('student.', '');
+                            return getFieldValue(student, field, col.fallback?.replace('student.', ''));
+                        } else if (col.field.startsWith('assignment.')) {
+                            const field = col.field.replace('assignment.', '');
+                            return getFieldValue(assignment, field, col.fallback?.replace('assignment.', ''));
+                        }
+                        return '';
+                    });
+                    missingAssignmentsData.push(row);
                 });
             }
         });
@@ -2037,6 +2062,8 @@ async function exportMasterListCSV() {
         XLSX.writeFile(wb, filename);
 
         console.log(`✓ Exported ${students.length} students to Excel file: ${filename}`);
+        console.log(`  - Master List: ${EXPORT_MASTER_LIST_COLUMNS.length} columns`);
+        console.log(`  - Missing Assignments: ${EXPORT_MISSING_ASSIGNMENTS_COLUMNS.length} columns`);
 
     } catch (error) {
         console.error('Error exporting to Excel:', error);
