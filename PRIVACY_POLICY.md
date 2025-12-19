@@ -88,12 +88,6 @@ Use of this extension constitutes acceptance of:
 ## Changes to Privacy Policy
 We may update this privacy policy to reflect changes in NUC University requirements or functionality. The "Last Updated" date will reflect any changes.
 
-## Contact
-For questions about this privacy policy or data practices:
-- GitHub Repository: https://github.com/vsblanco/Student-Retention-Add-in
-- NUC University IT Support: [NUC IT Contact]
-- Extension Developer: [Your Contact Email]
-
 ## Compliance
 This extension complies with:
 - Chrome Web Store Developer Program Policies
@@ -105,20 +99,3 @@ This extension complies with:
 
 **Notice to Users:** By installing and using this extension, you certify that you are an authorized NUC University retention staff member with legitimate educational interest in accessing student records for retention and student success purposes.
 ```
-
----
-
-## **Additional Updates for Chrome Web Store Description**
-
-You should also update your Chrome Web Store listing description to clarify:
-```
-**For NUC University Staff Only**
-
-Student Retention Kit is an internal tool developed exclusively for authorized NUC University retention staff. This extension integrates with NUC University's Canvas LMS and Five9 call center to help retention specialists monitor at-risk students and conduct effective outreach.
-
-**Requirements:**
-- Valid NUC University Canvas account
-- Authorized access to NUC University retention systems
-- Five9 call center credentials (for call functionality)
-
-**This extension will not function without NUC University credentials and is not intended for public use.**
