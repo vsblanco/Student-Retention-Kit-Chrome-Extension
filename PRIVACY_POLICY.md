@@ -1,6 +1,6 @@
 # Privacy Policy for Student Retention Kit
 
-**Last Updated:** [Current Date]
+**Last Updated:** 12-19-2025
 
 ## Overview
 Student Retention Kit is a Chrome extension developed exclusively for NUC University retention staff to monitor at-risk students and conduct outreach calls through the university's Canvas LMS and Five9 call center systems.
