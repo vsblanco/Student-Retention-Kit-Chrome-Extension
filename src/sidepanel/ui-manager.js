@@ -136,6 +136,7 @@ export function cacheDomElements() {
     // Settings
     elements.embedHelperToggle = document.getElementById('embedHelperToggle');
     elements.highlightColorPicker = document.getElementById('highlightColorPicker');
+    elements.autoUpdateSelect = document.getElementById('autoUpdateSelect');
 }
 
 /**
@@ -230,6 +231,15 @@ export function updateEmbedHelperUI(isEnabled) {
 export function updateHighlightColorUI(color) {
     if (!elements.highlightColorPicker) return;
     elements.highlightColorPicker.value = color;
+}
+
+/**
+ * Updates auto-update master list dropdown UI
+ * @param {string} setting - The auto-update setting ('always', 'once-daily', or 'never')
+ */
+export function updateAutoUpdateUI(setting) {
+    if (!elements.autoUpdateSelect) return;
+    elements.autoUpdateSelect.value = setting || 'always';
 }
 
 /**

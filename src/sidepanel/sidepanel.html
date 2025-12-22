@@ -934,6 +934,22 @@
                 <span id="excelStatusText" style="font-size:0.8em; color:var(--text-secondary);">Disconnected</span>
             </div>
         </div>
+        <div class="setting-card" style="flex-direction: column; align-items: stretch; gap: 8px;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <i class="fas fa-sync-alt" style="color:var(--primary-color); font-size: 1.2em;"></i>
+                    <span>Automatic Master List Update</span>
+                </div>
+                <select id="autoUpdateSelect" style="width:auto; padding:8px; font-size:0.9em; cursor:pointer;">
+                    <option value="always">Always</option>
+                    <option value="once-daily">Once a Day</option>
+                    <option value="never">Never</option>
+                </select>
+            </div>
+            <div style="font-size:0.8em; color:var(--text-secondary);">
+                Control when the extension accepts master list updates from the Office Add-in.
+            </div>
+        </div>
         <div class="setting-card">
             <div style="display:flex; align-items:center; gap:10px;">
                 <i class="fas fa-bolt" style="color:#f59e0b; font-size: 1.2em;"></i>
