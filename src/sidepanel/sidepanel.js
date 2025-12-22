@@ -52,7 +52,9 @@ import {
     saveConnectionsSettings,
     updatePowerAutomateStatus,
     updateCanvasStatus,
+    updateFive9Status,
     toggleEmbedHelperModal,
+    toggleDebugModeModal,
     clearCacheFromModal
 } from './modal-manager.js';
 
@@ -172,6 +174,10 @@ function setupEventListeners() {
         elements.configureCanvasBtn.addEventListener('click', () => openConnectionsModal('canvas'));
     }
 
+    if (elements.configureFive9Btn) {
+        elements.configureFive9Btn.addEventListener('click', () => openConnectionsModal('five9'));
+    }
+
     if (elements.closeConnectionsBtn) {
         elements.closeConnectionsBtn.addEventListener('click', closeConnectionsModal);
     }
@@ -187,6 +193,11 @@ function setupEventListeners() {
 
     if (elements.clearCacheBtnModal) {
         elements.clearCacheBtnModal.addEventListener('click', clearCacheFromModal);
+    }
+
+    // Five9 Modal Settings
+    if (elements.debugModeToggleModal) {
+        elements.debugModeToggleModal.addEventListener('click', toggleDebugModeModal);
     }
 
     // Scan Filter Modal
@@ -525,6 +536,9 @@ async function loadStorageData() {
 
     // Update Canvas connection status
     updateCanvasStatus();
+
+    // Update Five9 connection status
+    updateFive9Status();
 }
 
 // Storage change listener

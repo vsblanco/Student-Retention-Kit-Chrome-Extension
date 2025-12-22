@@ -301,6 +301,9 @@ export function openConnectionsModal(connectionType) {
     if (elements.canvasConfigContent) {
         elements.canvasConfigContent.style.display = 'none';
     }
+    if (elements.five9ConfigContent) {
+        elements.five9ConfigContent.style.display = 'none';
+    }
 
     // Show the appropriate configuration content
     if (connectionType === 'excel') {
@@ -324,10 +327,17 @@ export function openConnectionsModal(connectionType) {
         if (elements.canvasConfigContent) {
             elements.canvasConfigContent.style.display = 'block';
         }
+    } else if (connectionType === 'five9') {
+        if (elements.connectionModalTitle) {
+            elements.connectionModalTitle.textContent = 'Five9 Settings';
+        }
+        if (elements.five9ConfigContent) {
+            elements.five9ConfigContent.style.display = 'block';
+        }
     }
 
     // Load current settings into modal
-    chrome.storage.local.get(['autoUpdateMasterList', 'powerAutomateUrl', 'embedInCanvas', 'highlightColor'], (result) => {
+    chrome.storage.local.get(['autoUpdateMasterList', 'powerAutomateUrl', 'embedInCanvas', 'highlightColor', 'debugMode'], (result) => {
         // Load auto-update setting
         const setting = result.autoUpdateMasterList || 'always';
         if (elements.autoUpdateSelectModal) {
@@ -349,6 +359,10 @@ export function openConnectionsModal(connectionType) {
             elements.highlightColorPickerModal.value = highlightColor;
         }
 
+        // Load Five9 settings
+        const debugMode = result.debugMode || false;
+        updateDebugModeModalUI(debugMode);
+
         // Load cache stats
         loadCacheStatsForModal();
     });
@@ -367,6 +381,22 @@ function updateEmbedHelperModalUI(isEnabled) {
     } else {
         elements.embedHelperToggleModal.className = 'fas fa-toggle-off';
         elements.embedHelperToggleModal.style.color = 'gray';
+    }
+}
+
+/**
+ * Updates the debug mode toggle UI in the modal
+ * @param {boolean} isEnabled - Whether debug mode is enabled
+ */
+function updateDebugModeModalUI(isEnabled) {
+    if (!elements.debugModeToggleModal) return;
+
+    if (isEnabled) {
+        elements.debugModeToggleModal.className = 'fas fa-toggle-on';
+        elements.debugModeToggleModal.style.color = 'var(--primary-color)';
+    } else {
+        elements.debugModeToggleModal.className = 'fas fa-toggle-off';
+        elements.debugModeToggleModal.style.color = 'gray';
     }
 }
 
@@ -431,6 +461,13 @@ export async function saveConnectionsSettings() {
         console.log(`Highlight Color saved: ${highlightColor}`);
     }
 
+    // Save Five9 settings
+    if (elements.debugModeToggleModal) {
+        const debugEnabled = elements.debugModeToggleModal.classList.contains('fa-toggle-on');
+        settingsToSave.debugMode = debugEnabled;
+        console.log(`Debug Mode setting saved: ${debugEnabled}`);
+    }
+
     // Save all settings
     await chrome.storage.local.set(settingsToSave);
 
@@ -487,6 +524,41 @@ export function toggleEmbedHelperModal() {
 
     const isCurrentlyOn = elements.embedHelperToggleModal.classList.contains('fa-toggle-on');
     updateEmbedHelperModalUI(!isCurrentlyOn);
+}
+
+/**
+ * Toggles the debug mode setting in the modal
+ */
+export function toggleDebugModeModal() {
+    if (!elements.debugModeToggleModal) return;
+
+    const isCurrentlyOn = elements.debugModeToggleModal.classList.contains('fa-toggle-on');
+    updateDebugModeModalUI(!isCurrentlyOn);
+}
+
+/**
+ * Updates the Five9 connection status text based on active tabs
+ */
+export async function updateFive9Status() {
+    if (!elements.five9StatusText) return;
+
+    try {
+        // Check if user has an active Five9 session by querying for Five9 tabs
+        const five9Tabs = await chrome.tabs.query({ url: "https://*.five9.com/*" });
+        const isConnected = five9Tabs.length > 0;
+
+        if (isConnected) {
+            elements.five9StatusText.textContent = 'Connected';
+            elements.five9StatusText.style.color = 'green';
+        } else {
+            elements.five9StatusText.textContent = 'Not connected';
+            elements.five9StatusText.style.color = 'var(--text-secondary)';
+        }
+    } catch (error) {
+        console.error('Error checking Five9 status:', error);
+        elements.five9StatusText.textContent = 'Not connected';
+        elements.five9StatusText.style.color = 'var(--text-secondary)';
+    }
 }
 
 /**

@@ -894,11 +894,6 @@
             <i class="fas fa-toggle-off" style="color:gray; font-size:2.5em; cursor: pointer;"></i>
         </div>
 
-        <div class="setting-card">
-            <span>Debug Mode (Enables Call Demo)</span>
-            <i id="debugModeToggle" class="fas fa-toggle-off" style="color:gray; font-size:2.5em; cursor: pointer;"></i>
-        </div>
-
         <h3>Connections</h3>
         <div class="setting-card">
             <div style="display:flex; align-items:center; gap:10px; flex-grow:1;">
@@ -940,6 +935,20 @@
                 </div>
             </div>
             <button id="configureCanvasBtn" class="btn-secondary" style="width:auto; margin:0; padding: 8px 16px;">
+                <i class="fas fa-cog" style="margin-right:6px;"></i>Configure
+            </button>
+        </div>
+        <div class="setting-card">
+            <div style="display:flex; align-items:center; gap:10px; flex-grow:1;">
+                <img src="../../assets/pictures/five9logo.png" style="width:20px; height:20px;" alt="Five9">
+                <div style="flex-grow:1;">
+                    <div style="font-weight:500;">Five9</div>
+                    <div style="font-size:0.8em; margin-top:4px;">
+                        <span id="five9StatusText" style="color:var(--text-secondary);">Not connected</span>
+                    </div>
+                </div>
+            </div>
+            <button id="configureFive9Btn" class="btn-secondary" style="width:auto; margin:0; padding: 8px 16px;">
                 <i class="fas fa-cog" style="margin-right:6px;"></i>Configure
             </button>
         </div>
@@ -1209,6 +1218,22 @@
                         <i class="fas fa-trash-alt" style="margin-right: 5px;"></i>
                         Clear Cache
                     </button>
+                </div>
+            </div>
+
+            <!-- Five9 Configuration -->
+            <div id="five9ConfigContent" style="display:none;">
+                <!-- Call Demo Toggle -->
+                <div style="margin-bottom: 20px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                        <label style="font-size:0.95em; font-weight:500; color:var(--text-main);">
+                            <i class="fas fa-phone-alt" style="color:var(--primary-color);"></i> Call Demo
+                        </label>
+                        <i id="debugModeToggleModal" class="fas fa-toggle-off" style="color:gray; font-size:2em; cursor: pointer;"></i>
+                    </div>
+                    <div style="font-size:0.8em; color:var(--text-secondary);">
+                        Enable call demo mode for testing and demonstration purposes without an active Five9 session.
+                    </div>
                 </div>
             </div>
 
