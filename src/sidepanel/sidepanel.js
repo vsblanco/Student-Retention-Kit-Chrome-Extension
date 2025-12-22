@@ -50,7 +50,10 @@ import {
     openConnectionsModal,
     closeConnectionsModal,
     saveConnectionsSettings,
-    updatePowerAutomateStatus
+    updatePowerAutomateStatus,
+    updateCanvasStatus,
+    toggleEmbedHelperModal,
+    clearCacheFromModal
 } from './modal-manager.js';
 
 import { QueueManager } from './queue-manager.js';
@@ -165,12 +168,25 @@ function setupEventListeners() {
         elements.configurePowerAutomateBtn.addEventListener('click', () => openConnectionsModal('powerAutomate'));
     }
 
+    if (elements.configureCanvasBtn) {
+        elements.configureCanvasBtn.addEventListener('click', () => openConnectionsModal('canvas'));
+    }
+
     if (elements.closeConnectionsBtn) {
         elements.closeConnectionsBtn.addEventListener('click', closeConnectionsModal);
     }
 
     if (elements.saveConnectionsBtn) {
         elements.saveConnectionsBtn.addEventListener('click', saveConnectionsSettings);
+    }
+
+    // Canvas Modal Settings
+    if (elements.embedHelperToggleModal) {
+        elements.embedHelperToggleModal.addEventListener('click', toggleEmbedHelperModal);
+    }
+
+    if (elements.clearCacheBtnModal) {
+        elements.clearCacheBtnModal.addEventListener('click', clearCacheFromModal);
     }
 
     // Scan Filter Modal
@@ -506,6 +522,9 @@ async function loadStorageData() {
     // Load Power Automate URL and update status
     const powerAutomateUrl = data[STORAGE_KEYS.POWER_AUTOMATE_URL] || '';
     updatePowerAutomateStatus(powerAutomateUrl);
+
+    // Update Canvas connection status
+    updateCanvasStatus();
 }
 
 // Storage change listener

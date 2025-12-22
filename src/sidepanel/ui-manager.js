@@ -131,24 +131,27 @@ export function cacheDomElements() {
     elements.closeConnectionsBtn = document.getElementById('closeConnectionsBtn');
     elements.configureExcelBtn = document.getElementById('configureExcelBtn');
     elements.configurePowerAutomateBtn = document.getElementById('configurePowerAutomateBtn');
+    elements.configureCanvasBtn = document.getElementById('configureCanvasBtn');
     elements.connectionModalTitle = document.getElementById('connectionModalTitle');
     elements.excelConfigContent = document.getElementById('excelConfigContent');
     elements.powerAutomateConfigContent = document.getElementById('powerAutomateConfigContent');
+    elements.canvasConfigContent = document.getElementById('canvasConfigContent');
     elements.autoUpdateSelectModal = document.getElementById('autoUpdateSelectModal');
     elements.powerAutomateUrlInput = document.getElementById('powerAutomateUrlInput');
     elements.powerAutomateStatusText = document.getElementById('powerAutomateStatusText');
+    elements.canvasStatusText = document.getElementById('canvasStatusText');
+    elements.embedHelperToggleModal = document.getElementById('embedHelperToggleModal');
+    elements.highlightColorPickerModal = document.getElementById('highlightColorPickerModal');
+    elements.cacheStatsTextModal = document.getElementById('cacheStatsTextModal');
+    elements.clearCacheBtnModal = document.getElementById('clearCacheBtnModal');
     elements.saveConnectionsBtn = document.getElementById('saveConnectionsBtn');
 
-    // Cache Management
+    // Cache Management (old reference for compatibility)
     elements.cacheStatsText = document.getElementById('cacheStatsText');
     elements.clearCacheBtn = document.getElementById('clearCacheBtn');
 
     // Debug Mode Toggle
     elements.debugModeToggle = document.getElementById('debugModeToggle');
-
-    // Settings
-    elements.embedHelperToggle = document.getElementById('embedHelperToggle');
-    elements.highlightColorPicker = document.getElementById('highlightColorPicker');
 }
 
 /**

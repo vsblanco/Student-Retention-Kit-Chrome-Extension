@@ -283,7 +283,7 @@ export function closeVersionModal() {
 
 /**
  * Opens the connections modal for a specific connection type
- * @param {string} connectionType - 'excel' or 'powerAutomate'
+ * @param {string} connectionType - 'excel', 'powerAutomate', or 'canvas'
  */
 export function openConnectionsModal(connectionType) {
     if (!elements.connectionsModal) return;
@@ -297,6 +297,9 @@ export function openConnectionsModal(connectionType) {
     }
     if (elements.powerAutomateConfigContent) {
         elements.powerAutomateConfigContent.style.display = 'none';
+    }
+    if (elements.canvasConfigContent) {
+        elements.canvasConfigContent.style.display = 'none';
     }
 
     // Show the appropriate configuration content
@@ -314,10 +317,17 @@ export function openConnectionsModal(connectionType) {
         if (elements.powerAutomateConfigContent) {
             elements.powerAutomateConfigContent.style.display = 'block';
         }
+    } else if (connectionType === 'canvas') {
+        if (elements.connectionModalTitle) {
+            elements.connectionModalTitle.textContent = 'Canvas Settings';
+        }
+        if (elements.canvasConfigContent) {
+            elements.canvasConfigContent.style.display = 'block';
+        }
     }
 
     // Load current settings into modal
-    chrome.storage.local.get(['autoUpdateMasterList', 'powerAutomateUrl'], (result) => {
+    chrome.storage.local.get(['autoUpdateMasterList', 'powerAutomateUrl', 'embedInCanvas', 'highlightColor'], (result) => {
         // Load auto-update setting
         const setting = result.autoUpdateMasterList || 'always';
         if (elements.autoUpdateSelectModal) {
@@ -329,7 +339,51 @@ export function openConnectionsModal(connectionType) {
         if (elements.powerAutomateUrlInput) {
             elements.powerAutomateUrlInput.value = paUrl;
         }
+
+        // Load Canvas settings
+        const embedHelper = result.embedInCanvas !== undefined ? result.embedInCanvas : true;
+        updateEmbedHelperModalUI(embedHelper);
+
+        const highlightColor = result.highlightColor || '#ffff00';
+        if (elements.highlightColorPickerModal) {
+            elements.highlightColorPickerModal.value = highlightColor;
+        }
+
+        // Load cache stats
+        loadCacheStatsForModal();
     });
+}
+
+/**
+ * Updates the embed helper toggle UI in the modal
+ * @param {boolean} isEnabled - Whether embed helper is enabled
+ */
+function updateEmbedHelperModalUI(isEnabled) {
+    if (!elements.embedHelperToggleModal) return;
+
+    if (isEnabled) {
+        elements.embedHelperToggleModal.className = 'fas fa-toggle-on';
+        elements.embedHelperToggleModal.style.color = 'var(--primary-color)';
+    } else {
+        elements.embedHelperToggleModal.className = 'fas fa-toggle-off';
+        elements.embedHelperToggleModal.style.color = 'gray';
+    }
+}
+
+/**
+ * Loads cache stats for the modal
+ */
+async function loadCacheStatsForModal() {
+    if (!elements.cacheStatsTextModal) return;
+
+    try {
+        const { getCacheStats } = await import('../utils/canvasCache.js');
+        const stats = await getCacheStats();
+        elements.cacheStatsTextModal.textContent = stats;
+    } catch (error) {
+        console.error('Error loading cache stats:', error);
+        elements.cacheStatsTextModal.textContent = 'Error loading stats';
+    }
 }
 
 /**
@@ -364,6 +418,19 @@ export async function saveConnectionsSettings() {
         updatePowerAutomateStatus(paUrl);
     }
 
+    // Save Canvas settings
+    if (elements.embedHelperToggleModal) {
+        const embedEnabled = elements.embedHelperToggleModal.classList.contains('fa-toggle-on');
+        settingsToSave.embedInCanvas = embedEnabled;
+        console.log(`Embed Helper setting saved: ${embedEnabled}`);
+    }
+
+    if (elements.highlightColorPickerModal) {
+        const highlightColor = elements.highlightColorPickerModal.value;
+        settingsToSave.highlightColor = highlightColor;
+        console.log(`Highlight Color saved: ${highlightColor}`);
+    }
+
     // Save all settings
     await chrome.storage.local.set(settingsToSave);
 
@@ -384,5 +451,57 @@ export function updatePowerAutomateStatus(url) {
     } else {
         elements.powerAutomateStatusText.textContent = 'Not configured';
         elements.powerAutomateStatusText.style.color = 'var(--text-secondary)';
+    }
+}
+
+/**
+ * Updates the Canvas connection status text based on login state
+ */
+export async function updateCanvasStatus() {
+    if (!elements.canvasStatusText) return;
+
+    try {
+        // Check if user has an active Canvas session by querying for Canvas tabs
+        const canvasTabs = await chrome.tabs.query({ url: "https://*.instructure.com/*" });
+        const isLoggedIn = canvasTabs.length > 0;
+
+        if (isLoggedIn) {
+            elements.canvasStatusText.textContent = 'Connected';
+            elements.canvasStatusText.style.color = 'green';
+        } else {
+            elements.canvasStatusText.textContent = 'Not connected';
+            elements.canvasStatusText.style.color = 'var(--text-secondary)';
+        }
+    } catch (error) {
+        console.error('Error checking Canvas status:', error);
+        elements.canvasStatusText.textContent = 'Not connected';
+        elements.canvasStatusText.style.color = 'var(--text-secondary)';
+    }
+}
+
+/**
+ * Toggles the embed helper setting in the modal
+ */
+export function toggleEmbedHelperModal() {
+    if (!elements.embedHelperToggleModal) return;
+
+    const isCurrentlyOn = elements.embedHelperToggleModal.classList.contains('fa-toggle-on');
+    updateEmbedHelperModalUI(!isCurrentlyOn);
+}
+
+/**
+ * Clears the Canvas API cache from the modal
+ */
+export async function clearCacheFromModal() {
+    try {
+        const { clearAllCache } = await import('../utils/canvasCache.js');
+        await clearAllCache();
+
+        // Reload stats
+        await loadCacheStatsForModal();
+
+        console.log('Canvas API cache cleared from modal');
+    } catch (error) {
+        console.error('Error clearing cache from modal:', error);
     }
 }
