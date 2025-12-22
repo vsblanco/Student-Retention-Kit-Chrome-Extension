@@ -203,6 +203,33 @@ chrome.runtime.onMessage.addListener(async (msg, sender, sendResponse) => {
     await setupSchedule();
   } else if (msg.type === MESSAGE_TYPES.LOG_TO_PANEL) {
       // Re-broadcast logs
+  }
+
+  // --- MASTER LIST UPDATE HANDLERS ---
+  else if (msg.type === MESSAGE_TYPES.SRK_MASTER_LIST_UPDATED) {
+      console.log(`%c [Background] Master List Updated!`, "color: green; font-weight: bold");
+      console.log(`   Students: ${msg.studentCount}`);
+      console.log(`   Source Timestamp: ${msg.sourceTimestamp}`);
+
+      // Log to panel
+      chrome.runtime.sendMessage({
+          type: MESSAGE_TYPES.LOG_TO_PANEL,
+          level: 'log',
+          args: [`Master List auto-updated: ${msg.studentCount} students`]
+      }).catch(() => {});
+
+      // Update badge to reflect new data
+      updateBadge();
+  }
+  else if (msg.type === MESSAGE_TYPES.SRK_MASTER_LIST_ERROR) {
+      console.error(`%c [Background] Master List Update Error:`, "color: red; font-weight: bold", msg.error);
+
+      // Log error to panel
+      chrome.runtime.sendMessage({
+          type: MESSAGE_TYPES.LOG_TO_PANEL,
+          level: 'error',
+          args: [`Master List update failed: ${msg.error}`]
+      }).catch(() => {});
   } 
   
   // --- FIVE9 INTEGRATION ---
