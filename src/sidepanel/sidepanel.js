@@ -49,7 +49,13 @@ import {
     closeVersionModal,
     openConnectionsModal,
     closeConnectionsModal,
-    saveConnectionsSettings
+    saveConnectionsSettings,
+    updatePowerAutomateStatus,
+    updateCanvasStatus,
+    updateFive9Status,
+    toggleEmbedHelperModal,
+    toggleDebugModeModal,
+    clearCacheFromModal
 } from './modal-manager.js';
 
 import { QueueManager } from './queue-manager.js';
@@ -164,12 +170,34 @@ function setupEventListeners() {
         elements.configurePowerAutomateBtn.addEventListener('click', () => openConnectionsModal('powerAutomate'));
     }
 
+    if (elements.configureCanvasBtn) {
+        elements.configureCanvasBtn.addEventListener('click', () => openConnectionsModal('canvas'));
+    }
+
+    if (elements.configureFive9Btn) {
+        elements.configureFive9Btn.addEventListener('click', () => openConnectionsModal('five9'));
+    }
+
     if (elements.closeConnectionsBtn) {
         elements.closeConnectionsBtn.addEventListener('click', closeConnectionsModal);
     }
 
     if (elements.saveConnectionsBtn) {
         elements.saveConnectionsBtn.addEventListener('click', saveConnectionsSettings);
+    }
+
+    // Canvas Modal Settings
+    if (elements.embedHelperToggleModal) {
+        elements.embedHelperToggleModal.addEventListener('click', toggleEmbedHelperModal);
+    }
+
+    if (elements.clearCacheBtnModal) {
+        elements.clearCacheBtnModal.addEventListener('click', clearCacheFromModal);
+    }
+
+    // Five9 Modal Settings
+    if (elements.debugModeToggleModal) {
+        elements.debugModeToggleModal.addEventListener('click', toggleDebugModeModal);
     }
 
     // Scan Filter Modal
@@ -468,7 +496,8 @@ async function loadStorageData() {
         STORAGE_KEYS.DEBUG_MODE,
         STORAGE_KEYS.EMBED_IN_CANVAS,
         STORAGE_KEYS.HIGHLIGHT_COLOR,
-        STORAGE_KEYS.AUTO_UPDATE_MASTER_LIST
+        STORAGE_KEYS.AUTO_UPDATE_MASTER_LIST,
+        STORAGE_KEYS.POWER_AUTOMATE_URL
     ]);
 
     const foundEntries = data[STORAGE_KEYS.FOUND_ENTRIES] || [];
@@ -500,6 +529,16 @@ async function loadStorageData() {
     // Load Highlight Color setting (default: #ffff00)
     highlightColor = data[STORAGE_KEYS.HIGHLIGHT_COLOR] || '#ffff00';
     updateHighlightColorUI(highlightColor);
+
+    // Load Power Automate URL and update status
+    const powerAutomateUrl = data[STORAGE_KEYS.POWER_AUTOMATE_URL] || '';
+    updatePowerAutomateStatus(powerAutomateUrl);
+
+    // Update Canvas connection status
+    updateCanvasStatus();
+
+    // Update Five9 connection status
+    updateFive9Status();
 }
 
 // Storage change listener

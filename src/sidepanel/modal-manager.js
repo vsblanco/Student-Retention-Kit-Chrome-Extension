@@ -283,7 +283,7 @@ export function closeVersionModal() {
 
 /**
  * Opens the connections modal for a specific connection type
- * @param {string} connectionType - 'excel' or 'powerAutomate'
+ * @param {string} connectionType - 'excel', 'powerAutomate', or 'canvas'
  */
 export function openConnectionsModal(connectionType) {
     if (!elements.connectionsModal) return;
@@ -297,6 +297,12 @@ export function openConnectionsModal(connectionType) {
     }
     if (elements.powerAutomateConfigContent) {
         elements.powerAutomateConfigContent.style.display = 'none';
+    }
+    if (elements.canvasConfigContent) {
+        elements.canvasConfigContent.style.display = 'none';
+    }
+    if (elements.five9ConfigContent) {
+        elements.five9ConfigContent.style.display = 'none';
     }
 
     // Show the appropriate configuration content
@@ -314,15 +320,100 @@ export function openConnectionsModal(connectionType) {
         if (elements.powerAutomateConfigContent) {
             elements.powerAutomateConfigContent.style.display = 'block';
         }
+    } else if (connectionType === 'canvas') {
+        if (elements.connectionModalTitle) {
+            elements.connectionModalTitle.textContent = 'Canvas Settings';
+        }
+        if (elements.canvasConfigContent) {
+            elements.canvasConfigContent.style.display = 'block';
+        }
+    } else if (connectionType === 'five9') {
+        if (elements.connectionModalTitle) {
+            elements.connectionModalTitle.textContent = 'Five9 Settings';
+        }
+        if (elements.five9ConfigContent) {
+            elements.five9ConfigContent.style.display = 'block';
+        }
     }
 
-    // Load current auto-update setting into modal dropdown
-    chrome.storage.local.get(['autoUpdateMasterList'], (result) => {
+    // Load current settings into modal
+    chrome.storage.local.get(['autoUpdateMasterList', 'powerAutomateUrl', 'embedInCanvas', 'highlightColor', 'debugMode'], (result) => {
+        // Load auto-update setting
         const setting = result.autoUpdateMasterList || 'always';
         if (elements.autoUpdateSelectModal) {
             elements.autoUpdateSelectModal.value = setting;
         }
+
+        // Load Power Automate URL
+        const paUrl = result.powerAutomateUrl || '';
+        if (elements.powerAutomateUrlInput) {
+            elements.powerAutomateUrlInput.value = paUrl;
+        }
+
+        // Load Canvas settings
+        const embedHelper = result.embedInCanvas !== undefined ? result.embedInCanvas : true;
+        updateEmbedHelperModalUI(embedHelper);
+
+        const highlightColor = result.highlightColor || '#ffff00';
+        if (elements.highlightColorPickerModal) {
+            elements.highlightColorPickerModal.value = highlightColor;
+        }
+
+        // Load Five9 settings
+        const debugMode = result.debugMode || false;
+        updateDebugModeModalUI(debugMode);
+
+        // Load cache stats
+        loadCacheStatsForModal();
     });
+}
+
+/**
+ * Updates the embed helper toggle UI in the modal
+ * @param {boolean} isEnabled - Whether embed helper is enabled
+ */
+function updateEmbedHelperModalUI(isEnabled) {
+    if (!elements.embedHelperToggleModal) return;
+
+    if (isEnabled) {
+        elements.embedHelperToggleModal.className = 'fas fa-toggle-on';
+        elements.embedHelperToggleModal.style.color = 'var(--primary-color)';
+    } else {
+        elements.embedHelperToggleModal.className = 'fas fa-toggle-off';
+        elements.embedHelperToggleModal.style.color = 'gray';
+    }
+}
+
+/**
+ * Updates the debug mode toggle UI in the modal
+ * @param {boolean} isEnabled - Whether debug mode is enabled
+ */
+function updateDebugModeModalUI(isEnabled) {
+    if (!elements.debugModeToggleModal) return;
+
+    if (isEnabled) {
+        elements.debugModeToggleModal.className = 'fas fa-toggle-on';
+        elements.debugModeToggleModal.style.color = 'var(--primary-color)';
+    } else {
+        elements.debugModeToggleModal.className = 'fas fa-toggle-off';
+        elements.debugModeToggleModal.style.color = 'gray';
+    }
+}
+
+/**
+ * Loads cache stats for the modal
+ */
+async function loadCacheStatsForModal() {
+    if (!elements.cacheStatsTextModal) return;
+
+    try {
+        const { getCacheStats } = await import('../utils/canvasCache.js');
+        const stats = await getCacheStats();
+        elements.cacheStatsTextModal.textContent = stats;
+    } catch (error) {
+        console.error('Error loading cache stats:', error);
+        elements.cacheStatsTextModal.textContent = 'Error loading stats';
+    }
 }
 
 /**
@@ -338,12 +429,151 @@ export function closeConnectionsModal() {
  * Saves connections settings from the modal
  */
 export async function saveConnectionsSettings() {
+    const settingsToSave = {};
+
+    // Save auto-update setting
     if (elements.autoUpdateSelectModal) {
         const newSetting = elements.autoUpdateSelectModal.value;
-        await chrome.storage.local.set({ autoUpdateMasterList: newSetting });
+        settingsToSave.autoUpdateMasterList = newSetting;
         console.log(`Auto-update master list setting saved: ${newSetting}`);
     }
 
+    // Save Power Automate URL
+    if (elements.powerAutomateUrlInput) {
+        const paUrl = elements.powerAutomateUrlInput.value.trim();
+        settingsToSave.powerAutomateUrl = paUrl;
+        console.log(`Power Automate URL saved: ${paUrl ? 'URL configured' : 'URL cleared'}`);
+
+        // Update status text immediately
+        updatePowerAutomateStatus(paUrl);
+    }
+
+    // Save Canvas settings
+    if (elements.embedHelperToggleModal) {
+        const embedEnabled = elements.embedHelperToggleModal.classList.contains('fa-toggle-on');
+        settingsToSave.embedInCanvas = embedEnabled;
+        console.log(`Embed Helper setting saved: ${embedEnabled}`);
+    }
+
+    if (elements.highlightColorPickerModal) {
+        const highlightColor = elements.highlightColorPickerModal.value;
+        settingsToSave.highlightColor = highlightColor;
+        console.log(`Highlight Color saved: ${highlightColor}`);
+    }
+
+    // Save Five9 settings
+    if (elements.debugModeToggleModal) {
+        const debugEnabled = elements.debugModeToggleModal.classList.contains('fa-toggle-on');
+        settingsToSave.debugMode = debugEnabled;
+        console.log(`Debug Mode setting saved: ${debugEnabled}`);
+    }
+
+    // Save all settings
+    await chrome.storage.local.set(settingsToSave);
+
     // Close modal after saving
     closeConnectionsModal();
+}
+
+/**
+ * Updates the Power Automate connection status text
+ * @param {string} url - The Power Automate URL (empty if not configured)
+ */
+export function updatePowerAutomateStatus(url) {
+    if (!elements.powerAutomateStatusText) return;
+
+    if (url && url.trim()) {
+        elements.powerAutomateStatusText.textContent = 'Connected';
+        elements.powerAutomateStatusText.style.color = 'green';
+    } else {
+        elements.powerAutomateStatusText.textContent = 'Not configured';
+        elements.powerAutomateStatusText.style.color = 'var(--text-secondary)';
+    }
+}
+
+/**
+ * Updates the Canvas connection status text based on login state
+ */
+export async function updateCanvasStatus() {
+    if (!elements.canvasStatusText) return;
+
+    try {
+        // Check if user has an active Canvas session by querying for Canvas tabs
+        const canvasTabs = await chrome.tabs.query({ url: "https://*.instructure.com/*" });
+        const isLoggedIn = canvasTabs.length > 0;
+
+        if (isLoggedIn) {
+            elements.canvasStatusText.textContent = 'Connected';
+            elements.canvasStatusText.style.color = 'green';
+        } else {
+            elements.canvasStatusText.textContent = 'Not connected';
+            elements.canvasStatusText.style.color = 'var(--text-secondary)';
+        }
+    } catch (error) {
+        console.error('Error checking Canvas status:', error);
+        elements.canvasStatusText.textContent = 'Not connected';
+        elements.canvasStatusText.style.color = 'var(--text-secondary)';
+    }
+}
+
+/**
+ * Toggles the embed helper setting in the modal
+ */
+export function toggleEmbedHelperModal() {
+    if (!elements.embedHelperToggleModal) return;
+
+    const isCurrentlyOn = elements.embedHelperToggleModal.classList.contains('fa-toggle-on');
+    updateEmbedHelperModalUI(!isCurrentlyOn);
+}
+
+/**
+ * Toggles the debug mode setting in the modal
+ */
+export function toggleDebugModeModal() {
+    if (!elements.debugModeToggleModal) return;
+
+    const isCurrentlyOn = elements.debugModeToggleModal.classList.contains('fa-toggle-on');
+    updateDebugModeModalUI(!isCurrentlyOn);
+}
+
+/**
+ * Updates the Five9 connection status text based on active tabs
+ */
+export async function updateFive9Status() {
+    if (!elements.five9StatusText) return;
+
+    try {
+        // Check if user has an active Five9 session by querying for Five9 tabs
+        const five9Tabs = await chrome.tabs.query({ url: "https://*.five9.com/*" });
+        const isConnected = five9Tabs.length > 0;
+
+        if (isConnected) {
+            elements.five9StatusText.textContent = 'Connected';
+            elements.five9StatusText.style.color = 'green';
+        } else {
+            elements.five9StatusText.textContent = 'Not connected';
+            elements.five9StatusText.style.color = 'var(--text-secondary)';
+        }
+    } catch (error) {
+        console.error('Error checking Five9 status:', error);
+        elements.five9StatusText.textContent = 'Not connected';
+        elements.five9StatusText.style.color = 'var(--text-secondary)';
+    }
+}
+
+/**
+ * Clears the Canvas API cache from the modal
+ */
+export async function clearCacheFromModal() {
+    try {
+        const { clearAllCache } = await import('../utils/canvasCache.js');
+        await clearAllCache();
+
+        // Reload stats
+        await loadCacheStatsForModal();
+
+        console.log('Canvas API cache cleared from modal');
+    } catch (error) {
+        console.error('Error clearing cache from modal:', error);
+    }
 }

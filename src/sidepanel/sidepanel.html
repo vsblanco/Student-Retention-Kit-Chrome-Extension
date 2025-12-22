@@ -890,38 +890,9 @@
       <div class="section">
         <h3>General</h3>
         <div class="setting-card">
-            <span>Embed Helper in Canvas</span>
-            <i id="embedHelperToggle" class="fas fa-toggle-on" style="color:var(--primary-color); font-size:2.5em; cursor: pointer;"></i>
-        </div>
-        <div class="setting-card">
             <span>Dark Mode</span>
             <i class="fas fa-toggle-off" style="color:gray; font-size:2.5em; cursor: pointer;"></i>
         </div>
-
-        <div class="setting-card">
-            <span>Highlight Color</span>
-            <input id="highlightColorPicker" type="color" value="#ffff00" style="border: 1px solid rgba(0,0,0,0.1); border-radius: 4px; width: 50px; height: 35px; padding: 0; background: none; cursor: pointer;">
-        </div>
-
-        <div class="setting-card">
-            <span>Debug Mode (Enables Call Demo)</span>
-            <i id="debugModeToggle" class="fas fa-toggle-off" style="color:gray; font-size:2.5em; cursor: pointer;"></i>
-        </div>
-
-        <h3>Canvas API Cache</h3>
-        <div class="setting-card" style="flex-direction: column; align-items: flex-start; gap: 8px;">
-            <div style="display: flex; justify-content: space-between; width: 100%; align-items: center;">
-                <span>Cached Entries</span>
-                <span id="cacheStatsText" style="font-size:0.9em; color:var(--text-secondary);">Loading...</span>
-            </div>
-            <div style="font-size:0.8em; color:var(--text-secondary);">
-                Canvas API responses are cached until course end dates to reduce API calls.
-            </div>
-        </div>
-        <button id="clearCacheBtn" class="btn-secondary" style="width:100%;">
-            <i class="fas fa-trash-alt" style="margin-right: 5px;"></i>
-            Clear Cache
-        </button>
 
         <h3>Connections</h3>
         <div class="setting-card">
@@ -941,13 +912,43 @@
         </div>
         <div class="setting-card">
             <div style="display:flex; align-items:center; gap:10px; flex-grow:1;">
-                <i class="fas fa-bolt" style="color:#f59e0b; font-size: 1.2em;"></i>
+                <img src="../../assets/pictures/power-automate-icon.png" style="width:20px; height:20px;" alt="Power Automate">
                 <div style="flex-grow:1;">
                     <div style="font-weight:500;">Power Automate</div>
-                    <div style="font-size:0.8em; color:green; margin-top:4px;">Connected</div>
+                    <div style="font-size:0.8em; margin-top:4px;">
+                        <span id="powerAutomateStatusText" style="color:var(--text-secondary);">Not configured</span>
+                    </div>
                 </div>
             </div>
             <button id="configurePowerAutomateBtn" class="btn-secondary" style="width:auto; margin:0; padding: 8px 16px;">
+                <i class="fas fa-cog" style="margin-right:6px;"></i>Configure
+            </button>
+        </div>
+        <div class="setting-card">
+            <div style="display:flex; align-items:center; gap:10px; flex-grow:1;">
+                <img src="../../assets/pictures/canvas-logo.png" style="width:20px; height:20px;" alt="Canvas">
+                <div style="flex-grow:1;">
+                    <div style="font-weight:500;">Canvas</div>
+                    <div style="font-size:0.8em; margin-top:4px;">
+                        <span id="canvasStatusText" style="color:var(--text-secondary);">Not connected</span>
+                    </div>
+                </div>
+            </div>
+            <button id="configureCanvasBtn" class="btn-secondary" style="width:auto; margin:0; padding: 8px 16px;">
+                <i class="fas fa-cog" style="margin-right:6px;"></i>Configure
+            </button>
+        </div>
+        <div class="setting-card">
+            <div style="display:flex; align-items:center; gap:10px; flex-grow:1;">
+                <img src="../../assets/pictures/five9logo.png" style="width:20px; height:20px;" alt="Five9">
+                <div style="flex-grow:1;">
+                    <div style="font-weight:500;">Five9</div>
+                    <div style="font-size:0.8em; margin-top:4px;">
+                        <span id="five9StatusText" style="color:var(--text-secondary);">Not connected</span>
+                    </div>
+                </div>
+            </div>
+            <button id="configureFive9Btn" class="btn-secondary" style="width:auto; margin:0; padding: 8px 16px;">
                 <i class="fas fa-cog" style="margin-right:6px;"></i>Configure
             </button>
         </div>
@@ -1162,13 +1163,76 @@
 
             <!-- Power Automate Configuration -->
             <div id="powerAutomateConfigContent" style="display:none;">
-                <div style="text-align:center; padding:40px 20px; color:var(--text-secondary);">
-                    <i class="fas fa-bolt" style="font-size:3em; margin-bottom:15px; opacity:0.3;"></i>
-                    <div style="font-size:1.1em; font-weight:500; color:var(--text-main); margin-bottom:10px;">
-                        Power Automate Configuration
+                <div style="margin-bottom: 20px;">
+                    <label style="font-size:0.95em; font-weight:500; color:var(--text-main); display:block; margin-bottom:12px;">
+                        <i class="fas fa-link" style="color:var(--primary-color);"></i> HTTP Request URL
+                    </label>
+                    <input type="url" id="powerAutomateUrlInput" placeholder="https://prod-123.westus.logic.azure.com:443/workflows/..." style="width:100%; padding:10px; font-size:0.95em;">
+                    <div style="font-size:0.8em; color:var(--text-secondary); margin-top:8px;">
+                        Enter your Power Automate HTTP Request trigger URL. The extension will send data to this endpoint when events occur.
                     </div>
-                    <div style="font-size:0.9em;">
-                        Configuration options coming soon...
+                </div>
+            </div>
+
+            <!-- Canvas Configuration -->
+            <div id="canvasConfigContent" style="display:none;">
+                <!-- Embed Helper -->
+                <div style="margin-bottom: 20px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                        <label style="font-size:0.95em; font-weight:500; color:var(--text-main);">
+                            <i class="fas fa-code" style="color:var(--primary-color);"></i> Embed Helper in Canvas
+                        </label>
+                        <i id="embedHelperToggleModal" class="fas fa-toggle-on" style="color:var(--primary-color); font-size:2em; cursor: pointer;"></i>
+                    </div>
+                    <div style="font-size:0.8em; color:var(--text-secondary);">
+                        Automatically embed the extension helper in Canvas pages for easier navigation.
+                    </div>
+                </div>
+
+                <!-- Highlight Color -->
+                <div style="margin-bottom: 20px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                        <label style="font-size:0.95em; font-weight:500; color:var(--text-main);">
+                            <i class="fas fa-palette" style="color:var(--primary-color);"></i> Highlight Color
+                        </label>
+                        <input id="highlightColorPickerModal" type="color" value="#ffff00" style="border: 1px solid rgba(0,0,0,0.1); border-radius: 4px; width: 50px; height: 35px; padding: 0; background: none; cursor: pointer;">
+                    </div>
+                    <div style="font-size:0.8em; color:var(--text-secondary);">
+                        Choose the color used to highlight missing assignments in Canvas.
+                    </div>
+                </div>
+
+                <!-- Canvas API Cache -->
+                <div style="margin-bottom: 20px;">
+                    <label style="font-size:0.95em; font-weight:500; color:var(--text-main); display:block; margin-bottom:12px;">
+                        <i class="fas fa-database" style="color:var(--primary-color);"></i> Canvas API Cache
+                    </label>
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px; background: rgba(0,0,0,0.02); border-radius: 6px; margin-bottom: 8px;">
+                        <span style="font-size:0.9em;">Cached Entries</span>
+                        <span id="cacheStatsTextModal" style="font-size:0.9em; color:var(--text-secondary);">Loading...</span>
+                    </div>
+                    <div style="font-size:0.8em; color:var(--text-secondary); margin-bottom: 12px;">
+                        Canvas API responses are cached until course end dates to reduce API calls.
+                    </div>
+                    <button id="clearCacheBtnModal" class="btn-secondary" style="width:100%;">
+                        <i class="fas fa-trash-alt" style="margin-right: 5px;"></i>
+                        Clear Cache
+                    </button>
+                </div>
+            </div>
+
+            <!-- Five9 Configuration -->
+            <div id="five9ConfigContent" style="display:none;">
+                <!-- Call Demo Toggle -->
+                <div style="margin-bottom: 20px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                        <label style="font-size:0.95em; font-weight:500; color:var(--text-main);">
+                            <i class="fas fa-phone-alt" style="color:var(--primary-color);"></i> Call Demo
+                        </label>
+                        <i id="debugModeToggleModal" class="fas fa-toggle-off" style="color:gray; font-size:2em; cursor: pointer;"></i>
+                    </div>
+                    <div style="font-size:0.8em; color:var(--text-secondary);">
+                        Enable call demo mode for testing and demonstration purposes without an active Five9 session.
                     </div>
                 </div>
             </div>
