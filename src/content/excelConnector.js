@@ -43,13 +43,8 @@ if (window.hasSRKConnectorRun) {
           console.log("%c SRK Connector: Master List Request Received", "color: blue; font-weight: bold");
           console.log("Request timestamp:", event.data.timestamp);
 
-          // Always accept data for now (as per requirements)
-          if (event.source) {
-              event.source.postMessage({
-                  type: "SRK_MASTER_LIST_RESPONSE",
-                  wantsData: true
-              }, "*");
-          }
+          // Check setting to determine if we should accept the data
+          checkIfShouldAcceptMasterList(event.source);
       }
 
       // Handle Master List Data
@@ -58,6 +53,66 @@ if (window.hasSRKConnectorRun) {
           handleMasterListData(event.data.data);
       }
   });
+
+  /**
+   * Checks if we should accept the master list update based on user settings
+   * @param {MessageEventSource} source - The event source to send response to
+   */
+  function checkIfShouldAcceptMasterList(source) {
+      chrome.storage.local.get(['autoUpdateMasterList', 'lastUpdated'], (result) => {
+          const setting = result.autoUpdateMasterList || 'always';
+          let wantsData = false;
+
+          if (setting === 'never') {
+              console.log("%c Auto-update is disabled. Rejecting data.", "color: orange");
+              wantsData = false;
+          } else if (setting === 'always') {
+              console.log("%c Auto-update is set to always. Accepting data.", "color: green");
+              wantsData = true;
+          } else if (setting === 'once-daily') {
+              // Check if last update was today
+              const lastUpdated = result.lastUpdated;
+              const isToday = checkIfUpdatedToday(lastUpdated);
+
+              if (isToday) {
+                  console.log("%c Already updated today. Rejecting data.", "color: orange");
+                  wantsData = false;
+              } else {
+                  console.log("%c Not updated today. Accepting data.", "color: green");
+                  wantsData = true;
+              }
+          }
+
+          // Send response
+          if (source) {
+              source.postMessage({
+                  type: "SRK_MASTER_LIST_RESPONSE",
+                  wantsData: wantsData
+              }, "*");
+          }
+      });
+  }
+
+  /**
+   * Checks if the last update timestamp was today
+   * @param {string} lastUpdated - The last updated timestamp
+   * @returns {boolean} True if last update was today
+   */
+  function checkIfUpdatedToday(lastUpdated) {
+      if (!lastUpdated) return false;
+
+      try {
+          const lastUpdateDate = new Date(lastUpdated);
+          const today = new Date();
+
+          return lastUpdateDate.getDate() === today.getDate() &&
+                 lastUpdateDate.getMonth() === today.getMonth() &&
+                 lastUpdateDate.getFullYear() === today.getFullYear();
+      } catch (error) {
+          console.error("Error parsing last updated date:", error);
+          return false;
+      }
+  }
 
   /**
    * Handles incoming Master List data from the Office Add-in

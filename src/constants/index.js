@@ -83,7 +83,9 @@ export const STORAGE_KEYS = {
     CANVAS_API_CACHE: 'canvasApiCache',
     // Scan Filter Settings
     SCAN_FILTER_DAYS_OUT: 'scanFilterDaysOut',
-    SCAN_FILTER_INCLUDE_FAILING: 'scanFilterIncludeFailing'
+    SCAN_FILTER_INCLUDE_FAILING: 'scanFilterIncludeFailing',
+    // Master List Auto-Update Settings
+    AUTO_UPDATE_MASTER_LIST: 'autoUpdateMasterList'
 };
 
 /**
@@ -102,7 +104,8 @@ export const DEFAULT_SETTINGS = {
     [STORAGE_KEYS.SCHEDULED_MASTER_LIST]: '',
     [STORAGE_KEYS.INCLUDE_ALL_ASSIGNMENTS]: false,
     [STORAGE_KEYS.SCAN_FILTER_DAYS_OUT]: '>=5',
-    [STORAGE_KEYS.SCAN_FILTER_INCLUDE_FAILING]: false
+    [STORAGE_KEYS.SCAN_FILTER_INCLUDE_FAILING]: false,
+    [STORAGE_KEYS.AUTO_UPDATE_MASTER_LIST]: 'always' // Options: 'always', 'once-daily', 'never'
 };
 
 /**
