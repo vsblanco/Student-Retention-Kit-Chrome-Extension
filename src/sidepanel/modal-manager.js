@@ -498,20 +498,24 @@ export async function updateCanvasStatus() {
     if (!elements.canvasStatusText) return;
 
     try {
-        // Check if user has an active Canvas session by querying for Canvas tabs
-        const canvasTabs = await chrome.tabs.query({ url: "https://*.instructure.com/*" });
-        const isLoggedIn = canvasTabs.length > 0;
+        // Check if user is logged in by attempting to fetch current user profile
+        const response = await fetch('https://nuc.instructure.com/api/v1/users/self', {
+            headers: { 'Accept': 'application/json' },
+            credentials: 'include'
+        });
 
-        if (isLoggedIn) {
+        if (response.ok) {
+            // User is logged in
             elements.canvasStatusText.textContent = 'Connected';
             elements.canvasStatusText.style.color = 'green';
         } else {
-            elements.canvasStatusText.textContent = 'Not connected';
+            // Not logged in or authentication failed
+            elements.canvasStatusText.textContent = 'No user logged in';
             elements.canvasStatusText.style.color = 'var(--text-secondary)';
         }
     } catch (error) {
         console.error('Error checking Canvas status:', error);
-        elements.canvasStatusText.textContent = 'Not connected';
+        elements.canvasStatusText.textContent = 'No user logged in';
         elements.canvasStatusText.style.color = 'var(--text-secondary)';
     }
 }
