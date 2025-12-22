@@ -941,10 +941,12 @@
         </div>
         <div class="setting-card">
             <div style="display:flex; align-items:center; gap:10px; flex-grow:1;">
-                <i class="fas fa-bolt" style="color:#f59e0b; font-size: 1.2em;"></i>
+                <img src="../assets/pictures/power-automate-icon.png" style="width:20px; height:20px;" alt="Power Automate">
                 <div style="flex-grow:1;">
                     <div style="font-weight:500;">Power Automate</div>
-                    <div style="font-size:0.8em; color:green; margin-top:4px;">Connected</div>
+                    <div style="font-size:0.8em; margin-top:4px;">
+                        <span id="powerAutomateStatusText" style="color:var(--text-secondary);">Not configured</span>
+                    </div>
                 </div>
             </div>
             <button id="configurePowerAutomateBtn" class="btn-secondary" style="width:auto; margin:0; padding: 8px 16px;">
@@ -1162,13 +1164,13 @@
 
             <!-- Power Automate Configuration -->
             <div id="powerAutomateConfigContent" style="display:none;">
-                <div style="text-align:center; padding:40px 20px; color:var(--text-secondary);">
-                    <i class="fas fa-bolt" style="font-size:3em; margin-bottom:15px; opacity:0.3;"></i>
-                    <div style="font-size:1.1em; font-weight:500; color:var(--text-main); margin-bottom:10px;">
-                        Power Automate Configuration
-                    </div>
-                    <div style="font-size:0.9em;">
-                        Configuration options coming soon...
+                <div style="margin-bottom: 20px;">
+                    <label style="font-size:0.95em; font-weight:500; color:var(--text-main); display:block; margin-bottom:12px;">
+                        <i class="fas fa-link" style="color:var(--primary-color);"></i> HTTP Request URL
+                    </label>
+                    <input type="url" id="powerAutomateUrlInput" placeholder="https://prod-123.westus.logic.azure.com:443/workflows/..." style="width:100%; padding:10px; font-size:0.95em;">
+                    <div style="font-size:0.8em; color:var(--text-secondary); margin-top:8px;">
+                        Enter your Power Automate HTTP Request trigger URL. The extension will send data to this endpoint when events occur.
                     </div>
                 </div>
             </div>

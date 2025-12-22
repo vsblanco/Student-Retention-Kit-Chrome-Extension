@@ -49,7 +49,8 @@ import {
     closeVersionModal,
     openConnectionsModal,
     closeConnectionsModal,
-    saveConnectionsSettings
+    saveConnectionsSettings,
+    updatePowerAutomateStatus
 } from './modal-manager.js';
 
 import { QueueManager } from './queue-manager.js';
@@ -468,7 +469,8 @@ async function loadStorageData() {
         STORAGE_KEYS.DEBUG_MODE,
         STORAGE_KEYS.EMBED_IN_CANVAS,
         STORAGE_KEYS.HIGHLIGHT_COLOR,
-        STORAGE_KEYS.AUTO_UPDATE_MASTER_LIST
+        STORAGE_KEYS.AUTO_UPDATE_MASTER_LIST,
+        STORAGE_KEYS.POWER_AUTOMATE_URL
     ]);
 
     const foundEntries = data[STORAGE_KEYS.FOUND_ENTRIES] || [];
@@ -500,6 +502,10 @@ async function loadStorageData() {
     // Load Highlight Color setting (default: #ffff00)
     highlightColor = data[STORAGE_KEYS.HIGHLIGHT_COLOR] || '#ffff00';
     updateHighlightColorUI(highlightColor);
+
+    // Load Power Automate URL and update status
+    const powerAutomateUrl = data[STORAGE_KEYS.POWER_AUTOMATE_URL] || '';
+    updatePowerAutomateStatus(powerAutomateUrl);
 }
 
 // Storage change listener

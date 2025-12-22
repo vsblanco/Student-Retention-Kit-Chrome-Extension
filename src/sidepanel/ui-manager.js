@@ -135,6 +135,8 @@ export function cacheDomElements() {
     elements.excelConfigContent = document.getElementById('excelConfigContent');
     elements.powerAutomateConfigContent = document.getElementById('powerAutomateConfigContent');
     elements.autoUpdateSelectModal = document.getElementById('autoUpdateSelectModal');
+    elements.powerAutomateUrlInput = document.getElementById('powerAutomateUrlInput');
+    elements.powerAutomateStatusText = document.getElementById('powerAutomateStatusText');
     elements.saveConnectionsBtn = document.getElementById('saveConnectionsBtn');
 
     // Cache Management

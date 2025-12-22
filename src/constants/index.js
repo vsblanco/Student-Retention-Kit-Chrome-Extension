@@ -85,7 +85,9 @@ export const STORAGE_KEYS = {
     SCAN_FILTER_DAYS_OUT: 'scanFilterDaysOut',
     SCAN_FILTER_INCLUDE_FAILING: 'scanFilterIncludeFailing',
     // Master List Auto-Update Settings
-    AUTO_UPDATE_MASTER_LIST: 'autoUpdateMasterList'
+    AUTO_UPDATE_MASTER_LIST: 'autoUpdateMasterList',
+    // Power Automate Settings
+    POWER_AUTOMATE_URL: 'powerAutomateUrl'
 };
 
 /**

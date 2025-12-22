@@ -316,11 +316,18 @@ export function openConnectionsModal(connectionType) {
         }
     }
 
-    // Load current auto-update setting into modal dropdown
-    chrome.storage.local.get(['autoUpdateMasterList'], (result) => {
+    // Load current settings into modal
+    chrome.storage.local.get(['autoUpdateMasterList', 'powerAutomateUrl'], (result) => {
+        // Load auto-update setting
         const setting = result.autoUpdateMasterList || 'always';
         if (elements.autoUpdateSelectModal) {
             elements.autoUpdateSelectModal.value = setting;
+        }
+
+        // Load Power Automate URL
+        const paUrl = result.powerAutomateUrl || '';
+        if (elements.powerAutomateUrlInput) {
+            elements.powerAutomateUrlInput.value = paUrl;
         }
     });
 }
@@ -338,12 +345,44 @@ export function closeConnectionsModal() {
  * Saves connections settings from the modal
  */
 export async function saveConnectionsSettings() {
+    const settingsToSave = {};
+
+    // Save auto-update setting
     if (elements.autoUpdateSelectModal) {
         const newSetting = elements.autoUpdateSelectModal.value;
-        await chrome.storage.local.set({ autoUpdateMasterList: newSetting });
+        settingsToSave.autoUpdateMasterList = newSetting;
         console.log(`Auto-update master list setting saved: ${newSetting}`);
     }
 
+    // Save Power Automate URL
+    if (elements.powerAutomateUrlInput) {
+        const paUrl = elements.powerAutomateUrlInput.value.trim();
+        settingsToSave.powerAutomateUrl = paUrl;
+        console.log(`Power Automate URL saved: ${paUrl ? 'URL configured' : 'URL cleared'}`);
+
+        // Update status text immediately
+        updatePowerAutomateStatus(paUrl);
+    }
+
+    // Save all settings
+    await chrome.storage.local.set(settingsToSave);
+
     // Close modal after saving
     closeConnectionsModal();
+}
+
+/**
+ * Updates the Power Automate connection status text
+ * @param {string} url - The Power Automate URL (empty if not configured)
+ */
+export function updatePowerAutomateStatus(url) {
+    if (!elements.powerAutomateStatusText) return;
+
+    if (url && url.trim()) {
+        elements.powerAutomateStatusText.textContent = 'Connected';
+        elements.powerAutomateStatusText.style.color = 'green';
+    } else {
+        elements.powerAutomateStatusText.textContent = 'Not configured';
+        elements.powerAutomateStatusText.style.color = 'var(--text-secondary)';
+    }
 }
