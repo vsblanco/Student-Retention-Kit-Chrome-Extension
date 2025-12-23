@@ -229,11 +229,26 @@ async function analyzeMissingMode(entry, submissions, userObject) {
 }
 
 async function analyzeSubmissionMode(entry, submissions) {
-    const settings = await chrome.storage.local.get(STORAGE_KEYS.CUSTOM_KEYWORD);
+    const settings = await chrome.storage.local.get([
+        STORAGE_KEYS.CUSTOM_KEYWORD,
+        STORAGE_KEYS.USE_SPECIFIC_DATE,
+        STORAGE_KEYS.SPECIFIC_SUBMISSION_DATE
+    ]);
+
     let keyword = settings[STORAGE_KEYS.CUSTOM_KEYWORD];
     const isCustomKeyword = !!keyword; // Check if user provided a specific custom keyword
-    
-    const now = new Date();
+
+    // Check if using a specific submission date
+    const useSpecificDate = settings[STORAGE_KEYS.USE_SPECIFIC_DATE];
+    const specificDate = settings[STORAGE_KEYS.SPECIFIC_SUBMISSION_DATE];
+
+    let now = new Date();
+
+    // If using specific date and it's set, use that date instead of today
+    if (useSpecificDate && specificDate) {
+        now = new Date(specificDate);
+    }
+
     if (!keyword) {
         keyword = now.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }).replace(',', '');
     }
