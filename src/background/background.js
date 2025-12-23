@@ -24,7 +24,8 @@ function addToLogBuffer(level, payload) {
 async function onSubmissionFound(entry) {
     await addStudentToFoundList(entry);
     await sendConnectionPings(entry);
-    
+    await sendHighlightStudentRowPayload(entry);
+
     const logPayload = { type: 'SUBMISSION', ...entry };
     addToLogBuffer('log', logPayload);
     chrome.runtime.sendMessage({ type: MESSAGE_TYPES.LOG_TO_PANEL, level: 'log', payload: logPayload }).catch(() => {});
@@ -306,6 +307,74 @@ chrome.runtime.onMessage.addListener(async (msg, sender, sendResponse) => {
       return true;
   }
 });
+
+// --- HIGHLIGHT STUDENT ROW HANDLING ---
+async function sendHighlightStudentRowPayload(entry) {
+    // Only send if we have the required SyStudentId
+    if (!entry.syStudentId) {
+        console.warn('[SRK] Cannot send highlight payload: missing SyStudentId');
+        return;
+    }
+
+    // Load highlight settings
+    const settings = await chrome.storage.local.get([
+        STORAGE_KEYS.HIGHLIGHT_START_COL,
+        STORAGE_KEYS.HIGHLIGHT_END_COL,
+        STORAGE_KEYS.HIGHLIGHT_EDIT_COLUMN,
+        STORAGE_KEYS.HIGHLIGHT_EDIT_TEXT,
+        STORAGE_KEYS.HIGHLIGHT_TARGET_SHEET,
+        STORAGE_KEYS.HIGHLIGHT_COLOR
+    ]);
+
+    // Process editText to replace {assignment} placeholder
+    let editText = settings[STORAGE_KEYS.HIGHLIGHT_EDIT_TEXT] || 'Submitted {assignment}';
+    if (entry.assignment) {
+        editText = editText.replace(/{assignment}/g, entry.assignment);
+    }
+
+    // Process targetSheet to replace MM-DD-YYYY with current date
+    let targetSheet = settings[STORAGE_KEYS.HIGHLIGHT_TARGET_SHEET] || 'LDA MM-DD-YYYY';
+    const now = new Date();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const year = now.getFullYear();
+    targetSheet = targetSheet.replace(/MM/g, month).replace(/DD/g, day).replace(/YYYY/g, year);
+
+    // Build the payload
+    const payload = {
+        type: 'SRK_HIGHLIGHT_STUDENT_ROW',
+        data: {
+            studentName: entry.name,
+            syStudentId: entry.syStudentId,
+            startCol: settings[STORAGE_KEYS.HIGHLIGHT_START_COL] || 'Student Name',
+            endCol: settings[STORAGE_KEYS.HIGHLIGHT_END_COL] || 'Outreach',
+            targetSheet: targetSheet,
+            color: settings[STORAGE_KEYS.HIGHLIGHT_COLOR] || '#92d050',
+            editColumn: settings[STORAGE_KEYS.HIGHLIGHT_EDIT_COLUMN] || 'Outreach',
+            editText: editText
+        }
+    };
+
+    console.log('[SRK] Sending highlight student row payload:', payload);
+
+    // Send to all Excel tabs
+    try {
+        const tabs = await chrome.tabs.query({ url: TARGET_URL_PATTERNS });
+        for (const tab of tabs) {
+            try {
+                await chrome.tabs.sendMessage(tab.id, {
+                    action: 'postToPage',
+                    message: payload
+                });
+                console.log(`[SRK] Sent highlight payload to tab ${tab.id}`);
+            } catch (err) {
+                console.warn(`[SRK] Failed to send highlight payload to tab ${tab.id}:`, err.message);
+            }
+        }
+    } catch (err) {
+        console.error('[SRK] Failed to query Excel tabs:', err);
+    }
+}
 
 // --- CONNECTION HANDLING ---
 async function sendConnectionPings(payload) {

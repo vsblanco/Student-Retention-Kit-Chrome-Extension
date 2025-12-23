@@ -1179,6 +1179,73 @@
                         Automatically set the active student in the extension when you select a student in Excel. Supports both single and multiple student selections (automation mode).
                     </div>
                 </div>
+
+                <!-- Highlight Student Row Configuration -->
+                <div style="margin-bottom: 20px; padding-top: 20px; border-top: 1px solid rgba(0,0,0,0.1);">
+                    <label style="font-size:0.95em; font-weight:500; color:var(--text-main); display:block; margin-bottom:12px;">
+                        <i class="fas fa-highlighter" style="color:var(--primary-color);"></i> Student Submission Highlight Settings
+                    </label>
+                    <div style="font-size:0.8em; color:var(--text-secondary); margin-bottom:15px;">
+                        Configure how student rows are highlighted in Excel when a submission is detected.
+                    </div>
+
+                    <!-- Start Column -->
+                    <div style="margin-bottom: 12px;">
+                        <label style="font-size:0.85em; font-weight:500; color:var(--text-main); display:block; margin-bottom:6px;">
+                            Start Column
+                        </label>
+                        <input type="text" id="highlightStartColInput" placeholder="Student Name" style="width:100%; padding:8px; font-size:0.9em; border: 1px solid rgba(0,0,0,0.2); border-radius:0.5rem;">
+                        <div style="font-size:0.75em; color:var(--text-secondary); margin-top:4px;">Column name or index (0-based) where highlighting starts</div>
+                    </div>
+
+                    <!-- End Column -->
+                    <div style="margin-bottom: 12px;">
+                        <label style="font-size:0.85em; font-weight:500; color:var(--text-main); display:block; margin-bottom:6px;">
+                            End Column
+                        </label>
+                        <input type="text" id="highlightEndColInput" placeholder="Outreach" style="width:100%; padding:8px; font-size:0.9em; border: 1px solid rgba(0,0,0,0.2); border-radius:0.5rem;">
+                        <div style="font-size:0.75em; color:var(--text-secondary); margin-top:4px;">Column name or index (0-based) where highlighting ends</div>
+                    </div>
+
+                    <!-- Edit Column -->
+                    <div style="margin-bottom: 12px;">
+                        <label style="font-size:0.85em; font-weight:500; color:var(--text-main); display:block; margin-bottom:6px;">
+                            Edit Column
+                        </label>
+                        <input type="text" id="highlightEditColumnInput" placeholder="Outreach" style="width:100%; padding:8px; font-size:0.9em; border: 1px solid rgba(0,0,0,0.2); border-radius:0.5rem;">
+                        <div style="font-size:0.75em; color:var(--text-secondary); margin-top:4px;">Column name or index (0-based) to edit with submission info</div>
+                    </div>
+
+                    <!-- Edit Text -->
+                    <div style="margin-bottom: 12px;">
+                        <label style="font-size:0.85em; font-weight:500; color:var(--text-main); display:block; margin-bottom:6px;">
+                            Edit Text
+                        </label>
+                        <input type="text" id="highlightEditTextInput" placeholder="Submitted {assignment}" style="width:100%; padding:8px; font-size:0.9em; border: 1px solid rgba(0,0,0,0.2); border-radius:0.5rem;">
+                        <div style="font-size:0.75em; color:var(--text-secondary); margin-top:4px;">Text to insert (use {assignment} placeholder for assignment name)</div>
+                    </div>
+
+                    <!-- Target Sheet -->
+                    <div style="margin-bottom: 12px;">
+                        <label style="font-size:0.85em; font-weight:500; color:var(--text-main); display:block; margin-bottom:6px;">
+                            Target Sheet
+                        </label>
+                        <input type="text" id="highlightTargetSheetInput" placeholder="LDA MM-DD-YYYY" style="width:100%; padding:8px; font-size:0.9em; border: 1px solid rgba(0,0,0,0.2); border-radius:0.5rem;">
+                        <div style="font-size:0.75em; color:var(--text-secondary); margin-top:4px;">Target worksheet name (use MM-DD-YYYY for date placeholders)</div>
+                    </div>
+
+                    <!-- Highlight Color -->
+                    <div style="margin-bottom: 12px;">
+                        <label style="font-size:0.85em; font-weight:500; color:var(--text-main); display:block; margin-bottom:6px;">
+                            Highlight Color
+                        </label>
+                        <div style="display: flex; gap: 10px; align-items: center;">
+                            <input type="color" id="highlightRowColorInput" value="#92d050" style="width:60px; height:40px; border: 1px solid rgba(0,0,0,0.2); border-radius:0.5rem; cursor:pointer;">
+                            <input type="text" id="highlightRowColorTextInput" placeholder="#92d050" style="flex:1; padding:8px; font-size:0.9em; border: 1px solid rgba(0,0,0,0.2); border-radius:0.5rem;">
+                        </div>
+                        <div style="font-size:0.75em; color:var(--text-secondary); margin-top:4px;">Hex color code for row highlighting</div>
+                    </div>
+                </div>
             </div>
 
             <!-- Power Automate Configuration -->

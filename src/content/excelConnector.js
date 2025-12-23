@@ -250,6 +250,16 @@ if (window.hasSRKConnectorRun) {
       }
   }
 
+  // Listen for messages from extension (e.g., highlight student row requests)
+  chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+      if (request.action === "postToPage" && request.message) {
+          console.log("%c SRK Connector: Forwarding message to page", "color: blue; font-weight: bold", request.message);
+          window.postMessage(request.message, "*");
+          sendResponse({ success: true });
+      }
+      return true; // Keep channel open for async response
+  });
+
   // Periodically announce presence to extension
   setInterval(() => {
       chrome.runtime.sendMessage({
