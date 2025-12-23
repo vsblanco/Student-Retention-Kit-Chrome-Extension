@@ -287,9 +287,13 @@ async function analyzeSubmissionMode(entry, submissions) {
     }
 
     if (found && foundDetails) {
+        console.log('%c [LOOPER] Submission detected!', 'background: #FF9800; color: white; font-weight: bold; padding: 2px 4px;', foundDetails);
         logToDebug('log', `Found submission: ${foundDetails.name} - ${foundDetails.assignment}`);
         if (onFoundCallback) {
+            console.log('%c [LOOPER] Calling onFoundCallback', 'background: #9C27B0; color: white; font-weight: bold; padding: 2px 4px;');
             onFoundCallback(foundDetails);
+        } else {
+            console.warn('[LOOPER] onFoundCallback is not set!');
         }
     }
 }

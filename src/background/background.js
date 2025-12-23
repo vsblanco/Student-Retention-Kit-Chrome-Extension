@@ -22,6 +22,8 @@ function addToLogBuffer(level, payload) {
 
 // Handle found submissions (Submission Mode)
 async function onSubmissionFound(entry) {
+    console.log('%c [SRK] onSubmissionFound triggered', 'background: #2196F3; color: white; font-weight: bold; padding: 2px 4px;', entry);
+
     await addStudentToFoundList(entry);
     await sendConnectionPings(entry);
     await sendHighlightStudentRowPayload(entry);
