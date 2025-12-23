@@ -230,8 +230,21 @@ chrome.runtime.onMessage.addListener(async (msg, sender, sendResponse) => {
           level: 'error',
           args: [`Master List update failed: ${msg.error}`]
       }).catch(() => {});
-  } 
-  
+  }
+  else if (msg.type === MESSAGE_TYPES.SRK_SELECTED_STUDENTS) {
+      console.log(`%c [Background] Selected Student Received:`, "color: purple; font-weight: bold", msg.student?.name);
+
+      // Forward to sidepanel to set as active student
+      chrome.runtime.sendMessage({
+          type: MESSAGE_TYPES.SRK_SELECTED_STUDENTS,
+          student: msg.student,
+          timestamp: msg.timestamp,
+          sourceTimestamp: msg.sourceTimestamp
+      }).catch(() => {
+          // Sidepanel might not be open, that's ok
+      });
+  }
+
   // --- FIVE9 INTEGRATION ---
   else if (msg.type === 'triggerFive9Call') {
       (async () => {

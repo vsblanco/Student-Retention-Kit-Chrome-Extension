@@ -1,5 +1,5 @@
 // Sidepanel Main - Orchestrates all modules and manages app lifecycle
-import { STORAGE_KEYS, EXTENSION_STATES } from '../constants/index.js';
+import { STORAGE_KEYS, EXTENSION_STATES, MESSAGE_TYPES } from '../constants/index.js';
 import { hasDispositionCode } from '../constants/dispositions.js';
 import { getCacheStats, clearAllCache } from '../utils/canvasCache.js';
 import CallManager from './callManager.js';
@@ -565,6 +565,48 @@ chrome.storage.onChanged.addListener((changes) => {
     }
     if (changes[STORAGE_KEYS.EXTENSION_STATE]) {
         updateButtonVisuals(changes[STORAGE_KEYS.EXTENSION_STATE].newValue);
+    }
+});
+
+// Runtime message listener for Office Add-in student selection sync
+chrome.runtime.onMessage.addListener(async (msg, sender, sendResponse) => {
+    if (msg.type === MESSAGE_TYPES.SRK_SELECTED_STUDENTS) {
+        console.log('%c [Sidepanel] Setting active student from Office Add-in:', 'color: purple; font-weight: bold', msg.student?.name);
+
+        if (msg.student && callManager) {
+            // Try to find matching student in master list for complete data
+            const data = await chrome.storage.local.get([STORAGE_KEYS.MASTER_ENTRIES]);
+            const masterEntries = data[STORAGE_KEYS.MASTER_ENTRIES] || [];
+
+            let studentToSet = msg.student;
+
+            // Try to match by SyStudentId or name
+            if (masterEntries.length > 0) {
+                const matchedStudent = masterEntries.find(entry => {
+                    // Match by SyStudentId if available
+                    if (msg.student.SyStudentId && entry.SyStudentId) {
+                        return entry.SyStudentId === msg.student.SyStudentId;
+                    }
+                    // Otherwise match by name
+                    return entry.name === msg.student.name;
+                });
+
+                if (matchedStudent) {
+                    console.log(`Matched with master list student: ${matchedStudent.name}`);
+                    studentToSet = matchedStudent;
+                } else {
+                    console.log('No match found in master list, using Office add-in data');
+                }
+            }
+
+            // Set the student as active in the contact tab
+            setActiveStudent(studentToSet, callManager);
+
+            // Switch to contact tab to show the selected student
+            switchTab('contact');
+
+            console.log(`Active student set to: ${studentToSet.name}`);
+        }
     }
 });
 
