@@ -310,6 +310,8 @@ chrome.runtime.onMessage.addListener(async (msg, sender, sendResponse) => {
 
 // --- HIGHLIGHT STUDENT ROW HANDLING ---
 async function sendHighlightStudentRowPayload(entry) {
+    console.log('%c [SRK] Submission Found - Sending payload to Office Add-in', 'background: #4CAF50; color: white; font-weight: bold; padding: 2px 4px;', entry.name);
+
     // Only send if we have the required SyStudentId
     if (!entry.syStudentId) {
         console.warn('[SRK] Cannot send highlight payload: missing SyStudentId');
