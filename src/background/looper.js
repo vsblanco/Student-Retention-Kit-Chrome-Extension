@@ -246,8 +246,11 @@ async function analyzeSubmissionMode(entry, submissions) {
 
     // If using specific date and it's set, use that date instead of today
     if (useSpecificDate && specificDate) {
-        now = new Date(specificDate);
-        console.log(`%c [LOOPER] Using specific date: ${specificDate} -> ${now}`, 'color: #FF5722; font-weight: bold;');
+        // Parse date string in LOCAL timezone to avoid UTC conversion issues
+        // Format expected: YYYY-MM-DD
+        const [year, month, day] = specificDate.split('-').map(Number);
+        now = new Date(year, month - 1, day); // month is 0-indexed
+        console.log(`%c [LOOPER] Using specific date: ${specificDate} -> ${now.toDateString()}`, 'color: #FF5722; font-weight: bold;');
     }
 
     if (!keyword) {
