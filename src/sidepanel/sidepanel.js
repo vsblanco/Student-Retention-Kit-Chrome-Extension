@@ -217,6 +217,19 @@ function setupEventListeners() {
         elements.syncActiveStudentToggleModal.addEventListener('click', toggleSyncActiveStudentModal);
     }
 
+    // Highlight Row Color Sync
+    if (elements.highlightRowColorInput && elements.highlightRowColorTextInput) {
+        elements.highlightRowColorInput.addEventListener('input', (e) => {
+            elements.highlightRowColorTextInput.value = e.target.value;
+        });
+        elements.highlightRowColorTextInput.addEventListener('input', (e) => {
+            const color = e.target.value;
+            if (/^#[0-9A-Fa-f]{6}$/.test(color)) {
+                elements.highlightRowColorInput.value = color;
+            }
+        });
+    }
+
     // Scan Filter Modal
     if (elements.scanFilterBtn) {
         elements.scanFilterBtn.addEventListener('click', openScanFilterModal);

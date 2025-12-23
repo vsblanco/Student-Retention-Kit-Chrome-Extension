@@ -337,7 +337,20 @@ export function openConnectionsModal(connectionType) {
     }
 
     // Load current settings into modal
-    chrome.storage.local.get(['autoUpdateMasterList', 'syncActiveStudent', 'powerAutomateUrl', 'embedInCanvas', 'highlightColor', 'debugMode'], (result) => {
+    chrome.storage.local.get([
+        'autoUpdateMasterList',
+        'syncActiveStudent',
+        'powerAutomateUrl',
+        'embedInCanvas',
+        'highlightColor',
+        'debugMode',
+        'highlightStartCol',
+        'highlightEndCol',
+        'highlightEditColumn',
+        'highlightEditText',
+        'highlightTargetSheet',
+        'highlightRowColor'
+    ], (result) => {
         // Load auto-update setting
         const setting = result.autoUpdateMasterList || 'always';
         if (elements.autoUpdateSelectModal) {
@@ -366,6 +379,28 @@ export function openConnectionsModal(connectionType) {
         // Load Five9 settings
         const debugMode = result.debugMode || false;
         updateDebugModeModalUI(debugMode);
+
+        // Load Highlight Student Row settings
+        if (elements.highlightStartColInput) {
+            elements.highlightStartColInput.value = result.highlightStartCol || 'Student Name';
+        }
+        if (elements.highlightEndColInput) {
+            elements.highlightEndColInput.value = result.highlightEndCol || 'Outreach';
+        }
+        if (elements.highlightEditColumnInput) {
+            elements.highlightEditColumnInput.value = result.highlightEditColumn || 'Outreach';
+        }
+        if (elements.highlightEditTextInput) {
+            elements.highlightEditTextInput.value = result.highlightEditText || 'Submitted {assignment}';
+        }
+        if (elements.highlightTargetSheetInput) {
+            elements.highlightTargetSheetInput.value = result.highlightTargetSheet || 'LDA MM-DD-YYYY';
+        }
+        if (elements.highlightRowColorInput && elements.highlightRowColorTextInput) {
+            const color = result.highlightRowColor || '#92d050';
+            elements.highlightRowColorInput.value = color;
+            elements.highlightRowColorTextInput.value = color;
+        }
 
         // Load cache stats
         loadCacheStatsForModal();
@@ -493,6 +528,26 @@ export async function saveConnectionsSettings() {
         const debugEnabled = elements.debugModeToggleModal.classList.contains('fa-toggle-on');
         settingsToSave.debugMode = debugEnabled;
         console.log(`Debug Mode setting saved: ${debugEnabled}`);
+    }
+
+    // Save Highlight Student Row settings
+    if (elements.highlightStartColInput) {
+        settingsToSave.highlightStartCol = elements.highlightStartColInput.value || 'Student Name';
+    }
+    if (elements.highlightEndColInput) {
+        settingsToSave.highlightEndCol = elements.highlightEndColInput.value || 'Outreach';
+    }
+    if (elements.highlightEditColumnInput) {
+        settingsToSave.highlightEditColumn = elements.highlightEditColumnInput.value || 'Outreach';
+    }
+    if (elements.highlightEditTextInput) {
+        settingsToSave.highlightEditText = elements.highlightEditTextInput.value || 'Submitted {assignment}';
+    }
+    if (elements.highlightTargetSheetInput) {
+        settingsToSave.highlightTargetSheet = elements.highlightTargetSheetInput.value || 'LDA MM-DD-YYYY';
+    }
+    if (elements.highlightRowColorTextInput) {
+        settingsToSave.highlightRowColor = elements.highlightRowColorTextInput.value || '#92d050';
     }
 
     // Save all settings

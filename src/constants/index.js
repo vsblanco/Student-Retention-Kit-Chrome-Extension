@@ -90,7 +90,14 @@ export const STORAGE_KEYS = {
     // Power Automate Settings
     POWER_AUTOMATE_URL: 'powerAutomateUrl',
     // Excel Student Sync Settings
-    SYNC_ACTIVE_STUDENT: 'syncActiveStudent'
+    SYNC_ACTIVE_STUDENT: 'syncActiveStudent',
+    // Highlight Student Row Payload Settings
+    HIGHLIGHT_START_COL: 'highlightStartCol',
+    HIGHLIGHT_END_COL: 'highlightEndCol',
+    HIGHLIGHT_EDIT_COLUMN: 'highlightEditColumn',
+    HIGHLIGHT_EDIT_TEXT: 'highlightEditText',
+    HIGHLIGHT_TARGET_SHEET: 'highlightTargetSheet',
+    HIGHLIGHT_COLOR: 'highlightRowColor'
 };
 
 /**
@@ -111,7 +118,14 @@ export const DEFAULT_SETTINGS = {
     [STORAGE_KEYS.SCAN_FILTER_DAYS_OUT]: '>=5',
     [STORAGE_KEYS.SCAN_FILTER_INCLUDE_FAILING]: false,
     [STORAGE_KEYS.AUTO_UPDATE_MASTER_LIST]: 'always', // Options: 'always', 'once-daily', 'never'
-    [STORAGE_KEYS.SYNC_ACTIVE_STUDENT]: true // Enable student sync from Excel add-in by default
+    [STORAGE_KEYS.SYNC_ACTIVE_STUDENT]: true, // Enable student sync from Excel add-in by default
+    // Highlight Student Row Payload Defaults
+    [STORAGE_KEYS.HIGHLIGHT_START_COL]: 'Student Name',
+    [STORAGE_KEYS.HIGHLIGHT_END_COL]: 'Outreach',
+    [STORAGE_KEYS.HIGHLIGHT_EDIT_COLUMN]: 'Outreach',
+    [STORAGE_KEYS.HIGHLIGHT_EDIT_TEXT]: 'Submitted {assignment}',
+    [STORAGE_KEYS.HIGHLIGHT_TARGET_SHEET]: 'LDA MM-DD-YYYY',
+    [STORAGE_KEYS.HIGHLIGHT_COLOR]: '#92d050'
 };
 
 /**

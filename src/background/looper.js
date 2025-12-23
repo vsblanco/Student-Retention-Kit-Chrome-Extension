@@ -257,13 +257,14 @@ async function analyzeSubmissionMode(entry, submissions) {
             
             if (isMatch) {
                 found = true;
-                
+
                 foundDetails = {
                     name: entry.name,
                     time: subDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
                     url: entry.url,
                     timestamp: sub.submitted_at,
-                    assignment: sub.assignment ? sub.assignment.name : 'Unknown Assignment'
+                    assignment: sub.assignment ? sub.assignment.name : 'Unknown Assignment',
+                    syStudentId: entry.SyStudentId || null
                 };
                 break;
             }

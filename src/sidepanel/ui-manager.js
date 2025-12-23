@@ -141,6 +141,13 @@ export function cacheDomElements() {
     elements.five9ConfigContent = document.getElementById('five9ConfigContent');
     elements.autoUpdateSelectModal = document.getElementById('autoUpdateSelectModal');
     elements.syncActiveStudentToggleModal = document.getElementById('syncActiveStudentToggleModal');
+    elements.highlightStartColInput = document.getElementById('highlightStartColInput');
+    elements.highlightEndColInput = document.getElementById('highlightEndColInput');
+    elements.highlightEditColumnInput = document.getElementById('highlightEditColumnInput');
+    elements.highlightEditTextInput = document.getElementById('highlightEditTextInput');
+    elements.highlightTargetSheetInput = document.getElementById('highlightTargetSheetInput');
+    elements.highlightRowColorInput = document.getElementById('highlightRowColorInput');
+    elements.highlightRowColorTextInput = document.getElementById('highlightRowColorTextInput');
     elements.powerAutomateUrlInput = document.getElementById('powerAutomateUrlInput');
     elements.powerAutomateStatusText = document.getElementById('powerAutomateStatusText');
     elements.powerAutomateStatusDot = document.getElementById('powerAutomateStatusDot');
