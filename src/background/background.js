@@ -232,12 +232,16 @@ chrome.runtime.onMessage.addListener(async (msg, sender, sendResponse) => {
       }).catch(() => {});
   }
   else if (msg.type === MESSAGE_TYPES.SRK_SELECTED_STUDENTS) {
-      console.log(`%c [Background] Selected Student Received:`, "color: purple; font-weight: bold", msg.student?.name);
+      const studentText = msg.count === 1
+          ? msg.students[0]?.name
+          : `${msg.count} students`;
+      console.log(`%c [Background] Selected Students Received:`, "color: purple; font-weight: bold", studentText);
 
-      // Forward to sidepanel to set as active student
+      // Forward to sidepanel to set as active student or automation mode
       chrome.runtime.sendMessage({
           type: MESSAGE_TYPES.SRK_SELECTED_STUDENTS,
-          student: msg.student,
+          students: msg.students,
+          count: msg.count,
           timestamp: msg.timestamp,
           sourceTimestamp: msg.sourceTimestamp
       }).catch(() => {

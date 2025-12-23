@@ -204,38 +204,36 @@ if (window.hasSRKConnectorRun) {
               return;
           }
 
-          // For now, we only handle single student selection to set as active
+          // Transform all students from add-in format to extension format
+          const transformedStudents = data.students.map(student => ({
+              name: student.name || 'Unknown',
+              phone: student.phone || student.otherPhone || null,
+              SyStudentId: student.syStudentId || null,
+              // Set defaults for fields not provided by the Office add-in
+              grade: null,
+              StudentNumber: null,
+              daysout: 0,
+              missingCount: 0,
+              url: null,
+              assignments: []
+          }));
+
           if (data.count === 1) {
-              const student = data.students[0];
-
-              // Transform student from add-in format to extension format
-              const transformedStudent = {
-                  name: student.name || 'Unknown',
-                  phone: student.phone || student.otherPhone || null,
-                  SyStudentId: student.syStudentId || null,
-                  // Set defaults for fields not provided by the Office add-in
-                  grade: null,
-                  StudentNumber: null,
-                  daysout: 0,
-                  missingCount: 0,
-                  url: null,
-                  assignments: []
-              };
-
-              console.log(`Setting active student: ${transformedStudent.name}`);
-
-              // Send to extension
-              chrome.runtime.sendMessage({
-                  type: "SRK_SELECTED_STUDENTS",
-                  student: transformedStudent,
-                  timestamp: Date.now(),
-                  sourceTimestamp: data.timestamp
-              }).catch(() => {
-                  // Extension might not be ready, that's ok
-              });
+              console.log(`Setting active student: ${transformedStudents[0].name}`);
           } else {
-              console.log(`Multiple students selected (${data.count}). Active student sync only works with single selection.`);
+              console.log(`Setting up automation mode with ${data.count} students`);
           }
+
+          // Send to extension (works for both single and multiple)
+          chrome.runtime.sendMessage({
+              type: "SRK_SELECTED_STUDENTS",
+              students: transformedStudents,
+              count: data.count,
+              timestamp: Date.now(),
+              sourceTimestamp: data.timestamp
+          }).catch(() => {
+              // Extension might not be ready, that's ok
+          });
 
       } catch (error) {
           console.error("%c Error processing Selected Students data:", "color: red; font-weight: bold", error);

@@ -571,41 +571,48 @@ chrome.storage.onChanged.addListener((changes) => {
 // Runtime message listener for Office Add-in student selection sync
 chrome.runtime.onMessage.addListener(async (msg, sender, sendResponse) => {
     if (msg.type === MESSAGE_TYPES.SRK_SELECTED_STUDENTS) {
-        console.log('%c [Sidepanel] Setting active student from Office Add-in:', 'color: purple; font-weight: bold', msg.student?.name);
+        const modeText = msg.count === 1 ? 'active student' : 'automation mode';
+        console.log(`%c [Sidepanel] Setting ${modeText} from Office Add-in:`, 'color: purple; font-weight: bold', msg.count, 'student(s)');
 
-        if (msg.student && callManager) {
-            // Try to find matching student in master list for complete data
+        if (msg.students && msg.students.length > 0 && callManager && queueManager) {
+            // Try to find matching students in master list for complete data
             const data = await chrome.storage.local.get([STORAGE_KEYS.MASTER_ENTRIES]);
             const masterEntries = data[STORAGE_KEYS.MASTER_ENTRIES] || [];
 
-            let studentToSet = msg.student;
+            // Match all students with master list
+            const studentsToSet = msg.students.map(student => {
+                // Try to match by SyStudentId or name
+                if (masterEntries.length > 0) {
+                    const matchedStudent = masterEntries.find(entry => {
+                        // Match by SyStudentId if available
+                        if (student.SyStudentId && entry.SyStudentId) {
+                            return entry.SyStudentId === student.SyStudentId;
+                        }
+                        // Otherwise match by name
+                        return entry.name === student.name;
+                    });
 
-            // Try to match by SyStudentId or name
-            if (masterEntries.length > 0) {
-                const matchedStudent = masterEntries.find(entry => {
-                    // Match by SyStudentId if available
-                    if (msg.student.SyStudentId && entry.SyStudentId) {
-                        return entry.SyStudentId === msg.student.SyStudentId;
+                    if (matchedStudent) {
+                        console.log(`Matched with master list: ${matchedStudent.name}`);
+                        return matchedStudent;
+                    } else {
+                        console.log(`No match for ${student.name}, using Office add-in data`);
                     }
-                    // Otherwise match by name
-                    return entry.name === msg.student.name;
-                });
-
-                if (matchedStudent) {
-                    console.log(`Matched with master list student: ${matchedStudent.name}`);
-                    studentToSet = matchedStudent;
-                } else {
-                    console.log('No match found in master list, using Office add-in data');
                 }
-            }
+                return student;
+            });
 
-            // Set the student as active in the contact tab
-            setActiveStudent(studentToSet, callManager);
+            // Set queue using queue manager (handles both single and multiple)
+            queueManager.setQueue(studentsToSet);
 
-            // Switch to contact tab to show the selected student
+            // Switch to contact tab to show the selected student(s)
             switchTab('contact');
 
-            console.log(`Active student set to: ${studentToSet.name}`);
+            if (msg.count === 1) {
+                console.log(`Active student set to: ${studentsToSet[0].name}`);
+            } else {
+                console.log(`Automation mode enabled with ${msg.count} students`);
+            }
         }
     }
 });
