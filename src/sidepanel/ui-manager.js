@@ -109,6 +109,10 @@ export function cacheDomElements() {
     elements.versionModal = document.getElementById('versionModal');
     elements.closeVersionBtn = document.getElementById('closeVersionBtn');
     elements.clearMasterListBtn = document.getElementById('clearMasterListBtn');
+    elements.useSpecificDateToggle = document.getElementById('useSpecificDateToggle');
+    elements.specificDatePicker = document.getElementById('specificDatePicker');
+    elements.specificDateInput = document.getElementById('specificDateInput');
+    elements.clearSpecificDateBtn = document.getElementById('clearSpecificDateBtn');
 
     // Scan Filter Modal
     elements.scanFilterModal = document.getElementById('scanFilterModal');

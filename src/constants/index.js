@@ -97,7 +97,10 @@ export const STORAGE_KEYS = {
     HIGHLIGHT_EDIT_COLUMN: 'highlightEditColumn',
     HIGHLIGHT_EDIT_TEXT: 'highlightEditText',
     HIGHLIGHT_TARGET_SHEET: 'highlightTargetSheet',
-    HIGHLIGHT_COLOR: 'highlightRowColor'
+    HIGHLIGHT_COLOR: 'highlightRowColor',
+    // Specific Submission Date Settings
+    USE_SPECIFIC_DATE: 'useSpecificDate',
+    SPECIFIC_SUBMISSION_DATE: 'specificSubmissionDate'
 };
 
 /**
@@ -125,7 +128,10 @@ export const DEFAULT_SETTINGS = {
     [STORAGE_KEYS.HIGHLIGHT_EDIT_COLUMN]: 'Outreach',
     [STORAGE_KEYS.HIGHLIGHT_EDIT_TEXT]: 'Submitted {assignment}',
     [STORAGE_KEYS.HIGHLIGHT_TARGET_SHEET]: 'LDA MM-DD-YYYY',
-    [STORAGE_KEYS.HIGHLIGHT_COLOR]: '#92d050'
+    [STORAGE_KEYS.HIGHLIGHT_COLOR]: '#92d050',
+    // Specific Submission Date Defaults
+    [STORAGE_KEYS.USE_SPECIFIC_DATE]: false,
+    [STORAGE_KEYS.SPECIFIC_SUBMISSION_DATE]: null
 };
 
 /**

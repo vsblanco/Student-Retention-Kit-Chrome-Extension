@@ -173,6 +173,79 @@ function setupEventListeners() {
         });
     }
 
+    // Specific Submission Date Toggle
+    if (elements.useSpecificDateToggle) {
+        elements.useSpecificDateToggle.addEventListener('click', async () => {
+            const isOn = elements.useSpecificDateToggle.classList.contains('fa-toggle-on');
+            const newState = !isOn;
+
+            // Update toggle visual
+            elements.useSpecificDateToggle.classList.toggle('fa-toggle-on', newState);
+            elements.useSpecificDateToggle.classList.toggle('fa-toggle-off', !newState);
+            elements.useSpecificDateToggle.style.color = newState ? '#22c55e' : 'gray';
+
+            // Show/hide date picker
+            if (elements.specificDatePicker) {
+                elements.specificDatePicker.style.display = newState ? 'block' : 'none';
+            }
+
+            // If turning on, set to today's date if no date is set
+            if (newState && elements.specificDateInput) {
+                const currentValue = elements.specificDateInput.value;
+                if (!currentValue) {
+                    const today = new Date().toISOString().split('T')[0];
+                    elements.specificDateInput.value = today;
+                    await chrome.storage.local.set({
+                        [STORAGE_KEYS.SPECIFIC_SUBMISSION_DATE]: today
+                    });
+                }
+            }
+
+            // Save toggle state
+            await chrome.storage.local.set({
+                [STORAGE_KEYS.USE_SPECIFIC_DATE]: newState
+            });
+        });
+    }
+
+    // Specific Date Input Change
+    if (elements.specificDateInput) {
+        elements.specificDateInput.addEventListener('change', async (e) => {
+            const selectedDate = e.target.value;
+            await chrome.storage.local.set({
+                [STORAGE_KEYS.SPECIFIC_SUBMISSION_DATE]: selectedDate
+            });
+        });
+    }
+
+    // Clear Specific Date Button
+    if (elements.clearSpecificDateBtn) {
+        elements.clearSpecificDateBtn.addEventListener('click', async () => {
+            // Clear the date input
+            if (elements.specificDateInput) {
+                elements.specificDateInput.value = '';
+            }
+
+            // Turn off the toggle
+            if (elements.useSpecificDateToggle) {
+                elements.useSpecificDateToggle.classList.remove('fa-toggle-on');
+                elements.useSpecificDateToggle.classList.add('fa-toggle-off');
+                elements.useSpecificDateToggle.style.color = 'gray';
+            }
+
+            // Hide the date picker
+            if (elements.specificDatePicker) {
+                elements.specificDatePicker.style.display = 'none';
+            }
+
+            // Clear from storage
+            await chrome.storage.local.set({
+                [STORAGE_KEYS.USE_SPECIFIC_DATE]: false,
+                [STORAGE_KEYS.SPECIFIC_SUBMISSION_DATE]: null
+            });
+        });
+    }
+
     // Connections Modal
     if (elements.configureExcelBtn) {
         elements.configureExcelBtn.addEventListener('click', () => openConnectionsModal('excel'));
@@ -527,7 +600,9 @@ async function loadStorageData() {
         STORAGE_KEYS.EMBED_IN_CANVAS,
         STORAGE_KEYS.HIGHLIGHT_COLOR,
         STORAGE_KEYS.AUTO_UPDATE_MASTER_LIST,
-        STORAGE_KEYS.POWER_AUTOMATE_URL
+        STORAGE_KEYS.POWER_AUTOMATE_URL,
+        STORAGE_KEYS.USE_SPECIFIC_DATE,
+        STORAGE_KEYS.SPECIFIC_SUBMISSION_DATE
     ]);
 
     const foundEntries = data[STORAGE_KEYS.FOUND_ENTRIES] || [];
@@ -569,6 +644,24 @@ async function loadStorageData() {
 
     // Update Five9 connection status
     updateFive9Status();
+
+    // Load Specific Submission Date settings
+    const useSpecificDate = data[STORAGE_KEYS.USE_SPECIFIC_DATE] || false;
+    const specificDate = data[STORAGE_KEYS.SPECIFIC_SUBMISSION_DATE];
+
+    if (elements.useSpecificDateToggle) {
+        elements.useSpecificDateToggle.classList.toggle('fa-toggle-on', useSpecificDate);
+        elements.useSpecificDateToggle.classList.toggle('fa-toggle-off', !useSpecificDate);
+        elements.useSpecificDateToggle.style.color = useSpecificDate ? '#22c55e' : 'gray';
+    }
+
+    if (elements.specificDatePicker) {
+        elements.specificDatePicker.style.display = useSpecificDate ? 'block' : 'none';
+    }
+
+    if (elements.specificDateInput && specificDate) {
+        elements.specificDateInput.value = specificDate;
+    }
 }
 
 // Storage change listener

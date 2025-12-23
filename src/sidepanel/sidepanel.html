@@ -897,6 +897,25 @@
             <span>Clear Master List</span>
             <i class="fas fa-trash-alt" style="color:#ef4444; font-size:1.2em;"></i>
         </div>
+        <div class="setting-card">
+            <div style="flex-grow:1;">
+                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
+                    <span>Use Specific Submission Date</span>
+                    <i id="useSpecificDateToggle" class="fas fa-toggle-off" style="color:gray; font-size:2.5em; cursor: pointer;"></i>
+                </div>
+                <div id="specificDatePicker" style="display:none; margin-top:8px;">
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <input type="date" id="specificDateInput" style="flex-grow:1; padding:8px; border:1px solid var(--border-color); border-radius:4px; background:var(--bg-primary); color:var(--text-primary);">
+                        <button id="clearSpecificDateBtn" class="btn-secondary" style="width:auto; margin:0; padding:8px 12px;">
+                            <i class="fas fa-times"></i> Clear
+                        </button>
+                    </div>
+                    <div style="font-size:0.85em; color:var(--text-secondary); margin-top:4px;">
+                        When cleared, automatically uses today's date
+                    </div>
+                </div>
+            </div>
+        </div>
 
         <h3>Connections</h3>
         <div class="setting-card">
