@@ -22,6 +22,8 @@ function addToLogBuffer(level, payload) {
 
 // Handle found submissions (Submission Mode)
 async function onSubmissionFound(entry) {
+    console.log('%c [SRK] onSubmissionFound triggered', 'background: #2196F3; color: white; font-weight: bold; padding: 2px 4px;', entry);
+
     await addStudentToFoundList(entry);
     await sendConnectionPings(entry);
     await sendHighlightStudentRowPayload(entry);
@@ -310,6 +312,8 @@ chrome.runtime.onMessage.addListener(async (msg, sender, sendResponse) => {
 
 // --- HIGHLIGHT STUDENT ROW HANDLING ---
 async function sendHighlightStudentRowPayload(entry) {
+    console.log('%c [SRK] Submission Found - Sending payload to Office Add-in', 'background: #4CAF50; color: white; font-weight: bold; padding: 2px 4px;', entry.name);
+
     // Only send if we have the required SyStudentId
     if (!entry.syStudentId) {
         console.warn('[SRK] Cannot send highlight payload: missing SyStudentId');
@@ -438,23 +442,28 @@ function updateBadge() {
 }
 
 async function handleStateChange(newState, oldState) {
+    console.log(`%c [BACKGROUND] State Change: ${oldState} -> ${newState}`, 'background: #9C27B0; color: white; font-weight: bold; padding: 4px;');
+
     if (newState === EXTENSION_STATES.ON) {
         const settings = await chrome.storage.local.get(STORAGE_KEYS.CHECKER_MODE);
         const currentMode = settings[STORAGE_KEYS.CHECKER_MODE] || CHECKER_MODES.SUBMISSION;
-        
+
+        console.log(`%c ▶ STARTING CHECKER - Mode: ${currentMode}`, 'background: #4CAF50; color: white; font-weight: bold; font-size: 14px; padding: 4px;');
+
         if (currentMode === CHECKER_MODES.MISSING) {
             missingAssignmentsCollector = [];
             missingCheckStartTime = Date.now();
             console.log("Starting Missing Assignments check (API Mode).");
-            startLoop({ 
+            startLoop({
                 onComplete: onMissingCheckCompleted,
-                onMissingFound: onMissingFound 
+                onMissingFound: onMissingFound
             });
         } else {
             console.log("Starting Submission check (API Mode).");
             startLoop({ onFound: onSubmissionFound });
         }
     } else if (newState === EXTENSION_STATES.OFF && (oldState === EXTENSION_STATES.ON || oldState === EXTENSION_STATES.PAUSED)) {
+        console.log(`%c ■ STOPPING CHECKER`, 'background: #F44336; color: white; font-weight: bold; font-size: 14px; padding: 4px;');
         stopLoop();
     }
 }

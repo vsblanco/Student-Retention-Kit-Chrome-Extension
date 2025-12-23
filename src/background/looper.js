@@ -246,12 +246,18 @@ async function analyzeSubmissionMode(entry, submissions) {
 
     // If using specific date and it's set, use that date instead of today
     if (useSpecificDate && specificDate) {
-        now = new Date(specificDate);
+        // Parse date string in LOCAL timezone to avoid UTC conversion issues
+        // Format expected: YYYY-MM-DD
+        const [year, month, day] = specificDate.split('-').map(Number);
+        now = new Date(year, month - 1, day); // month is 0-indexed
+        console.log(`%c [LOOPER] Using specific date: ${specificDate} -> ${now.toDateString()}`, 'color: #FF5722; font-weight: bold;');
     }
 
     if (!keyword) {
         keyword = now.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }).replace(',', '');
     }
+
+    console.log(`%c [LOOPER] Checking ${entry.name} - Keyword: "${keyword}" | Custom: ${isCustomKeyword} | Submissions: ${submissions.length}`, 'color: #00BCD4;');
 
     let found = false;
     let foundDetails = null;
@@ -260,7 +266,7 @@ async function analyzeSubmissionMode(entry, submissions) {
         if (sub.submitted_at) {
             const subDate = new Date(sub.submitted_at);
             const subDateStr = subDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }).replace(',', '');
-            
+
             // FIX: If using default date (Today), use strict equality (===) to prevent "Dec 10" matching "Dec 1".
             // If using a custom keyword (e.g. "Dec"), allow .includes() for partial matching.
             let isMatch = false;
@@ -269,7 +275,9 @@ async function analyzeSubmissionMode(entry, submissions) {
             } else {
                 isMatch = subDateStr === keyword;
             }
-            
+
+            console.log(`  [SUB] "${subDateStr}" ${isCustomKeyword ? 'includes' : '==='} "${keyword}" = ${isMatch} | Assignment: ${sub.assignment?.name || 'Unknown'}`);
+
             if (isMatch) {
                 found = true;
 
@@ -287,9 +295,13 @@ async function analyzeSubmissionMode(entry, submissions) {
     }
 
     if (found && foundDetails) {
+        console.log('%c [LOOPER] Submission detected!', 'background: #FF9800; color: white; font-weight: bold; padding: 2px 4px;', foundDetails);
         logToDebug('log', `Found submission: ${foundDetails.name} - ${foundDetails.assignment}`);
         if (onFoundCallback) {
+            console.log('%c [LOOPER] Calling onFoundCallback', 'background: #9C27B0; color: white; font-weight: bold; padding: 2px 4px;');
             onFoundCallback(foundDetails);
+        } else {
+            console.warn('[LOOPER] onFoundCallback is not set!');
         }
     }
 }
@@ -328,12 +340,15 @@ function prepareBatches(entries) {
 
 // NEW: Core Logic extracted to allow re-runs
 async function performLoop() {
+    console.log('%c [LOOPER] performLoop() called', 'background: #673AB7; color: white; font-weight: bold; padding: 4px;');
+
     // Reset state for new cycle
     currentLoopIndex = 0;
     processedCount = 0;
     activeRequests = 0;
 
     await loadSettings();
+    console.log(`[LOOPER] Settings loaded - Mode: ${currentCheckerMode}, Concurrent: ${maxConcurrentRequests}`);
 
     // 1. Fetch Fresh Data
     const data = await chrome.storage.local.get([
@@ -347,6 +362,8 @@ async function performLoop() {
     const foundEntries = data[STORAGE_KEYS.FOUND_ENTRIES] || [];
     const filterText = (data[STORAGE_KEYS.LOOPER_DAYS_OUT_FILTER] || 'all').trim().toLowerCase();
     const includeFailing = data[STORAGE_KEYS.SCAN_FILTER_INCLUDE_FAILING] || false;
+
+    console.log(`[LOOPER] Data loaded - Master: ${masterEntries.length} students, Found: ${foundEntries.length}, Filter: "${filterText}", IncludeFailing: ${includeFailing}`);
 
     // 2. Re-build Cache
     foundUrlCache = new Set(foundEntries.map(e => e.url).filter(Boolean));
@@ -416,16 +433,20 @@ async function performLoop() {
     }
 
     // 5. Build Batches
-    totalStudents = filteredList.length; 
+    totalStudents = filteredList.length;
     batchQueue = prepareBatches(filteredList);
-    console.log(`Prepared ${batchQueue.length} batches from ${totalStudents} students.`);
-    
+
+    console.log('%c ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'color: #00BCD4;');
+    console.log(`%c [LOOPER] Prepared ${batchQueue.length} batches from ${totalStudents} students`, 'background: #00BCD4; color: white; font-weight: bold; padding: 4px;');
+    console.log('%c ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'color: #00BCD4;');
+
     // Update UI immediately
-    chrome.storage.local.set({ 
-        [STORAGE_KEYS.LOOP_STATUS]: { current: 0, total: totalStudents } 
+    chrome.storage.local.set({
+        [STORAGE_KEYS.LOOP_STATUS]: { current: 0, total: totalStudents }
     });
 
     // 6. Launch
+    console.log(`[LOOPER] Launching ${maxConcurrentRequests} concurrent workers...`);
     for (let i = 0; i < maxConcurrentRequests; i++) {
         next();
     }
@@ -488,23 +509,38 @@ export function getActiveTabs() { return new Map(); }
 export function addToFoundUrlCache(url) { if (url) foundUrlCache.add(url); }
 
 export async function startLoop(options = {}) {
-    if (isLooping && !options.force) return;
-    
-    console.log('START BATCH API MODE.');
+    if (isLooping && !options.force) {
+        console.log('%c [LOOPER] Already running, skipping start', 'color: orange; font-weight: bold;');
+        return;
+    }
+
+    console.log('%c ═══════════════════════════════════════', 'color: #4CAF50; font-weight: bold;');
+    console.log('%c [LOOPER] START BATCH API MODE', 'background: #4CAF50; color: white; font-weight: bold; font-size: 16px; padding: 4px;');
+    console.log('%c ═══════════════════════════════════════', 'color: #4CAF50; font-weight: bold;');
+
     onCompleteCallback = options.onComplete || null;
     onFoundCallback = options.onFound || null;
     onMissingFoundCallback = options.onMissingFound || null;
+
+    console.log('[LOOPER] Callbacks set:', {
+        hasOnFound: !!onFoundCallback,
+        hasOnComplete: !!onCompleteCallback,
+        hasOnMissingFound: !!onMissingFoundCallback
+    });
 
     isLooping = true;
     performLoop(); // Call the logic function
 }
 
 export function stopLoop() {
+    console.log('%c ═══════════════════════════════════════', 'color: #F44336; font-weight: bold;');
+    console.log('%c [LOOPER] STOP API MODE', 'background: #F44336; color: white; font-weight: bold; font-size: 16px; padding: 4px;');
+    console.log('%c ═══════════════════════════════════════', 'color: #F44336; font-weight: bold;');
+
     isLooping = false;
     activeRequests = 0;
     onCompleteCallback = null;
     onFoundCallback = null;
     onMissingFoundCallback = null;
     chrome.storage.local.remove(STORAGE_KEYS.LOOP_STATUS);
-    console.log('STOP API MODE.');
 }
