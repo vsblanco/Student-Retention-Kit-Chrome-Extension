@@ -340,6 +340,7 @@ export function openConnectionsModal(connectionType) {
     chrome.storage.local.get([
         'autoUpdateMasterList',
         'syncActiveStudent',
+        'highlightStudentRowEnabled',
         'powerAutomateUrl',
         'embedInCanvas',
         'highlightColor',
@@ -360,6 +361,10 @@ export function openConnectionsModal(connectionType) {
         // Load sync active student setting
         const syncActiveStudent = result.syncActiveStudent !== undefined ? result.syncActiveStudent : true;
         updateSyncActiveStudentModalUI(syncActiveStudent);
+
+        // Load highlight student row enabled setting
+        const highlightStudentRowEnabled = result.highlightStudentRowEnabled !== undefined ? result.highlightStudentRowEnabled : true;
+        updateHighlightStudentRowModalUI(highlightStudentRowEnabled);
 
         // Load Power Automate URL
         const paUrl = result.powerAutomateUrl || '';
@@ -456,6 +461,33 @@ function updateSyncActiveStudentModalUI(isEnabled) {
 }
 
 /**
+ * Updates the highlight student row toggle UI in the modal
+ * @param {boolean} isEnabled - Whether student row highlighting is enabled
+ */
+function updateHighlightStudentRowModalUI(isEnabled) {
+    if (!elements.highlightStudentRowToggleModal) return;
+
+    if (isEnabled) {
+        elements.highlightStudentRowToggleModal.className = 'fas fa-toggle-on';
+        elements.highlightStudentRowToggleModal.style.color = 'var(--primary-color)';
+    } else {
+        elements.highlightStudentRowToggleModal.className = 'fas fa-toggle-off';
+        elements.highlightStudentRowToggleModal.style.color = 'gray';
+    }
+
+    // Enable/disable the settings container
+    if (elements.highlightSettingsContainer) {
+        if (isEnabled) {
+            elements.highlightSettingsContainer.style.opacity = '1';
+            elements.highlightSettingsContainer.style.pointerEvents = 'auto';
+        } else {
+            elements.highlightSettingsContainer.style.opacity = '0.4';
+            elements.highlightSettingsContainer.style.pointerEvents = 'none';
+        }
+    }
+}
+
+/**
  * Loads cache stats for the modal
  */
 async function loadCacheStatsForModal() {
@@ -498,6 +530,13 @@ export async function saveConnectionsSettings() {
         const syncEnabled = elements.syncActiveStudentToggleModal.classList.contains('fa-toggle-on');
         settingsToSave.syncActiveStudent = syncEnabled;
         console.log(`Sync Active Student setting saved: ${syncEnabled}`);
+    }
+
+    // Save highlight student row enabled setting
+    if (elements.highlightStudentRowToggleModal) {
+        const highlightEnabled = elements.highlightStudentRowToggleModal.classList.contains('fa-toggle-on');
+        settingsToSave.highlightStudentRowEnabled = highlightEnabled;
+        console.log(`Highlight Student Row enabled setting saved: ${highlightEnabled}`);
     }
 
     // Save Power Automate URL
@@ -650,6 +689,16 @@ export function toggleSyncActiveStudentModal() {
 
     const isCurrentlyOn = elements.syncActiveStudentToggleModal.classList.contains('fa-toggle-on');
     updateSyncActiveStudentModalUI(!isCurrentlyOn);
+}
+
+/**
+ * Toggles the highlight student row setting in the modal
+ */
+export function toggleHighlightStudentRowModal() {
+    if (!elements.highlightStudentRowToggleModal) return;
+
+    const isCurrentlyOn = elements.highlightStudentRowToggleModal.classList.contains('fa-toggle-on');
+    updateHighlightStudentRowModalUI(!isCurrentlyOn);
 }
 
 /**

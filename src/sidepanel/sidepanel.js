@@ -56,6 +56,7 @@ import {
     toggleEmbedHelperModal,
     toggleDebugModeModal,
     toggleSyncActiveStudentModal,
+    toggleHighlightStudentRowModal,
     clearCacheFromModal
 } from './modal-manager.js';
 
@@ -290,6 +291,10 @@ function setupEventListeners() {
         elements.syncActiveStudentToggleModal.addEventListener('click', toggleSyncActiveStudentModal);
     }
 
+    if (elements.highlightStudentRowToggleModal) {
+        elements.highlightStudentRowToggleModal.addEventListener('click', toggleHighlightStudentRowModal);
+    }
+
     // Highlight Row Color Sync
     if (elements.highlightRowColorInput && elements.highlightRowColorTextInput) {
         elements.highlightRowColorInput.addEventListener('input', (e) => {
@@ -363,6 +368,9 @@ function setupEventListeners() {
         }
         if (elements.queueModal && e.target === elements.queueModal) {
             closeQueueModal();
+        }
+        if (elements.connectionsModal && e.target === elements.connectionsModal) {
+            closeConnectionsModal();
         }
     });
 
