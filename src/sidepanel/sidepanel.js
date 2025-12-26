@@ -56,6 +56,7 @@ import {
     toggleEmbedHelperModal,
     toggleDebugModeModal,
     toggleSyncActiveStudentModal,
+    toggleHighlightStudentRowModal,
     clearCacheFromModal
 } from './modal-manager.js';
 
@@ -288,6 +289,10 @@ function setupEventListeners() {
     // Excel Modal Settings
     if (elements.syncActiveStudentToggleModal) {
         elements.syncActiveStudentToggleModal.addEventListener('click', toggleSyncActiveStudentModal);
+    }
+
+    if (elements.highlightStudentRowToggleModal) {
+        elements.highlightStudentRowToggleModal.addEventListener('click', toggleHighlightStudentRowModal);
     }
 
     // Highlight Row Color Sync

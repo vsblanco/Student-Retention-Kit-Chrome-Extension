@@ -1223,9 +1223,17 @@
 
                 <!-- Highlight Student Row Configuration -->
                 <div style="margin-bottom: 20px; padding-top: 20px; border-top: 1px solid rgba(0,0,0,0.1);">
-                    <label style="font-size:0.95em; font-weight:500; color:var(--text-main); display:block; margin-bottom:12px;">
-                        <i class="fas fa-highlighter" style="color:var(--primary-color);"></i> Student Submission Highlight Settings
-                    </label>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                        <label style="font-size:0.95em; font-weight:500; color:var(--text-main);">
+                            <i class="fas fa-highlighter" style="color:var(--primary-color);"></i> Student Submission Highlight
+                        </label>
+                        <i id="highlightStudentRowToggleModal" class="fas fa-toggle-on" style="color:var(--primary-color); font-size:2em; cursor: pointer;"></i>
+                    </div>
+                    <div style="font-size:0.8em; color:var(--text-secondary); margin-bottom:15px;">
+                        Automatically highlight student rows in Excel when a submission is detected.
+                    </div>
+
+                    <div id="highlightSettingsContainer" style="transition: opacity 0.3s;">
                     <div style="font-size:0.8em; color:var(--text-secondary); margin-bottom:15px;">
                         Configure how student rows are highlighted in Excel when a submission is detected.
                     </div>
@@ -1285,6 +1293,7 @@
                             <input type="text" id="highlightRowColorTextInput" placeholder="#92d050" style="flex:1; padding:8px; font-size:0.9em; border: 1px solid rgba(0,0,0,0.2); border-radius:0.5rem;">
                         </div>
                         <div style="font-size:0.75em; color:var(--text-secondary); margin-top:4px;">Hex color code for row highlighting</div>
+                    </div>
                     </div>
                 </div>
             </div>

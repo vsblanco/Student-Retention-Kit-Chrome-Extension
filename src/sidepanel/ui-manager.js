@@ -145,6 +145,8 @@ export function cacheDomElements() {
     elements.five9ConfigContent = document.getElementById('five9ConfigContent');
     elements.autoUpdateSelectModal = document.getElementById('autoUpdateSelectModal');
     elements.syncActiveStudentToggleModal = document.getElementById('syncActiveStudentToggleModal');
+    elements.highlightStudentRowToggleModal = document.getElementById('highlightStudentRowToggleModal');
+    elements.highlightSettingsContainer = document.getElementById('highlightSettingsContainer');
     elements.highlightStartColInput = document.getElementById('highlightStartColInput');
     elements.highlightEndColInput = document.getElementById('highlightEndColInput');
     elements.highlightEditColumnInput = document.getElementById('highlightEditColumnInput');

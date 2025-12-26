@@ -92,6 +92,7 @@ export const STORAGE_KEYS = {
     // Excel Student Sync Settings
     SYNC_ACTIVE_STUDENT: 'syncActiveStudent',
     // Highlight Student Row Payload Settings
+    HIGHLIGHT_STUDENT_ROW_ENABLED: 'highlightStudentRowEnabled',
     HIGHLIGHT_START_COL: 'highlightStartCol',
     HIGHLIGHT_END_COL: 'highlightEndCol',
     HIGHLIGHT_EDIT_COLUMN: 'highlightEditColumn',
@@ -123,6 +124,7 @@ export const DEFAULT_SETTINGS = {
     [STORAGE_KEYS.AUTO_UPDATE_MASTER_LIST]: 'always', // Options: 'always', 'once-daily', 'never'
     [STORAGE_KEYS.SYNC_ACTIVE_STUDENT]: true, // Enable student sync from Excel add-in by default
     // Highlight Student Row Payload Defaults
+    [STORAGE_KEYS.HIGHLIGHT_STUDENT_ROW_ENABLED]: true, // Enable student row highlighting by default
     [STORAGE_KEYS.HIGHLIGHT_START_COL]: 'Student Name',
     [STORAGE_KEYS.HIGHLIGHT_END_COL]: 'Outreach',
     [STORAGE_KEYS.HIGHLIGHT_EDIT_COLUMN]: 'Outreach',
