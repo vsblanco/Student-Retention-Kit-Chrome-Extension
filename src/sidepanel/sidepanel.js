@@ -364,6 +364,9 @@ function setupEventListeners() {
         if (elements.queueModal && e.target === elements.queueModal) {
             closeQueueModal();
         }
+        if (elements.connectionsModal && e.target === elements.connectionsModal) {
+            closeConnectionsModal();
+        }
     });
 
     // Cache Management
