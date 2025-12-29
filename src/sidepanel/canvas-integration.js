@@ -264,7 +264,7 @@ function getNextPageUrl(linkHeader) {
 /**
  * Analyzes submissions to find missing assignments
  */
-function analyzeMissingAssignments(submissions, userObject, studentName) {
+function analyzeMissingAssignments(submissions, userObject, studentName, courseId, origin) {
     const now = new Date();
     const collectedAssignments = [];
 
@@ -298,11 +298,24 @@ function analyzeMissingAssignments(submissions, userObject, studentName) {
             (sub.score === 0);
 
         if (isMissing) {
+            // Generate assignment URL from assignment ID
+            const assignmentId = sub.assignment ? sub.assignment.id : null;
+            const assignmentUrl = assignmentId ? `${origin}/courses/${courseId}/assignments/${assignmentId}` : '';
+
+            // Format score as "points earned/points possible"
+            let formattedScore = '-';
+            if (sub.score !== null && sub.assignment && sub.assignment.points_possible !== null) {
+                formattedScore = `${sub.score}/${sub.assignment.points_possible}`;
+            } else if (sub.grade) {
+                formattedScore = sub.grade;
+            }
+
             collectedAssignments.push({
                 title: sub.assignment ? sub.assignment.name : 'Unknown Assignment',
                 submissionLink: sub.preview_url || '',
+                assignmentUrl: assignmentUrl,
                 dueDate: sub.cached_due_date ? new Date(sub.cached_due_date).toLocaleDateString() : 'No Date',
-                score: sub.grade || (sub.score !== null ? sub.score : '-'),
+                score: formattedScore,
                 workflow_state: sub.workflow_state
             });
         }
@@ -340,7 +353,7 @@ async function fetchMissingAssignments(student) {
         const users = await fetchPaged(usersUrl);
         const userObject = users && users.length > 0 ? users[0] : null;
 
-        const result = analyzeMissingAssignments(submissions, userObject, student.name);
+        const result = analyzeMissingAssignments(submissions, userObject, student.name, courseId, origin);
 
         if (result.count > 0) {
             console.log(`[Step 3] ${student.name}: Found ${result.count} missing assignment(s), Grade: ${result.currentGrade || 'N/A'}`);
@@ -426,5 +439,48 @@ export async function processStep3(students, renderCallback) {
         step3.style.color = '#ef4444';
         timeSpan.textContent = 'Error';
         throw error;
+    }
+}
+
+/**
+ * Process Step 4: Send master list with missing assignments to Excel
+ */
+export async function processStep4(students) {
+    const step4 = document.getElementById('step4');
+    if (!step4) return students;
+
+    const timeSpan = step4.querySelector('.step-time');
+
+    step4.className = 'queue-item active';
+    step4.querySelector('i').className = 'fas fa-spinner';
+    step4.querySelector('.queue-content').innerHTML = '<i class="fas fa-spinner"></i> Sending List to Excel';
+
+    const startTime = Date.now();
+
+    try {
+        console.log(`[Step 4] Sending master list with missing assignments to Excel`);
+
+        // Dynamically import to avoid circular dependency
+        const { sendMasterListWithMissingAssignmentsToExcel } = await import('./file-handler.js');
+
+        await sendMasterListWithMissingAssignmentsToExcel(students);
+
+        const duration = ((Date.now() - startTime) / 1000).toFixed(1);
+        step4.className = 'queue-item completed';
+        step4.querySelector('i').className = 'fas fa-check';
+        step4.querySelector('.queue-content').innerHTML = '<i class="fas fa-check"></i> Sending List to Excel';
+        timeSpan.textContent = `${duration}s`;
+
+        console.log(`[Step 4] ✓ Complete in ${duration}s`);
+
+        return students;
+
+    } catch (error) {
+        console.error("[Step 4 Error]", error);
+        step4.querySelector('i').className = 'fas fa-times';
+        step4.querySelector('.queue-content').innerHTML = '<i class="fas fa-times"></i> Sending List to Excel';
+        step4.style.color = '#ef4444';
+        timeSpan.textContent = 'Error';
+        return students; // Don't throw, just return students
     }
 }
