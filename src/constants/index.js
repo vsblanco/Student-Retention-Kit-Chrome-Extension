@@ -268,7 +268,8 @@ export const FIELD_ALIASES = {
     grade: ['gradelevel', 'level'],
     StudentNumber: ['studentid', 'sisid'],
     SyStudentId: ['studentsis'],
-    daysOut: ['dayssincepriorlda', 'daysinactive', 'days']
+    daysOut: ['dayssincepriorlda', 'daysinactive', 'days'],
+    url: ['gradebook', 'gradelink']
 };
 
 /**
