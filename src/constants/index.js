@@ -196,6 +196,65 @@ export function normalizeFieldName(fieldName) {
 }
 
 /**
+ * Converts an Excel date serial number to a JavaScript Date object.
+ * Excel dates are stored as the number of days since January 1, 1900.
+ *
+ * @param {number} excelDate - The Excel date serial number
+ * @returns {Date} JavaScript Date object
+ */
+export function excelDateToJSDate(excelDate) {
+    // Excel date serial number starts from 1/1/1900
+    // Use December 30, 1899 as base to account for Excel's leap year bug
+    const excelEpoch = new Date(1899, 11, 30);
+    const daysOffset = excelDate;
+    const jsDate = new Date(excelEpoch.getTime() + daysOffset * 24 * 60 * 60 * 1000);
+    return jsDate;
+}
+
+/**
+ * Formats a JavaScript Date object to MM-DD-YY format.
+ *
+ * @param {Date} date - JavaScript Date object
+ * @returns {string} Date formatted as MM-DD-YY
+ */
+export function formatDateToMMDDYY(date) {
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const year = String(date.getFullYear()).slice(-2);
+    return `${month}-${day}-${year}`;
+}
+
+/**
+ * Checks if a value appears to be an Excel date serial number.
+ * Excel dates are positive integers typically in the range 1-100000.
+ *
+ * @param {*} value - The value to check
+ * @returns {boolean} True if value appears to be an Excel date number
+ */
+export function isExcelDateNumber(value) {
+    if (typeof value !== 'number') return false;
+    if (!Number.isInteger(value)) return false;
+    // Reasonable range: 1 (1/1/1900) to 100000 (~year 2173)
+    if (value < 1 || value > 100000) return false;
+    return true;
+}
+
+/**
+ * Converts an Excel date serial number to MM-DD-YY format string.
+ * If the value is not an Excel date number, returns it unchanged.
+ *
+ * @param {*} value - The value to convert
+ * @returns {string|*} Formatted date string or original value
+ */
+export function convertExcelDate(value) {
+    if (isExcelDateNumber(value)) {
+        const jsDate = excelDateToJSDate(value);
+        return formatDateToMMDDYY(jsDate);
+    }
+    return value;
+}
+
+/**
  * Field aliases for semantic field matching in file imports and incoming payloads.
  * Maps internal field names to semantically equivalent field names (actual aliases).
  *

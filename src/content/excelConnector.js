@@ -79,6 +79,82 @@ if (window.hasSRKConnectorRun) {
     return defaultValue;
   }
 
+  /**
+   * Converts an Excel date serial number to a JavaScript Date object.
+   * Excel dates are stored as the number of days since January 1, 1900.
+   *
+   * @param {number} excelDate - The Excel date serial number
+   * @returns {Date} JavaScript Date object
+   */
+  function excelDateToJSDate(excelDate) {
+    // Excel date serial number starts from 1/1/1900
+    // Use December 30, 1899 as base to account for Excel's leap year bug
+    const excelEpoch = new Date(1899, 11, 30);
+    const daysOffset = excelDate;
+    const jsDate = new Date(excelEpoch.getTime() + daysOffset * 24 * 60 * 60 * 1000);
+    return jsDate;
+  }
+
+  /**
+   * Formats a JavaScript Date object to MM-DD-YY format.
+   *
+   * @param {Date} date - JavaScript Date object
+   * @returns {string} Date formatted as MM-DD-YY
+   */
+  function formatDateToMMDDYY(date) {
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const year = String(date.getFullYear()).slice(-2);
+    return `${month}-${day}-${year}`;
+  }
+
+  /**
+   * Checks if a value appears to be an Excel date serial number.
+   * Excel dates are positive integers typically in the range 1-100000.
+   *
+   * @param {*} value - The value to check
+   * @returns {boolean} True if value appears to be an Excel date number
+   */
+  function isExcelDateNumber(value) {
+    if (typeof value !== 'number') return false;
+    if (!Number.isInteger(value)) return false;
+    // Reasonable range: 1 (1/1/1900) to 100000 (~year 2173)
+    if (value < 1 || value > 100000) return false;
+    return true;
+  }
+
+  /**
+   * Converts an Excel date serial number to MM-DD-YY format string.
+   * If the value is not an Excel date number, returns it unchanged.
+   *
+   * @param {*} value - The value to convert
+   * @returns {string|*} Formatted date string or original value
+   */
+  function convertExcelDate(value) {
+    if (isExcelDateNumber(value)) {
+      const jsDate = excelDateToJSDate(value);
+      return formatDateToMMDDYY(jsDate);
+    }
+    return value;
+  }
+
+  /**
+   * Checks if a field name indicates it should contain a date.
+   * Used to determine which fields to apply Excel date conversion to.
+   *
+   * @param {string} fieldName - The field name to check
+   * @returns {boolean} True if field appears to be a date field
+   */
+  function isDateField(fieldName) {
+    if (!fieldName) return false;
+    const normalized = normalizeFieldName(fieldName);
+    // Check if field name contains date-related keywords
+    return normalized.includes('date') ||
+           normalized.includes('lda') ||
+           normalized === 'expstartdate' ||
+           normalized === 'lastlda';
+  }
+
   // Notify extension that connector is active
   chrome.runtime.sendMessage({
       type: "SRK_CONNECTOR_ACTIVE",
@@ -200,6 +276,7 @@ if (window.hasSRKConnectorRun) {
    * Handles incoming Master List data from the Office Add-in
    * Transforms the data from add-in format to extension format and stores it
    * Uses FIELD_ALIASES to handle different capitalizations and field name variations
+   * Dynamically includes all fields from source data, applying special logic only where needed
    */
   function handleMasterListData(data) {
       try {
@@ -208,31 +285,67 @@ if (window.hasSRKConnectorRun) {
 
           // Transform students from add-in format to extension format
           const transformedStudents = data.students.map(student => {
-              // Use getFieldWithAlias to match fields with different capitalizations and aliases
-              const name = getFieldWithAlias(student, 'name', 'Unknown');
-              const phone = getFieldWithAlias(student, 'phone');
-              const grade = getFieldWithAlias(student, 'grade');
-              const StudentNumber = getFieldWithAlias(student, 'StudentNumber');
-              const SyStudentId = getFieldWithAlias(student, 'SyStudentId');
-              const daysOut = getFieldWithAlias(student, 'daysOut');
+              // Start by including all fields from the source student object
+              const transformedStudent = {};
 
-              return {
-                  name: name || 'Unknown',
-                  phone: phone,
-                  grade: grade !== undefined && grade !== null ? String(grade) : null,
-                  StudentNumber: StudentNumber,
-                  SyStudentId: SyStudentId,
-                  daysout: parseInt(daysOut) || 0,
-                  missingCount: 0,
-                  url: student.gradeBook || null,
-                  assignments: [],
-                  // Additional fields that might be useful
-                  lastLda: student.lastLda || null,
-                  studentEmail: student.studentEmail || null,
-                  personalEmail: student.personalEmail || null,
-                  assigned: student.assigned || null,
-                  outreach: student.outreach || null
-              };
+              // Copy all fields from source to preserve all Excel columns
+              // Apply Excel date conversion to date fields
+              for (const key in student) {
+                  let value = student[key];
+
+                  // Convert Excel date numbers to MM-DD-YY format for date fields
+                  if (isDateField(key)) {
+                      value = convertExcelDate(value);
+                  }
+
+                  transformedStudent[key] = value;
+              }
+
+              // Use getFieldWithAlias to ensure our standard field names are present
+              // This handles cases where fields come with different names (aliases)
+
+              // Name - ensure it exists and has a fallback
+              transformedStudent.name = getFieldWithAlias(student, 'name', 'Unknown') || 'Unknown';
+
+              // Phone - use aliases to find it
+              const phone = getFieldWithAlias(student, 'phone');
+              if (phone !== null && phone !== undefined) {
+                  transformedStudent.phone = phone;
+              }
+
+              // StudentNumber - use aliases to find it
+              const StudentNumber = getFieldWithAlias(student, 'StudentNumber');
+              if (StudentNumber !== null && StudentNumber !== undefined) {
+                  transformedStudent.StudentNumber = StudentNumber;
+              }
+
+              // SyStudentId - use aliases to find it
+              const SyStudentId = getFieldWithAlias(student, 'SyStudentId');
+              if (SyStudentId !== null && SyStudentId !== undefined) {
+                  transformedStudent.SyStudentId = SyStudentId;
+              }
+
+              // SPECIAL LOGIC FIELDS - These need transformation or initialization
+
+              // Grade - convert to string
+              const gradeValue = getFieldWithAlias(student, 'grade');
+              transformedStudent.grade = gradeValue !== undefined && gradeValue !== null ? String(gradeValue) : null;
+
+              // Days Out - convert to integer and normalize field name to 'daysout'
+              const daysOutValue = getFieldWithAlias(student, 'daysOut');
+              transformedStudent.daysout = parseInt(daysOutValue) || 0;
+
+              // Missing Count - initialize if not present
+              if (!('missingCount' in transformedStudent)) {
+                  transformedStudent.missingCount = 0;
+              }
+
+              // Assignments - initialize if not present
+              if (!('assignments' in transformedStudent)) {
+                  transformedStudent.assignments = [];
+              }
+
+              return transformedStudent;
           });
 
           const lastUpdated = new Date().toLocaleString('en-US', {

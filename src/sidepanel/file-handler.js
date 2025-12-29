@@ -4,7 +4,9 @@ import {
     FIELD_ALIASES,
     MASTER_LIST_COLUMNS,
     EXPORT_MISSING_ASSIGNMENTS_COLUMNS,
-    normalizeFieldName
+    normalizeFieldName,
+    convertExcelDate,
+    isExcelDateNumber
 } from '../constants/index.js';
 import { elements } from './ui-manager.js';
 
@@ -36,12 +38,8 @@ export async function sendMasterListToExcel(students) {
         // Transform students into data rows using MASTER_LIST_COLUMNS definitions
         const data = students.map(student => {
             return MASTER_LIST_COLUMNS.map(col => {
-                // Get value from student object, using fallback if primary field is empty
-                let value = student[col.field];
-
-                if ((value === null || value === undefined || value === '') && col.fallback) {
-                    value = student[col.fallback];
-                }
+                // Use getFieldValue which now uses alias-based matching
+                let value = getFieldValue(student, col.field, col.fallback);
 
                 // Return value or empty string
                 return value !== null && value !== undefined ? value : '';
@@ -79,6 +77,23 @@ function isValidStudentName(name) {
     if (/^\d+$/.test(name)) return false;  // All digits
     if (name.includes('/')) return false;   // Contains date-like patterns
     return true;
+}
+
+/**
+ * Checks if a field name indicates it should contain a date.
+ * Used to determine which fields to apply Excel date conversion to.
+ *
+ * @param {string} fieldName - The field name to check
+ * @returns {boolean} True if field appears to be a date field
+ */
+function isDateField(fieldName) {
+    if (!fieldName) return false;
+    const normalized = normalizeFieldName(fieldName);
+    // Check if field name contains date-related keywords
+    return normalized.includes('date') ||
+           normalized.includes('lda') ||
+           normalized === 'expstartdate' ||
+           normalized === 'lastlda';
 }
 
 /**
@@ -191,24 +206,48 @@ export function parseFileWithSheetJS(data, isCSV) {
             const studentName = row[columnIndices.name];
             if (!isValidStudentName(studentName)) continue;
 
+            // Create entry with all columns from the file
+            const entry = {};
+
+            // First, copy all columns from the row
+            for (let colIndex = 0; colIndex < headers.length; colIndex++) {
+                const header = headers[colIndex];
+                if (!header) continue;
+
+                let value = row[colIndex];
+
+                // Apply Excel date conversion to date fields
+                if (isDateField(header)) {
+                    value = convertExcelDate(value);
+                }
+
+                entry[header] = value !== null && value !== undefined ? value : null;
+            }
+
+            // Ensure standard fields are present using alias-based matching
             const getValue = (field) => {
                 const index = columnIndices[field];
                 if (index === -1 || index >= row.length) return null;
-                const value = row[index];
+                let value = row[index];
+
+                // Apply Excel date conversion to date fields
+                if (isDateField(field)) {
+                    value = convertExcelDate(value);
+                }
+
                 return value !== null && value !== undefined ? String(value) : null;
             };
 
-            const entry = {
-                name: String(studentName),
-                phone: getValue('phone'),
-                grade: getValue('grade'),
-                StudentNumber: getValue('StudentNumber'),
-                SyStudentId: getValue('SyStudentId'),
-                daysout: parseInt(getValue('daysOut')) || 0,
-                missingCount: 0,
-                url: null,
-                assignments: []
-            };
+            // Set standard fields (these are required by the extension)
+            entry.name = String(studentName);
+            entry.phone = getValue('phone');
+            entry.grade = getValue('grade');
+            entry.StudentNumber = getValue('StudentNumber');
+            entry.SyStudentId = getValue('SyStudentId');
+            entry.daysout = parseInt(getValue('daysOut')) || 0;
+            entry.missingCount = 0;
+            entry.url = null;
+            entry.assignments = [];
 
             students.push(entry);
         }
@@ -446,14 +485,60 @@ function getNestedValue(obj, path) {
 }
 
 /**
+ * Finds a field value in an object using normalized matching and aliases.
+ * Matches fields case-insensitively and ignoring spaces/special characters.
+ *
+ * @param {Object} obj - The object to search in
+ * @param {String} fieldName - The internal field name
+ * @param {*} defaultValue - Default value if field not found
+ * @returns {*} The field value or defaultValue
+ */
+function getFieldWithAlias(obj, fieldName, defaultValue = null) {
+    if (!obj || !fieldName) return defaultValue;
+
+    // First try direct access (for exact matches)
+    if (fieldName in obj) {
+        const value = obj[fieldName];
+        return value !== null && value !== undefined ? value : defaultValue;
+    }
+
+    // Normalize the target field name
+    const normalizedFieldName = normalizeFieldName(fieldName);
+
+    // Get aliases for this field
+    const aliases = FIELD_ALIASES[fieldName] || [];
+    const normalizedAliases = aliases.map(alias => normalizeFieldName(alias));
+
+    // Search through object keys
+    for (const key in obj) {
+        const normalizedKey = normalizeFieldName(key);
+
+        // Check direct match
+        if (normalizedKey === normalizedFieldName) {
+            const value = obj[key];
+            return value !== null && value !== undefined ? value : defaultValue;
+        }
+
+        // Check alias matches
+        if (normalizedAliases.includes(normalizedKey)) {
+            const value = obj[key];
+            return value !== null && value !== undefined ? value : defaultValue;
+        }
+    }
+
+    return defaultValue;
+}
+
+/**
  * Helper function to get field value with fallback support
+ * Now uses alias-based matching for better field resolution
  */
 function getFieldValue(obj, field, fallback) {
-    let value = getNestedValue(obj, field);
+    let value = getFieldWithAlias(obj, field);
     if ((value === null || value === undefined || value === '') && fallback) {
-        value = getNestedValue(obj, fallback);
+        value = getFieldWithAlias(obj, fallback);
     }
-    return value || '';
+    return value !== null && value !== undefined ? value : '';
 }
 
 /**
