@@ -2,7 +2,7 @@
 import {
     STORAGE_KEYS,
     FIELD_ALIASES,
-    EXPORT_MASTER_LIST_COLUMNS,
+    MASTER_LIST_COLUMNS,
     EXPORT_MISSING_ASSIGNMENTS_COLUMNS
 } from '../constants/index.js';
 import { elements } from './ui-manager.js';
@@ -29,29 +29,23 @@ export async function sendMasterListToExcel(students) {
     }
 
     try {
-        // Define headers for the master list
-        const headers = [
-            "StudentName",
-            "Student ID",
-            "Student Number",
-            "Grade",
-            "Phone",
-            "Days Out",
-            "Missing Count",
-            "Gradebook"
-        ];
+        // Extract headers from MASTER_LIST_COLUMNS
+        const headers = MASTER_LIST_COLUMNS.map(col => col.header);
 
-        // Transform students into data rows matching headers order
-        const data = students.map(student => [
-            student.name || '',
-            student.SyStudentId || '',
-            student.StudentNumber || '',
-            student.grade || '',
-            student.phone || '',
-            student.daysout || 0,
-            student.missingCount || 0,
-            student.url || ''
-        ]);
+        // Transform students into data rows using MASTER_LIST_COLUMNS definitions
+        const data = students.map(student => {
+            return MASTER_LIST_COLUMNS.map(col => {
+                // Get value from student object, using fallback if primary field is empty
+                let value = student[col.field];
+
+                if ((value === null || value === undefined || value === '') && col.fallback) {
+                    value = student[col.fallback];
+                }
+
+                // Return value or empty string
+                return value !== null && value !== undefined ? value : '';
+            });
+        });
 
         // Create the payload
         const payload = {
@@ -70,7 +64,7 @@ export async function sendMasterListToExcel(students) {
             console.log('Background script might not be ready');
         });
 
-        console.log(`Sent ${students.length} students to Excel for import`);
+        console.log(`Sent ${students.length} students to Excel for import with ${headers.length} columns`);
     } catch (error) {
         console.error('Error sending master list to Excel:', error);
     }
@@ -453,11 +447,11 @@ export async function exportMasterListCSV() {
         }
 
         // --- SHEET 1: MASTER LIST ---
-        const masterListHeaders = EXPORT_MASTER_LIST_COLUMNS.map(col => col.header);
+        const masterListHeaders = MASTER_LIST_COLUMNS.map(col => col.header);
         const masterListData = [masterListHeaders];
 
         students.forEach(student => {
-            const row = EXPORT_MASTER_LIST_COLUMNS.map(col => {
+            const row = MASTER_LIST_COLUMNS.map(col => {
                 let value = getFieldValue(student, col.field, col.fallback);
 
                 if (col.field === 'missingCount') {

@@ -187,23 +187,37 @@ export const FIELD_ALIASES = {
 
 /**
  * Excel Export Column Configurations
- * Modify these arrays to customize what columns appear in the downloaded Excel file.
+ * Master List columns used for both CSV/Excel export and Excel import payload.
+ * Modify this array to customize what columns appear in exports and imports.
  */
 
 /**
  * Master List sheet columns
- * Each object defines: { header: 'Column Name', field: 'propertyName', formatter: optional function }
+ * Each object defines: { header: 'Column Name', field: 'propertyName', fallback: optional fallback field }
  */
-export const EXPORT_MASTER_LIST_COLUMNS = [
+export const MASTER_LIST_COLUMNS = [
     { header: 'Student Name', field: 'name' },
-	{ header: 'SyStudentId', field: 'SyStudentId' },
-	{ header: 'Student Number', field: 'StudentNumber' },
-	{ header: 'Grade Book', field: 'url' },
-    { header: 'Missing Assignments', field: 'missingCount' },
-    { header: 'Days Out', field: 'daysout' },
+    { header: 'Student Number', field: 'StudentNumber' },
+    { header: 'Grade Book', field: 'url' },
     { header: 'Grade', field: 'grade', fallback: 'currentGrade' },
-    { header: 'Phone', field: 'phone' },
-    
+    { header: 'Missing Assignments', field: 'missingCount' },
+    { header: 'LDA', field: 'lastLda' },
+    { header: 'Days Out', field: 'daysout' },
+    { header: 'Gender', field: 'gender' },
+    { header: 'Shift', field: 'shift' },
+    { header: 'Program Version', field: 'programVersion' },
+    { header: 'SyStudentId', field: 'SyStudentId' },
+    { header: 'Phone', field: 'phone', fallback: 'primaryPhone' },
+    { header: 'Other Phone', field: 'otherPhone' },
+    { header: 'Work Phone', field: 'workPhone' },
+    { header: 'Mobile Number', field: 'mobileNumber' },
+    { header: 'Student Email', field: 'studentEmail' },
+    { header: 'Personal Email', field: 'personalEmail' },
+    { header: 'ExpStartDate', field: 'expStartDate' },
+    { header: 'AmRep', field: 'amRep' },
+    { header: 'Hold', field: 'hold' },
+    { header: 'Photo', field: 'photo' },
+    { header: 'AdSAPStatus', field: 'adSAPStatus' }
 ];
 
 /**
