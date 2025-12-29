@@ -82,7 +82,21 @@ export async function fetchCanvasDetails(student) {
 
         // Process courses
         if (canvasUserId && courses && courses.length > 0) {
-            const now = new Date();
+            // Check if using specific date (Time Machine mode)
+            const settings = await chrome.storage.local.get([STORAGE_KEYS.USE_SPECIFIC_DATE, STORAGE_KEYS.SPECIFIC_SUBMISSION_DATE]);
+            const useSpecificDate = settings[STORAGE_KEYS.USE_SPECIFIC_DATE] || false;
+            const specificDateStr = settings[STORAGE_KEYS.SPECIFIC_SUBMISSION_DATE];
+
+            let now;
+            if (useSpecificDate && specificDateStr) {
+                // Parse the specific date (format: YYYY-MM-DD)
+                const [year, month, day] = specificDateStr.split('-').map(Number);
+                now = new Date(year, month - 1, day); // month is 0-indexed
+                console.log(`🕐 Time Machine mode: Using date ${specificDateStr} for course selection`);
+            } else {
+                now = new Date();
+            }
+
             const validCourses = courses.filter(c => c.name && !c.name.toUpperCase().includes('CAPV'));
 
             let activeCourse = null;
@@ -263,9 +277,10 @@ function getNextPageUrl(linkHeader) {
 
 /**
  * Analyzes submissions to find missing assignments
+ * @param {Date} referenceDate - The date to use for checking if assignments are past due (defaults to now)
  */
-function analyzeMissingAssignments(submissions, userObject, studentName, courseId, origin) {
-    const now = new Date();
+function analyzeMissingAssignments(submissions, userObject, studentName, courseId, origin, referenceDate = new Date()) {
+    const now = referenceDate;
     const collectedAssignments = [];
 
     let currentGrade = "";
@@ -330,8 +345,9 @@ function analyzeMissingAssignments(submissions, userObject, studentName, courseI
 
 /**
  * Fetches missing assignments for a single student
+ * @param {Date} referenceDate - The date to use for checking if assignments are past due
  */
-async function fetchMissingAssignments(student) {
+async function fetchMissingAssignments(student, referenceDate = new Date()) {
     if (!student.url) {
         console.log(`[Step 3] ${student.name}: No gradebook URL, skipping`);
         return { ...student, missingCount: 0, missingAssignments: [] };
@@ -353,7 +369,7 @@ async function fetchMissingAssignments(student) {
         const users = await fetchPaged(usersUrl);
         const userObject = users && users.length > 0 ? users[0] : null;
 
-        const result = analyzeMissingAssignments(submissions, userObject, student.name, courseId, origin);
+        const result = analyzeMissingAssignments(submissions, userObject, student.name, courseId, origin, referenceDate);
 
         if (result.count > 0) {
             console.log(`[Step 3] ${student.name}: Found ${result.count} missing assignment(s), Grade: ${result.currentGrade || 'N/A'}`);
@@ -388,6 +404,21 @@ export async function processStep3(students, renderCallback) {
         console.log(`[Step 3] Checking student gradebooks for missing assignments`);
         console.log(`[Step 3] Processing ${students.length} students in batches of 20`);
 
+        // Check if using specific date (Time Machine mode) for missing assignments check
+        const settings = await chrome.storage.local.get([STORAGE_KEYS.USE_SPECIFIC_DATE, STORAGE_KEYS.SPECIFIC_SUBMISSION_DATE]);
+        const useSpecificDate = settings[STORAGE_KEYS.USE_SPECIFIC_DATE] || false;
+        const specificDateStr = settings[STORAGE_KEYS.SPECIFIC_SUBMISSION_DATE];
+
+        let referenceDate;
+        if (useSpecificDate && specificDateStr) {
+            // Parse the specific date (format: YYYY-MM-DD)
+            const [year, month, day] = specificDateStr.split('-').map(Number);
+            referenceDate = new Date(year, month - 1, day); // month is 0-indexed
+            console.log(`🕐 Time Machine mode: Checking missing assignments as of ${specificDateStr}`);
+        } else {
+            referenceDate = new Date();
+        }
+
         const BATCH_SIZE = 20;
         const BATCH_DELAY_MS = 100;
 
@@ -402,7 +433,7 @@ export async function processStep3(students, renderCallback) {
 
             console.log(`[Step 3] Processing batch ${batchNumber}/${totalBatches} (students ${i + 1}-${Math.min(i + BATCH_SIZE, updatedStudents.length)})`);
 
-            const promises = batch.map(student => fetchMissingAssignments(student));
+            const promises = batch.map(student => fetchMissingAssignments(student, referenceDate));
             const results = await Promise.all(promises);
 
             results.forEach((updatedStudent, index) => {
