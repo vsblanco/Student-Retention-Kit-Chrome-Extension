@@ -341,7 +341,7 @@ export function parseFileWithSheetJS(data, isCSV) {
 
             // Initialize fields required by the extension
             entry.missingCount = 0;
-            entry.url = null;
+            if (!entry.url) entry.url = null; // Only set to null if not imported from file
             entry.assignments = [];
 
             students.push(entry);
