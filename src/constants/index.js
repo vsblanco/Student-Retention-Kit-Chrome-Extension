@@ -177,12 +177,54 @@ export const GENERIC_AVATAR_URL = "https://nuc.instructure.com/images/messages/a
  * Maps internal field names to acceptable field name variations (handles different capitalizations and aliases).
  */
 export const FIELD_ALIASES = {
+    // Student Name
     name: ['student name', 'name', 'studentname', 'student'],
-    phone: ['primaryphone', 'phone', 'phone number', 'mobile', 'cell', 'cell phone', 'contact', 'telephone', 'otherphone'],
-    grade: ['grade', 'grade level', 'level'],
-    StudentNumber: ['studentnumber', 'student id', 'sis id'],
+
+    // Student Numbers & IDs
+    StudentNumber: ['studentnumber', 'student id', 'sis id', 'student numbers', 'issued id'],
     SyStudentId: ['systudentid', 'student sis', 'studentid'],
-    daysOut: ['days out', 'dayssincepriorlda', 'days inactive', 'days', 'daysout']
+
+    // Gradebook URL
+    url: ['gradebook', 'gradelink', 'gradebooklink', 'url', 'grade book'],
+
+    // Grade
+    grade: ['grade', 'grade level', 'level', 'course grade', 'current score', 'current grade'],
+
+    // Missing Assignments
+    missingCount: ['missing assignments', 'total missing', 'missingcount', 'missing count'],
+
+    // LDA (Last Date of Attendance)
+    lastLda: ['lda', 'last date of attendance', 'date of attendance', 'currentlda', 'lastlda'],
+
+    // Days Out
+    daysOut: ['days out', 'dayssincepriorlda', 'days inactive', 'days', 'daysout'],
+
+    // Contact Information
+    phone: ['phone', 'primaryphone', 'phone number', 'contact number', 'mobile', 'cell', 'cell phone', 'contact', 'telephone'],
+    otherPhone: ['other phone', 'otherphone', 'second phone', 'alt phone', 'alternate phone'],
+    workPhone: ['work phone', 'workphone', 'work number'],
+    mobileNumber: ['mobile number', 'mobilenumber', 'mobile', 'cell number'],
+
+    // Email
+    studentEmail: ['student email', 'studentemail', 'email'],
+    personalEmail: ['personal email', 'personalemail', 'other email'],
+
+    // Demographics
+    gender: ['gender', 'sex'],
+
+    // Program Information
+    programVersion: ['program version', 'programversion', 'program', 'progverdescrip'],
+    shift: ['shift', 'shiftdescrip'],
+
+    // Advisor/Rep
+    amRep: ['amrep', 'am rep', 'advisor', 'assigned'],
+
+    // Other Fields
+    photo: ['photo', 'pfp', 'profile photo'],
+    outreach: ['outreach', 'comments', 'comment'],
+    hold: ['hold', 'status'],
+    expStartDate: ['expstartdate', 'exp start date', 'expected start date', 'start date'],
+    adSAPStatus: ['adsapstatus', 'sap status', 'ad sap status']
 };
 
 /**
