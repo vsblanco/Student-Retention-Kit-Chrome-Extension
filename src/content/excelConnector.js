@@ -200,6 +200,7 @@ if (window.hasSRKConnectorRun) {
    * Handles incoming Master List data from the Office Add-in
    * Transforms the data from add-in format to extension format and stores it
    * Uses FIELD_ALIASES to handle different capitalizations and field name variations
+   * Dynamically includes all fields from source data, applying special logic only where needed
    */
   function handleMasterListData(data) {
       try {
@@ -208,31 +209,59 @@ if (window.hasSRKConnectorRun) {
 
           // Transform students from add-in format to extension format
           const transformedStudents = data.students.map(student => {
-              // Use getFieldWithAlias to match fields with different capitalizations and aliases
-              const name = getFieldWithAlias(student, 'name', 'Unknown');
-              const phone = getFieldWithAlias(student, 'phone');
-              const grade = getFieldWithAlias(student, 'grade');
-              const StudentNumber = getFieldWithAlias(student, 'StudentNumber');
-              const SyStudentId = getFieldWithAlias(student, 'SyStudentId');
-              const daysOut = getFieldWithAlias(student, 'daysOut');
+              // Start by including all fields from the source student object
+              const transformedStudent = {};
 
-              return {
-                  name: name || 'Unknown',
-                  phone: phone,
-                  grade: grade !== undefined && grade !== null ? String(grade) : null,
-                  StudentNumber: StudentNumber,
-                  SyStudentId: SyStudentId,
-                  daysout: parseInt(daysOut) || 0,
-                  missingCount: 0,
-                  url: student.gradeBook || null,
-                  assignments: [],
-                  // Additional fields that might be useful
-                  lastLda: student.lastLda || null,
-                  studentEmail: student.studentEmail || null,
-                  personalEmail: student.personalEmail || null,
-                  assigned: student.assigned || null,
-                  outreach: student.outreach || null
-              };
+              // Copy all fields from source to preserve all Excel columns
+              for (const key in student) {
+                  transformedStudent[key] = student[key];
+              }
+
+              // Use getFieldWithAlias to ensure our standard field names are present
+              // This handles cases where fields come with different names (aliases)
+
+              // Name - ensure it exists and has a fallback
+              transformedStudent.name = getFieldWithAlias(student, 'name', 'Unknown') || 'Unknown';
+
+              // Phone - use aliases to find it
+              const phone = getFieldWithAlias(student, 'phone');
+              if (phone !== null && phone !== undefined) {
+                  transformedStudent.phone = phone;
+              }
+
+              // StudentNumber - use aliases to find it
+              const StudentNumber = getFieldWithAlias(student, 'StudentNumber');
+              if (StudentNumber !== null && StudentNumber !== undefined) {
+                  transformedStudent.StudentNumber = StudentNumber;
+              }
+
+              // SyStudentId - use aliases to find it
+              const SyStudentId = getFieldWithAlias(student, 'SyStudentId');
+              if (SyStudentId !== null && SyStudentId !== undefined) {
+                  transformedStudent.SyStudentId = SyStudentId;
+              }
+
+              // SPECIAL LOGIC FIELDS - These need transformation or initialization
+
+              // Grade - convert to string
+              const gradeValue = getFieldWithAlias(student, 'grade');
+              transformedStudent.grade = gradeValue !== undefined && gradeValue !== null ? String(gradeValue) : null;
+
+              // Days Out - convert to integer and normalize field name to 'daysout'
+              const daysOutValue = getFieldWithAlias(student, 'daysOut');
+              transformedStudent.daysout = parseInt(daysOutValue) || 0;
+
+              // Missing Count - initialize if not present
+              if (!('missingCount' in transformedStudent)) {
+                  transformedStudent.missingCount = 0;
+              }
+
+              // Assignments - initialize if not present
+              if (!('assignments' in transformedStudent)) {
+                  transformedStudent.assignments = [];
+              }
+
+              return transformedStudent;
           });
 
           const lastUpdated = new Date().toLocaleString('en-US', {
