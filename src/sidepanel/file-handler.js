@@ -273,17 +273,24 @@ export function parseFileWithSheetJS(data, isCSV) {
             return [];
         }
 
-        // Map column indices using normalized field matching
-        const columnIndices = {
-            name: findColumnIndex(headers, 'name'),
-            phone: findColumnIndex(headers, 'phone'),
-            grade: findColumnIndex(headers, 'grade'),
-            StudentNumber: findColumnIndex(headers, 'StudentNumber'),
-            SyStudentId: findColumnIndex(headers, 'SyStudentId'),
-            daysOut: findColumnIndex(headers, 'daysOut')
-        };
+        // Map column indices for all MASTER_LIST_COLUMNS using normalized field matching
+        const columnMapping = {};
+        MASTER_LIST_COLUMNS.forEach(col => {
+            const index = findColumnIndex(headers, col.field);
+            if (index !== -1) {
+                columnMapping[col.field] = index;
+            }
+            // Also check fallback field if it exists
+            if (col.fallback && index === -1) {
+                const fallbackIndex = findColumnIndex(headers, col.fallback);
+                if (fallbackIndex !== -1) {
+                    columnMapping[col.field] = fallbackIndex;
+                }
+            }
+        });
 
-        if (columnIndices.name === -1) {
+        // Ensure we have at least a name column
+        if (!columnMapping.name) {
             return [];
         }
 
@@ -293,48 +300,37 @@ export function parseFileWithSheetJS(data, isCSV) {
             const row = rows[i];
             if (!row || row.length === 0) continue;
 
-            const studentName = row[columnIndices.name];
+            const studentName = row[columnMapping.name];
             if (!isValidStudentName(studentName)) continue;
 
-            // Create entry with all columns from the file
+            // Create entry with ONLY whitelisted columns from MASTER_LIST_COLUMNS
             const entry = {};
 
-            // First, copy all columns from the row
-            for (let colIndex = 0; colIndex < headers.length; colIndex++) {
-                const header = headers[colIndex];
-                if (!header) continue;
+            // Map each MASTER_LIST_COLUMNS field to the imported data
+            MASTER_LIST_COLUMNS.forEach(col => {
+                const colIndex = columnMapping[col.field];
+                if (colIndex !== undefined && colIndex < row.length) {
+                    let value = row[colIndex];
 
-                let value = row[colIndex];
+                    // Apply Excel date conversion to date fields
+                    if (isDateField(col.field)) {
+                        value = convertExcelDate(value);
+                    }
 
-                // Apply Excel date conversion to date fields
-                if (isDateField(header)) {
-                    value = convertExcelDate(value);
+                    // Use the field name from MASTER_LIST_COLUMNS definition
+                    entry[col.field] = value !== null && value !== undefined ? value : null;
                 }
+            });
 
-                entry[header] = value !== null && value !== undefined ? value : null;
-            }
-
-            // Ensure standard fields are present using alias-based matching
-            const getValue = (field) => {
-                const index = columnIndices[field];
-                if (index === -1 || index >= row.length) return null;
-                let value = row[index];
-
-                // Apply Excel date conversion to date fields
-                if (isDateField(field)) {
-                    value = convertExcelDate(value);
-                }
-
-                return value !== null && value !== undefined ? String(value) : null;
-            };
-
-            // Set standard fields (these are required by the extension)
+            // Ensure critical fields are present with proper types
             entry.name = String(studentName);
-            entry.phone = getValue('phone');
-            entry.grade = getValue('grade');
-            entry.StudentNumber = getValue('StudentNumber');
-            entry.SyStudentId = getValue('SyStudentId');
-            entry.daysout = parseInt(getValue('daysOut')) || 0;
+            if (entry.phone) entry.phone = String(entry.phone);
+            if (entry.grade) entry.grade = String(entry.grade);
+            if (entry.StudentNumber) entry.StudentNumber = String(entry.StudentNumber);
+            if (entry.SyStudentId) entry.SyStudentId = String(entry.SyStudentId);
+            entry.daysout = parseInt(entry.daysOut) || 0;
+
+            // Initialize fields required by the extension
             entry.missingCount = 0;
             entry.url = null;
             entry.assignments = [];
