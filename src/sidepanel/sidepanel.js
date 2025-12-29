@@ -32,10 +32,11 @@ import {
     resetQueueUI,
     restoreDefaultQueueUI,
     exportMasterListCSV,
-    sendMasterListToExcel
+    sendMasterListToExcel,
+    sendMasterListWithMissingAssignmentsToExcel
 } from './file-handler.js';
 
-import { processStep2, processStep3 } from './canvas-integration.js';
+import { processStep2, processStep3, processStep4 } from './canvas-integration.js';
 
 import {
     openScanFilterModal,
@@ -498,9 +499,17 @@ function setupEventListeners() {
                 return;
             }
 
-            // Send to Excel
-            await sendMasterListToExcel(students);
-            console.log('Manually sent master list to Excel');
+            // Check if any students have missing assignments data
+            const hasMissingAssignments = students.some(s => s.missingAssignments && s.missingAssignments.length > 0);
+
+            // Send to Excel - use the appropriate function based on whether we have missing assignments
+            if (hasMissingAssignments) {
+                await sendMasterListWithMissingAssignmentsToExcel(students);
+                console.log('Manually sent master list with missing assignments to Excel');
+            } else {
+                await sendMasterListToExcel(students);
+                console.log('Manually sent master list to Excel');
+            }
         });
     }
 
@@ -521,10 +530,12 @@ function setupEventListeners() {
                     renderMasterList(updatedStudents, (entry, li, evt) => {
                         queueManager.handleStudentClick(entry, li, evt);
                     });
-                    processStep3(updatedStudents, (finalStudents) => {
+                    processStep3(updatedStudents, async (finalStudents) => {
                         renderMasterList(finalStudents, (entry, li, evt) => {
                             queueManager.handleStudentClick(entry, li, evt);
                         });
+                        // Send master list with missing assignments to Excel
+                        await processStep4(finalStudents);
                     });
                 });
             });

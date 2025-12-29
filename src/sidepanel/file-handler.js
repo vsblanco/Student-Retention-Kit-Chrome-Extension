@@ -70,6 +70,96 @@ export async function sendMasterListToExcel(students) {
 }
 
 /**
+ * Sends master list data with missing assignments to Excel via SRK_IMPORT_MASTER_LIST payload
+ * This function includes both the traditional headers/data arrays AND the students array with missingAssignments
+ * @param {Array} students - Array of student objects with missingAssignments data
+ */
+export async function sendMasterListWithMissingAssignmentsToExcel(students) {
+    if (!students || students.length === 0) {
+        console.log('No students to send to Excel');
+        return;
+    }
+
+    // Check if sending master list to Excel is enabled
+    const settings = await chrome.storage.local.get([STORAGE_KEYS.SEND_MASTER_LIST_TO_EXCEL]);
+    const isEnabled = settings[STORAGE_KEYS.SEND_MASTER_LIST_TO_EXCEL] !== undefined
+        ? settings[STORAGE_KEYS.SEND_MASTER_LIST_TO_EXCEL]
+        : true; // Default to enabled
+
+    if (!isEnabled) {
+        console.log('Send master list to Excel is disabled - skipping');
+        return;
+    }
+
+    try {
+        // Extract headers from MASTER_LIST_COLUMNS
+        const headers = MASTER_LIST_COLUMNS.map(col => col.header);
+
+        // Transform students into data rows using MASTER_LIST_COLUMNS definitions
+        const data = students.map(student => {
+            return MASTER_LIST_COLUMNS.map(col => {
+                // Use getFieldValue which now uses alias-based matching
+                let value = getFieldValue(student, col.field, col.fallback);
+
+                // Return value or empty string
+                return value !== null && value !== undefined ? value : '';
+            });
+        });
+
+        // Create students array with missing assignments
+        const studentsWithMissingAssignments = students
+            .filter(student => student.missingAssignments && student.missingAssignments.length > 0)
+            .map(student => {
+                // Format student data for the students array
+                const studentData = {
+                    "Student Name": getFieldValue(student, 'name'),
+                    "Grade": getFieldValue(student, 'currentGrade', 'grade'),
+                    "Grade Book": getFieldValue(student, 'url')
+                };
+
+                // Format missing assignments according to MissingAssignmentImport interface
+                studentData.missingAssignments = student.missingAssignments.map(assignment => ({
+                    assignmentUrl: assignment.assignmentUrl || '',
+                    assignmentTitle: assignment.title || '',
+                    dueDate: assignment.dueDate || '',
+                    score: assignment.score || '',
+                    submissionUrl: assignment.submissionLink || ''
+                }));
+
+                return studentData;
+            });
+
+        // Create the payload with both traditional format and students array
+        const payload = {
+            type: "SRK_IMPORT_MASTER_LIST",
+            data: {
+                headers: headers,
+                data: data,
+                students: studentsWithMissingAssignments
+            }
+        };
+
+        // Send message to background script to forward to Excel
+        chrome.runtime.sendMessage({
+            type: "SRK_SEND_IMPORT_MASTER_LIST",
+            payload: payload
+        }).catch(() => {
+            console.log('Background script might not be ready');
+        });
+
+        const totalMissingAssignments = studentsWithMissingAssignments.reduce(
+            (sum, s) => sum + (s.missingAssignments?.length || 0),
+            0
+        );
+
+        console.log(`Sent ${students.length} students to Excel for import with ${headers.length} columns`);
+        console.log(`Including ${studentsWithMissingAssignments.length} students with ${totalMissingAssignments} total missing assignments`);
+    } catch (error) {
+        console.error('Error sending master list with missing assignments to Excel:', error);
+    }
+}
+
+/**
  * Validates if a string is a valid student name
  */
 function isValidStudentName(name) {
