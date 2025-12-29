@@ -357,9 +357,6 @@ export function handleJsonClipboardProcess(data, onSuccess) {
                 elements.lastUpdatedText.textContent = lastUpdated;
             }
 
-            // Send master list to Excel
-            await sendMasterListToExcel(normalized);
-
             if (onSuccess) {
                 onSuccess(normalized);
             }
