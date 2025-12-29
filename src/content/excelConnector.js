@@ -335,14 +335,34 @@ if (window.hasSRKConnectorRun) {
               const daysOutValue = getFieldWithAlias(student, 'daysOut');
               transformedStudent.daysout = parseInt(daysOutValue) || 0;
 
-              // Missing Count - initialize if not present
-              if (!('missingCount' in transformedStudent)) {
-                  transformedStudent.missingCount = 0;
-              }
-
               // Assignments - initialize if not present
               if (!('assignments' in transformedStudent)) {
                   transformedStudent.assignments = [];
+              }
+
+              // Missing Assignments - process and convert Excel dates in dueDate field
+              if (student.missingAssignments && Array.isArray(student.missingAssignments)) {
+                  transformedStudent.missingAssignments = student.missingAssignments.map(assignment => {
+                      // Normalize assignment fields to use standardized names
+                      const normalizedAssignment = {
+                          assignmentTitle: assignment.assignmentTitle || assignment.title || '',
+                          assignmentLink: assignment.assignmentLink || assignment.assignmentUrl || '',
+                          submissionLink: assignment.submissionLink || assignment.submissionUrl || '',
+                          score: assignment.score || ''
+                      };
+
+                      // Convert Excel date serial number to MM-DD-YY format for dueDate
+                      const dueDateValue = assignment.dueDate;
+                      normalizedAssignment.dueDate = convertExcelDate(dueDateValue) || '';
+
+                      return normalizedAssignment;
+                  });
+
+                  // Update missingCount to match the actual number of missing assignments
+                  transformedStudent.missingCount = transformedStudent.missingAssignments.length;
+              } else {
+                  transformedStudent.missingAssignments = [];
+                  transformedStudent.missingCount = 0;
               }
 
               return transformedStudent;

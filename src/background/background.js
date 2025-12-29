@@ -59,11 +59,11 @@ async function onMissingCheckCompleted() {
     if (missingAssignmentsCollector.length > 0) {
         const transformedData = missingAssignmentsCollector.map(studentReport => {
             const transformedAssignments = studentReport.assignments.map(assignment => ({
-                assignmentTitle: assignment.title,
-                link: assignment.link,
-                submissionLink: assignment.submissionLink,
-                dueDate: assignment.dueDate,
-                score: assignment.score
+                assignmentTitle: assignment.assignmentTitle || assignment.title || '',
+                assignmentLink: assignment.assignmentLink || assignment.link || '',
+                submissionLink: assignment.submissionLink || '',
+                dueDate: assignment.dueDate || '',
+                score: assignment.score || ''
             }));
 
             return {

@@ -154,18 +154,18 @@ interface ImportMasterListPayload {
         "Grade Book": "https://nuc.instructure.com/courses/123/grades/12345",
         "missingAssignments": [
           {
-            "assignmentUrl": "https://nuc.instructure.com/courses/123/assignments/456",
             "assignmentTitle": "Week 5 Homework",
+            "assignmentLink": "https://nuc.instructure.com/courses/123/assignments/456",
+            "submissionLink": "https://nuc.instructure.com/courses/123/assignments/456/submissions/12345",
             "dueDate": "12/15/2025",
-            "score": "0/100",
-            "submissionUrl": "https://nuc.instructure.com/courses/123/assignments/456/submissions/12345"
+            "score": "0/100"
           },
           {
-            "assignmentUrl": "https://nuc.instructure.com/courses/123/assignments/789",
             "assignmentTitle": "Quiz 3",
+            "assignmentLink": "https://nuc.instructure.com/courses/123/assignments/789",
+            "submissionLink": "https://nuc.instructure.com/courses/123/assignments/789/submissions/12345",
             "dueDate": "12/18/2025",
-            "score": "0/50",
-            "submissionUrl": "https://nuc.instructure.com/courses/123/assignments/789/submissions/12345"
+            "score": "0/50"
           }
         ]
       }
@@ -598,11 +598,11 @@ When the payload includes a `students` array with `missingAssignments` data:
 **Missing Assignment Object Structure:**
 ```typescript
 interface MissingAssignmentImport {
-  assignmentUrl: string;        // URL to the assignment
   assignmentTitle: string;      // Title/name of the assignment
+  assignmentLink: string;       // URL to the assignment
+  submissionLink: string;       // URL to the submission
   dueDate?: string;             // Due date (any format)
   score?: string;               // Score (e.g., "0/100")
-  submissionUrl?: string;       // URL to the submission
 }
 ```
 
