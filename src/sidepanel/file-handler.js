@@ -114,7 +114,7 @@ export async function sendMasterListWithMissingAssignmentsToExcel(students) {
                 const studentData = {
                     "Student Name": getFieldValue(student, 'name'),
                     "Grade": getFieldValue(student, 'currentGrade', 'grade'),
-                    "Grade Book": getFieldValue(student, 'url')
+                    "Grade Book": getFieldValue(student, 'gradeBook')
                 };
 
                 // Format missing assignments according to MissingAssignmentImport interface
@@ -341,7 +341,7 @@ export function parseFileWithSheetJS(data, isCSV) {
 
             // Initialize fields required by the extension
             entry.missingCount = 0;
-            if (!entry.url) entry.url = null; // Only set to null if not imported from file
+            if (!entry.gradeBook) entry.gradeBook = null; // Only set to null if not imported from file
             entry.assignments = [];
 
             students.push(entry);
@@ -480,7 +480,7 @@ export function handleJsonClipboardProcess(data, onSuccess) {
             const normalized = data.map(entry => {
                 return {
                     name: entry.name || entry.StudentName || 'Unknown',
-                    url: entry.GradeBook || entry.url || entry.link || null,
+                    gradeBook: entry.GradeBook || entry.gradeBook || entry.link || null,
                     daysout: parseInt(entry.daysout || entry.DaysOut || 0),
                     missingCount: parseInt(entry.missing || entry.missingCount || entry.Missing || 0),
                     grade: entry.grade || entry.Grade || null,

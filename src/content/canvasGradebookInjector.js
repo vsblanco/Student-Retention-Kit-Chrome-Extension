@@ -95,13 +95,13 @@
 
                 if (filtered.length > 0) {
                     filtered.forEach(student => {
-                        if (student.url && student.url !== '#N/A' && student.url.startsWith('http')) {
+                        if (student.gradeBook && student.gradeBook !== '#N/A' && student.gradeBook.startsWith('http')) {
                             const link = document.createElement('a');
-                            link.href = student.url;
+                            link.href = student.gradeBook;
                             link.textContent = student.name;
                             link.addEventListener('click', (e) => {
                                 e.preventDefault();
-                                window.location.href = student.url;
+                                window.location.href = student.gradeBook;
                             });
                             dropdown.appendChild(link);
                         } else {

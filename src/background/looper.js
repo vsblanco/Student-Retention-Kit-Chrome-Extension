@@ -210,8 +210,8 @@ async function analyzeMissingMode(entry, submissions, userObject) {
             debugStats.foundMissing++;
             collectedAssignments.push({
                 title: sub.assignment ? sub.assignment.name : 'Unknown Assignment',
-                link: entry.url,
-                submissionLink: sub.preview_url || entry.url,
+                link: entry.gradeBook,
+                submissionLink: sub.preview_url || entry.gradeBook,
                 dueDate: sub.cached_due_date ? new Date(sub.cached_due_date).toLocaleDateString() : 'No Date',
                 score: sub.grade || (sub.score !== null ? sub.score : '-'),
                 isMissing: isMissing
@@ -225,10 +225,10 @@ async function analyzeMissingMode(entry, submissions, userObject) {
 
     return {
         studentName: entry.name,
-        gradeBook: entry.url,
-        currentGrade: currentGrade, 
-        count: collectedAssignments.length, 
-        duration: "0.2", 
+        gradeBook: entry.gradeBook,
+        currentGrade: currentGrade,
+        count: collectedAssignments.length,
+        duration: "0.2",
         assignments: collectedAssignments
     };
 }
@@ -289,7 +289,7 @@ async function analyzeSubmissionMode(entry, submissions) {
                 foundDetails = {
                     name: entry.name,
                     time: subDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
-                    url: entry.url,
+                    url: entry.gradeBook,
                     timestamp: sub.submitted_at,
                     assignment: sub.assignment ? sub.assignment.name : 'Unknown Assignment',
                     syStudentId: entry.SyStudentId || null
@@ -325,7 +325,7 @@ function prepareBatches(entries) {
     let skippedCount = 0;
 
     entries.forEach(entry => {
-        const parsed = parseIdsFromUrl(entry.url);
+        const parsed = parseIdsFromUrl(entry.gradeBook);
         if (parsed) {
             entry.parsed = parsed;
             if (!courses[parsed.courseId]) {
@@ -334,7 +334,7 @@ function prepareBatches(entries) {
             courses[parsed.courseId].push(entry);
         } else {
             skippedCount++;
-            console.warn(`[LOOPER] Skipping student with invalid URL: ${entry.name || 'Unknown'} - URL: ${entry.url}`);
+            console.warn(`[LOOPER] Skipping student with invalid URL: ${entry.name || 'Unknown'} - URL: ${entry.gradeBook}`);
         }
     });
 
@@ -424,7 +424,7 @@ async function performLoop() {
     // 4. Remove Already Found Students (Submission Mode)
     if (currentCheckerMode === CHECKER_MODES.SUBMISSION) {
         const initialCount = filteredList.length;
-        filteredList = filteredList.filter(entry => !foundUrlCache.has(entry.url));
+        filteredList = filteredList.filter(entry => !foundUrlCache.has(entry.gradeBook));
         if (initialCount !== filteredList.length) {
             console.log(`Skipping ${initialCount - filteredList.length} already found students.`);
         }

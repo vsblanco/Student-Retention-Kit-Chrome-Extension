@@ -269,7 +269,7 @@ export const FIELD_ALIASES = {
     StudentNumber: ['studentid', 'sisid'],
     SyStudentId: ['studentsis'],
     daysOut: ['dayssincepriorlda', 'daysinactive', 'days'],
-    url: ['gradebook', 'gradelink']
+    gradeBook: ['gradebook', 'gradelink', 'url']
 };
 
 /**
@@ -285,7 +285,7 @@ export const FIELD_ALIASES = {
 export const MASTER_LIST_COLUMNS = [
     { header: 'Student Name', field: 'name' },
     { header: 'Student Number', field: 'StudentNumber' },
-    { header: 'Grade Book', field: 'url' },
+    { header: 'Grade Book', field: 'gradeBook' },
     { header: 'Grade', field: 'grade', fallback: 'currentGrade' },
     { header: 'Missing Assignments', field: 'missingCount' },
     { header: 'LDA', field: 'lda' },
@@ -314,7 +314,7 @@ export const MASTER_LIST_COLUMNS = [
  */
 export const EXPORT_MISSING_ASSIGNMENTS_COLUMNS = [
     { header: 'Student Name', field: 'student.name' },
-	{ header: 'Grade Book', field: 'student.url' },
+	{ header: 'Grade Book', field: 'student.gradeBook' },
 	{ header: 'Overall Grade', field: 'student.currentGrade', fallback: 'student.grade' },
     { header: 'Assignment Title', field: 'assignment.title' },
     { header: 'Due Date', field: 'assignment.dueDate' },

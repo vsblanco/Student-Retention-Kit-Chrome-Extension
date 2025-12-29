@@ -123,7 +123,7 @@ export async function fetchCanvasDetails(student) {
             }
 
             if (activeCourse) {
-                student.url = `${CANVAS_DOMAIN}/courses/${activeCourse.id}/grades/${canvasUserId}`;
+                student.gradeBook = `${CANVAS_DOMAIN}/courses/${activeCourse.id}/grades/${canvasUserId}`;
 
                 if (activeCourse.enrollments && activeCourse.enrollments.length > 0) {
                     const enrollment = activeCourse.enrollments.find(e => e.type === 'StudentEnrollment') || activeCourse.enrollments[0];
@@ -134,7 +134,7 @@ export async function fetchCanvasDetails(student) {
             } else {
                 // This should rarely happen - only if student has no courses at all
                 console.warn(`${student.name}: No courses found, Step 3 will be skipped`);
-                student.url = null;
+                student.gradeBook = null;
             }
         }
 
@@ -355,14 +355,14 @@ function analyzeMissingAssignments(submissions, userObject, studentName, courseI
  * @param {Date} referenceDate - The date to use for checking if assignments are past due
  */
 async function fetchMissingAssignments(student, referenceDate = new Date()) {
-    if (!student.url) {
+    if (!student.gradeBook) {
         console.log(`[Step 3] ${student.name}: No gradebook URL, skipping`);
         return { ...student, missingCount: 0, missingAssignments: [] };
     }
 
-    const parsed = parseGradebookUrl(student.url);
+    const parsed = parseGradebookUrl(student.gradeBook);
     if (!parsed) {
-        console.warn(`[Step 3] ${student.name}: Failed to parse gradebook URL: ${student.url}`);
+        console.warn(`[Step 3] ${student.name}: Failed to parse gradebook URL: ${student.gradeBook}`);
         return { ...student, missingCount: 0, missingAssignments: [] };
     }
 

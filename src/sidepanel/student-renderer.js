@@ -14,7 +14,7 @@ export function resolveStudentData(entry) {
         missing: parseInt(entry.missingCount || 0),
         StudentNumber: entry.StudentNumber || null,
         SyStudentId: entry.SyStudentId || null,
-        url: entry.url || null,
+        gradeBook: entry.gradeBook || null,
         Photo: entry.Photo || null,
         isNew: entry.isNew || false,
         created_at: entry.created_at || null,

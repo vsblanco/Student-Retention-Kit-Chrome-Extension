@@ -507,9 +507,9 @@ async function handleStateChange(newState, oldState) {
 async function addStudentToFoundList(entry) {
     const data = await chrome.storage.local.get(STORAGE_KEYS.FOUND_ENTRIES);
     const foundEntries = data[STORAGE_KEYS.FOUND_ENTRIES] || [];
-    const map = new Map(foundEntries.map(e => [e.url, e]));
-    map.set(entry.url, entry);
-    addToFoundUrlCache(entry.url);
+    const map = new Map(foundEntries.map(e => [e.gradeBook, e]));
+    map.set(entry.gradeBook, entry);
+    addToFoundUrlCache(entry.gradeBook);
     await chrome.storage.local.set({ [STORAGE_KEYS.FOUND_ENTRIES]: Array.from(map.values()) });
 }
 
