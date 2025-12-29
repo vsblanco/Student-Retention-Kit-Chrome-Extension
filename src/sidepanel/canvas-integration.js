@@ -333,9 +333,9 @@ function analyzeMissingAssignments(submissions, userObject, studentName, courseI
             }
 
             collectedAssignments.push({
-                title: sub.assignment ? sub.assignment.name : 'Unknown Assignment',
+                assignmentTitle: sub.assignment ? sub.assignment.name : 'Unknown Assignment',
                 submissionLink: sub.preview_url || '',
-                assignmentUrl: assignmentUrl,
+                assignmentLink: assignmentUrl,
                 dueDate: sub.cached_due_date ? new Date(sub.cached_due_date).toLocaleDateString() : 'No Date',
                 score: formattedScore,
                 workflow_state: sub.workflow_state

@@ -292,9 +292,11 @@ export function renderMasterList(rawEntries, onStudentClick) {
         let missingDetailsHtml = '<li><em>No missing assignments found.</em></li>';
         if (rawEntry.missingAssignments && rawEntry.missingAssignments.length > 0) {
             missingDetailsHtml = rawEntry.missingAssignments.map(assignment => {
+                // Handle both old (title) and new (assignmentTitle) field names
+                const title = assignment.assignmentTitle || assignment.title || 'Unknown Assignment';
                 const linkHtml = assignment.submissionLink
-                    ? `<a href="${assignment.submissionLink}" target="_blank" style="color:#2563eb; text-decoration:none;">${assignment.title}</a>`
-                    : assignment.title;
+                    ? `<a href="${assignment.submissionLink}" target="_blank" style="color:#2563eb; text-decoration:none;">${title}</a>`
+                    : title;
                 return `<li style="margin-bottom:6px;">
                     ${linkHtml}
                     <div style="font-size:0.9em; color:#6b7280; margin-top:2px;">

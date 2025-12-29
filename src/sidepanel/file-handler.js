@@ -118,12 +118,13 @@ export async function sendMasterListWithMissingAssignmentsToExcel(students) {
                 };
 
                 // Format missing assignments according to MissingAssignmentImport interface
+                // Handle both 'title' and 'assignmentTitle' for robustness
                 studentData.missingAssignments = student.missingAssignments.map(assignment => ({
-                    assignmentUrl: assignment.assignmentUrl || '',
-                    assignmentTitle: assignment.title || '',
+                    assignmentTitle: assignment.assignmentTitle || assignment.title || '',
+                    assignmentLink: assignment.assignmentLink || assignment.assignmentUrl || '',
+                    submissionLink: assignment.submissionLink || assignment.submissionUrl || '',
                     dueDate: assignment.dueDate || '',
-                    score: assignment.score || '',
-                    submissionUrl: assignment.submissionLink || ''
+                    score: assignment.score || ''
                 }));
 
                 return studentData;
@@ -675,8 +676,18 @@ export async function exportMasterListCSV() {
         students.forEach(student => {
             if (student.missingAssignments && student.missingAssignments.length > 0) {
                 student.missingAssignments.forEach(assignment => {
-                    if (assignment.submissionLink) {
-                        assignment.assignmentLink = assignment.submissionLink.replace(/\/submissions\/.*$/, '');
+                    // Normalize assignment fields for export
+                    // Handle both old (title, assignmentUrl, submissionUrl) and new (assignmentTitle, assignmentLink, submissionLink) field names
+                    const normalizedAssignment = {
+                        ...assignment,
+                        assignmentTitle: assignment.assignmentTitle || assignment.title || '',
+                        assignmentLink: assignment.assignmentLink || assignment.assignmentUrl || '',
+                        submissionLink: assignment.submissionLink || assignment.submissionUrl || ''
+                    };
+
+                    // If assignmentLink is not set but submissionLink is, derive it
+                    if (!normalizedAssignment.assignmentLink && normalizedAssignment.submissionLink) {
+                        normalizedAssignment.assignmentLink = normalizedAssignment.submissionLink.replace(/\/submissions\/.*$/, '');
                     }
 
                     const row = EXPORT_MISSING_ASSIGNMENTS_COLUMNS.map(col => {
@@ -685,7 +696,7 @@ export async function exportMasterListCSV() {
                             return getFieldValue(student, field, col.fallback?.replace('student.', ''));
                         } else if (col.field.startsWith('assignment.')) {
                             const field = col.field.replace('assignment.', '');
-                            return getFieldValue(assignment, field, col.fallback?.replace('assignment.', ''));
+                            return getFieldValue(normalizedAssignment, field, col.fallback?.replace('assignment.', ''));
                         }
                         return '';
                     });
