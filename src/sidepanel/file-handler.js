@@ -11,9 +11,20 @@ import { elements } from './ui-manager.js';
  * Sends master list data to Excel via SRK_IMPORT_MASTER_LIST payload
  * @param {Array} students - Array of student objects
  */
-async function sendMasterListToExcel(students) {
+export async function sendMasterListToExcel(students) {
     if (!students || students.length === 0) {
         console.log('No students to send to Excel');
+        return;
+    }
+
+    // Check if sending master list to Excel is enabled
+    const settings = await chrome.storage.local.get([STORAGE_KEYS.SEND_MASTER_LIST_TO_EXCEL]);
+    const isEnabled = settings[STORAGE_KEYS.SEND_MASTER_LIST_TO_EXCEL] !== undefined
+        ? settings[STORAGE_KEYS.SEND_MASTER_LIST_TO_EXCEL]
+        : true; // Default to enabled
+
+    if (!isEnabled) {
+        console.log('Send master list to Excel is disabled - skipping');
         return;
     }
 

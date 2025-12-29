@@ -31,7 +31,8 @@ import {
     handleJsonClipboardProcess,
     resetQueueUI,
     restoreDefaultQueueUI,
-    exportMasterListCSV
+    exportMasterListCSV,
+    sendMasterListToExcel
 } from './file-handler.js';
 
 import { processStep2, processStep3 } from './canvas-integration.js';
@@ -56,6 +57,7 @@ import {
     toggleEmbedHelperModal,
     toggleDebugModeModal,
     toggleSyncActiveStudentModal,
+    toggleSendMasterListModal,
     toggleHighlightStudentRowModal,
     clearCacheFromModal
 } from './modal-manager.js';
@@ -291,6 +293,10 @@ function setupEventListeners() {
         elements.syncActiveStudentToggleModal.addEventListener('click', toggleSyncActiveStudentModal);
     }
 
+    if (elements.sendMasterListToggleModal) {
+        elements.sendMasterListToggleModal.addEventListener('click', toggleSendMasterListModal);
+    }
+
     if (elements.highlightStudentRowToggleModal) {
         elements.highlightStudentRowToggleModal.addEventListener('click', toggleHighlightStudentRowModal);
     }
@@ -461,7 +467,49 @@ function setupEventListeners() {
     // Data Tab
     if (elements.updateMasterBtn) {
         elements.updateMasterBtn.addEventListener('click', handleUpdateMasterList);
+
+        // Right-click context menu for Update Master List button
+        elements.updateMasterBtn.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+
+            if (!elements.updateMasterContextMenu) return;
+
+            // Position the context menu at the mouse position
+            elements.updateMasterContextMenu.style.left = `${e.pageX}px`;
+            elements.updateMasterContextMenu.style.top = `${e.pageY}px`;
+            elements.updateMasterContextMenu.style.display = 'block';
+        });
     }
+
+    // Context menu item - Send List to Excel
+    if (elements.sendListToExcelMenuItem) {
+        elements.sendListToExcelMenuItem.addEventListener('click', async () => {
+            // Hide context menu
+            if (elements.updateMasterContextMenu) {
+                elements.updateMasterContextMenu.style.display = 'none';
+            }
+
+            // Get current master list from storage
+            const data = await chrome.storage.local.get([STORAGE_KEYS.MASTER_ENTRIES]);
+            const students = data[STORAGE_KEYS.MASTER_ENTRIES] || [];
+
+            if (students.length === 0) {
+                alert('No master list data to send. Please update the master list first.');
+                return;
+            }
+
+            // Send to Excel
+            await sendMasterListToExcel(students);
+            console.log('Manually sent master list to Excel');
+        });
+    }
+
+    // Hide context menu when clicking elsewhere
+    document.addEventListener('click', () => {
+        if (elements.updateMasterContextMenu) {
+            elements.updateMasterContextMenu.style.display = 'none';
+        }
+    });
 
     if (elements.studentPopFile) {
         elements.studentPopFile.addEventListener('change', (e) => {

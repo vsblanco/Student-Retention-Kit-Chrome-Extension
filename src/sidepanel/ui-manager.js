@@ -97,6 +97,8 @@ export function cacheDomElements() {
     elements.sortSelect = document.getElementById('sortSelect');
     elements.updateMasterBtn = document.getElementById('updateMasterBtn');
     elements.downloadMasterBtn = document.getElementById('downloadMasterBtn');
+    elements.updateMasterContextMenu = document.getElementById('updateMasterContextMenu');
+    elements.sendListToExcelMenuItem = document.getElementById('sendListToExcelMenuItem');
     elements.updateQueueSection = document.getElementById('updateQueueSection');
     elements.queueCloseBtn = elements.updateQueueSection ? elements.updateQueueSection.querySelector('.icon-btn') : null;
     elements.lastUpdatedText = document.getElementById('lastUpdatedText');
@@ -145,6 +147,7 @@ export function cacheDomElements() {
     elements.five9ConfigContent = document.getElementById('five9ConfigContent');
     elements.autoUpdateSelectModal = document.getElementById('autoUpdateSelectModal');
     elements.syncActiveStudentToggleModal = document.getElementById('syncActiveStudentToggleModal');
+    elements.sendMasterListToggleModal = document.getElementById('sendMasterListToggleModal');
     elements.highlightStudentRowToggleModal = document.getElementById('highlightStudentRowToggleModal');
     elements.highlightSettingsContainer = document.getElementById('highlightSettingsContainer');
     elements.highlightStartColInput = document.getElementById('highlightStartColInput');

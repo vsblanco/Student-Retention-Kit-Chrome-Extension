@@ -703,6 +703,42 @@
         opacity: 0.3;
     }
 
+    /* Context Menu */
+    .context-menu {
+        position: absolute;
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(18px);
+        border: 1px solid rgba(0, 0, 0, 0.1);
+        border-radius: 0.75rem;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+        padding: 6px 0;
+        min-width: 180px;
+        z-index: 2000;
+        display: none;
+    }
+
+    .context-menu-item {
+        padding: 10px 16px;
+        cursor: pointer;
+        font-size: 0.9em;
+        color: var(--text-main);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        transition: all 0.2s;
+    }
+
+    .context-menu-item:hover {
+        background: var(--primary-color);
+        color: white;
+    }
+
+    .context-menu-item i {
+        width: 16px;
+        text-align: center;
+        font-size: 0.95em;
+    }
+
   </style>
 </head>
 <body>
@@ -1221,6 +1257,19 @@
                     </div>
                 </div>
 
+                <!-- Send Master List to Excel -->
+                <div style="margin-bottom: 20px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                        <label style="font-size:0.95em; font-weight:500; color:var(--text-main);">
+                            <i class="fas fa-file-export" style="color:var(--primary-color);"></i> Send Master List to Excel
+                        </label>
+                        <i id="sendMasterListToggleModal" class="fas fa-toggle-on" style="color:var(--primary-color); font-size:2em; cursor: pointer;"></i>
+                    </div>
+                    <div style="font-size:0.8em; color:var(--text-secondary);">
+                        Automatically send updated master list to Excel when importing via CSV/Excel file. This imports the data into the "Master List" sheet in the Office Add-in.
+                    </div>
+                </div>
+
                 <!-- Highlight Student Row Configuration -->
                 <div style="margin-bottom: 20px; padding-top: 20px; border-top: 1px solid rgba(0,0,0,0.1);">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
@@ -1378,6 +1427,14 @@
             <div class="modal-footer">
                 <button class="btn-primary" id="saveConnectionsBtn">Save Settings</button>
             </div>
+        </div>
+    </div>
+
+    <!-- Context Menu for Update Master List Button -->
+    <div id="updateMasterContextMenu" class="context-menu">
+        <div class="context-menu-item" id="sendListToExcelMenuItem">
+            <i class="fas fa-file-export"></i>
+            <span>Send List to Excel</span>
         </div>
     </div>
 

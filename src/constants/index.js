@@ -93,6 +93,7 @@ export const STORAGE_KEYS = {
     POWER_AUTOMATE_URL: 'powerAutomateUrl',
     // Excel Student Sync Settings
     SYNC_ACTIVE_STUDENT: 'syncActiveStudent',
+    SEND_MASTER_LIST_TO_EXCEL: 'sendMasterListToExcel',
     // Highlight Student Row Payload Settings
     HIGHLIGHT_STUDENT_ROW_ENABLED: 'highlightStudentRowEnabled',
     HIGHLIGHT_START_COL: 'highlightStartCol',
@@ -127,6 +128,7 @@ export const DEFAULT_SETTINGS = {
     [STORAGE_KEYS.SCAN_FILTER_INCLUDE_FAILING]: false,
     [STORAGE_KEYS.AUTO_UPDATE_MASTER_LIST]: 'always', // Options: 'always', 'once-daily', 'never'
     [STORAGE_KEYS.SYNC_ACTIVE_STUDENT]: true, // Enable student sync from Excel add-in by default
+    [STORAGE_KEYS.SEND_MASTER_LIST_TO_EXCEL]: true, // Enable sending master list to Excel by default
     // Highlight Student Row Payload Defaults
     [STORAGE_KEYS.HIGHLIGHT_STUDENT_ROW_ENABLED]: true, // Enable student row highlighting by default
     [STORAGE_KEYS.HIGHLIGHT_START_COL]: 'Student Name',
