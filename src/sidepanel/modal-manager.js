@@ -327,6 +327,8 @@ export function openConnectionsModal(connectionType) {
         if (elements.canvasConfigContent) {
             elements.canvasConfigContent.style.display = 'block';
         }
+        // Load canvas cache stats when Canvas settings are opened
+        loadCacheStatsForModal();
     } else if (connectionType === 'five9') {
         if (elements.connectionModalTitle) {
             elements.connectionModalTitle.textContent = 'Five9 Settings';
@@ -517,7 +519,10 @@ async function loadCacheStatsForModal() {
     try {
         const { getCacheStats } = await import('../utils/canvasCache.js');
         const stats = await getCacheStats();
-        elements.cacheStatsTextModal.textContent = stats;
+
+        // Format stats as readable text
+        elements.cacheStatsTextModal.textContent =
+            `Total: ${stats.totalEntries} | Valid: ${stats.validEntries} | Expired: ${stats.expiredEntries}`;
     } catch (error) {
         console.error('Error loading cache stats:', error);
         elements.cacheStatsTextModal.textContent = 'Error loading stats';
@@ -781,14 +786,20 @@ export async function updateFive9Status() {
  */
 export async function clearCacheFromModal() {
     try {
+        if (!confirm('Clear all Canvas API cached data? Next update will require fresh API calls.')) {
+            return;
+        }
+
         const { clearAllCache } = await import('../utils/canvasCache.js');
         await clearAllCache();
 
-        // Reload stats
+        // Reload stats to show empty cache
         await loadCacheStatsForModal();
 
+        alert('✓ Canvas API cache cleared successfully!');
         console.log('Canvas API cache cleared from modal');
     } catch (error) {
         console.error('Error clearing cache from modal:', error);
+        alert('Error clearing cache. Check console for details.');
     }
 }

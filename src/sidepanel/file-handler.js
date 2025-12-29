@@ -303,19 +303,6 @@ export function parseFileWithSheetJS(data, isCSV) {
             const studentName = row[columnMapping.name];
             if (!isValidStudentName(studentName)) continue;
 
-            // Validate grade column if present - skip rows with non-integer grades
-            if (columnMapping.grade !== undefined) {
-                const gradeValue = row[columnMapping.grade];
-                // Allow empty/null grades, but skip non-integer values (decimals, text, etc.)
-                if (gradeValue !== null && gradeValue !== undefined && gradeValue !== '') {
-                    const gradeNum = Number(gradeValue);
-                    if (isNaN(gradeNum) || !Number.isInteger(gradeNum)) {
-                        console.log(`Skipping student ${studentName}: Grade '${gradeValue}' is not a valid integer`);
-                        continue;
-                    }
-                }
-            }
-
             // Create entry with ONLY whitelisted columns from MASTER_LIST_COLUMNS
             const entry = {};
 
@@ -324,6 +311,15 @@ export function parseFileWithSheetJS(data, isCSV) {
                 const colIndex = columnMapping[col.field];
                 if (colIndex !== undefined && colIndex < row.length) {
                     let value = row[colIndex];
+
+                    // Special validation for grade field - only accept integers
+                    if (col.field === 'grade' && value !== null && value !== undefined && value !== '') {
+                        const gradeNum = Number(value);
+                        if (isNaN(gradeNum) || !Number.isInteger(gradeNum)) {
+                            console.log(`Student ${studentName}: Skipping invalid grade '${value}' (not an integer)`);
+                            value = null; // Don't import invalid grade, but still import student
+                        }
+                    }
 
                     // Apply Excel date conversion to date fields
                     if (isDateField(col.field)) {
