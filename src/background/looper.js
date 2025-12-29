@@ -21,15 +21,20 @@ const BATCH_SIZE = 30;
 const REQUEST_TIMEOUT_MS = 30000; 
 
 function parseIdsFromUrl(url) {
+    // Check if url is valid before attempting to parse
+    if (!url || typeof url !== 'string' || url.trim() === '') {
+        return null;
+    }
+
     try {
         const urlObj = new URL(url);
         const regex = /courses\/(\d+)\/grades\/(\d+)/;
         const match = urlObj.pathname.match(regex);
         if (match) {
-            return { 
+            return {
                 origin: urlObj.origin,
-                courseId: match[1], 
-                studentId: match[2] 
+                courseId: match[1],
+                studentId: match[2]
             };
         }
     } catch (e) {
@@ -317,6 +322,8 @@ async function loadSettings() {
 
 function prepareBatches(entries) {
     const courses = {};
+    let skippedCount = 0;
+
     entries.forEach(entry => {
         const parsed = parseIdsFromUrl(entry.url);
         if (parsed) {
@@ -325,8 +332,15 @@ function prepareBatches(entries) {
                 courses[parsed.courseId] = [];
             }
             courses[parsed.courseId].push(entry);
+        } else {
+            skippedCount++;
+            console.warn(`[LOOPER] Skipping student with invalid URL: ${entry.name || 'Unknown'} - URL: ${entry.url}`);
         }
     });
+
+    if (skippedCount > 0) {
+        console.warn(`[LOOPER] ⚠️ Skipped ${skippedCount} students with invalid/missing URLs. Re-run Step 2 to regenerate URLs.`);
+    }
 
     const batches = [];
     Object.values(courses).forEach(courseEntries => {
