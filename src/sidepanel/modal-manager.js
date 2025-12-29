@@ -340,6 +340,7 @@ export function openConnectionsModal(connectionType) {
     chrome.storage.local.get([
         'autoUpdateMasterList',
         'syncActiveStudent',
+        'sendMasterListToExcel',
         'highlightStudentRowEnabled',
         'powerAutomateUrl',
         'embedInCanvas',
@@ -361,6 +362,10 @@ export function openConnectionsModal(connectionType) {
         // Load sync active student setting
         const syncActiveStudent = result.syncActiveStudent !== undefined ? result.syncActiveStudent : true;
         updateSyncActiveStudentModalUI(syncActiveStudent);
+
+        // Load send master list to Excel setting
+        const sendMasterListToExcel = result.sendMasterListToExcel !== undefined ? result.sendMasterListToExcel : true;
+        updateSendMasterListModalUI(sendMasterListToExcel);
 
         // Load highlight student row enabled setting
         const highlightStudentRowEnabled = result.highlightStudentRowEnabled !== undefined ? result.highlightStudentRowEnabled : true;
@@ -461,6 +466,22 @@ function updateSyncActiveStudentModalUI(isEnabled) {
 }
 
 /**
+ * Updates the send master list to Excel toggle UI in the modal
+ * @param {boolean} isEnabled - Whether sending master list to Excel is enabled
+ */
+function updateSendMasterListModalUI(isEnabled) {
+    if (!elements.sendMasterListToggleModal) return;
+
+    if (isEnabled) {
+        elements.sendMasterListToggleModal.className = 'fas fa-toggle-on';
+        elements.sendMasterListToggleModal.style.color = 'var(--primary-color)';
+    } else {
+        elements.sendMasterListToggleModal.className = 'fas fa-toggle-off';
+        elements.sendMasterListToggleModal.style.color = 'gray';
+    }
+}
+
+/**
  * Updates the highlight student row toggle UI in the modal
  * @param {boolean} isEnabled - Whether student row highlighting is enabled
  */
@@ -530,6 +551,13 @@ export async function saveConnectionsSettings() {
         const syncEnabled = elements.syncActiveStudentToggleModal.classList.contains('fa-toggle-on');
         settingsToSave.syncActiveStudent = syncEnabled;
         console.log(`Sync Active Student setting saved: ${syncEnabled}`);
+    }
+
+    // Save send master list to Excel setting
+    if (elements.sendMasterListToggleModal) {
+        const sendEnabled = elements.sendMasterListToggleModal.classList.contains('fa-toggle-on');
+        settingsToSave.sendMasterListToExcel = sendEnabled;
+        console.log(`Send Master List to Excel setting saved: ${sendEnabled}`);
     }
 
     // Save highlight student row enabled setting
@@ -689,6 +717,16 @@ export function toggleSyncActiveStudentModal() {
 
     const isCurrentlyOn = elements.syncActiveStudentToggleModal.classList.contains('fa-toggle-on');
     updateSyncActiveStudentModalUI(!isCurrentlyOn);
+}
+
+/**
+ * Toggles the send master list to Excel setting in the modal
+ */
+export function toggleSendMasterListModal() {
+    if (!elements.sendMasterListToggleModal) return;
+
+    const isCurrentlyOn = elements.sendMasterListToggleModal.classList.contains('fa-toggle-on');
+    updateSendMasterListModalUI(!isCurrentlyOn);
 }
 
 /**
