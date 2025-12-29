@@ -122,15 +122,113 @@ interface ImportMasterListPayload {
 }
 ```
 
+**Supported Columns** (as defined in Chrome extension's `MASTER_LIST_COLUMNS`):
+
+The Chrome extension supports sending the following 22 columns to Excel. Each column definition includes a primary field and optional fallback field:
+
+| Header | Primary Field | Fallback Field |
+|--------|--------------|----------------|
+| Student Name | name | - |
+| Student Number | StudentNumber | - |
+| Grade Book | url | - |
+| Grade | grade | currentGrade |
+| Missing Assignments | missingCount | - |
+| LDA | lastLda | - |
+| Days Out | daysout | - |
+| Gender | gender | - |
+| Shift | shift | - |
+| Program Version | programVersion | - |
+| SyStudentId | SyStudentId | - |
+| Phone | phone | primaryPhone |
+| Other Phone | otherPhone | - |
+| Work Phone | workPhone | - |
+| Mobile Number | mobileNumber | - |
+| Student Email | studentEmail | - |
+| Personal Email | personalEmail | - |
+| ExpStartDate | expStartDate | - |
+| AmRep | amRep | - |
+| Hold | hold | - |
+| Photo | photo | - |
+| AdSAPStatus | adSAPStatus | - |
+
 **Example:**
 ```json
 {
   "type": "SRK_IMPORT_MASTER_LIST",
   "data": {
-    "headers": ["StudentName", "Student ID", "Grade", "Phone", "Email"],
+    "headers": [
+      "Student Name",
+      "Student Number",
+      "Grade Book",
+      "Grade",
+      "Missing Assignments",
+      "LDA",
+      "Days Out",
+      "Gender",
+      "Shift",
+      "Program Version",
+      "SyStudentId",
+      "Phone",
+      "Other Phone",
+      "Work Phone",
+      "Mobile Number",
+      "Student Email",
+      "Personal Email",
+      "ExpStartDate",
+      "AmRep",
+      "Hold",
+      "Photo",
+      "AdSAPStatus"
+    ],
     "data": [
-      ["Smith, John", "12345", 85.5, "555-1234", "john@school.edu"],
-      ["Doe, Jane", "67890", 72, "555-9876", "jane@school.edu"]
+      [
+        "Smith, John",
+        "12345",
+        "https://nuc.instructure.com/courses/123/grades/12345",
+        85.5,
+        2,
+        "12/10/2025",
+        3,
+        "M",
+        "Day",
+        "2.0",
+        "SY12345",
+        "555-1234",
+        "555-5678",
+        "555-9999",
+        "555-0000",
+        "john.smith@school.edu",
+        "john@email.com",
+        "01/15/2025",
+        "John Doe",
+        "No",
+        "https://example.com/photo.jpg",
+        "Active"
+      ],
+      [
+        "Doe, Jane",
+        "67890",
+        "https://nuc.instructure.com/courses/123/grades/67890",
+        72,
+        5,
+        "12/05/2025",
+        7,
+        "F",
+        "Evening",
+        "2.0",
+        "SY67890",
+        "555-9876",
+        "",
+        "",
+        "",
+        "jane.doe@school.edu",
+        "",
+        "01/15/2025",
+        "Jane Smith",
+        "No",
+        "",
+        "Active"
+      ]
     ]
   }
 }
@@ -379,33 +477,60 @@ if (student) {
 
 ### 6. Importing Master List Data to Excel
 
-The Chrome extension can send master list data to import into the add-in's Excel sheet:
+The Chrome extension can send master list data to import into the add-in's Excel sheet. The implementation uses the `MASTER_LIST_COLUMNS` configuration to ensure all 22 supported columns are included:
 
 ```javascript
+// Define the column configuration (matches Chrome extension's MASTER_LIST_COLUMNS)
+const MASTER_LIST_COLUMNS = [
+    { header: 'Student Name', field: 'name' },
+    { header: 'Student Number', field: 'StudentNumber' },
+    { header: 'Grade Book', field: 'url' },
+    { header: 'Grade', field: 'grade', fallback: 'currentGrade' },
+    { header: 'Missing Assignments', field: 'missingCount' },
+    { header: 'LDA', field: 'lastLda' },
+    { header: 'Days Out', field: 'daysout' },
+    { header: 'Gender', field: 'gender' },
+    { header: 'Shift', field: 'shift' },
+    { header: 'Program Version', field: 'programVersion' },
+    { header: 'SyStudentId', field: 'SyStudentId' },
+    { header: 'Phone', field: 'phone', fallback: 'primaryPhone' },
+    { header: 'Other Phone', field: 'otherPhone' },
+    { header: 'Work Phone', field: 'workPhone' },
+    { header: 'Mobile Number', field: 'mobileNumber' },
+    { header: 'Student Email', field: 'studentEmail' },
+    { header: 'Personal Email', field: 'personalEmail' },
+    { header: 'ExpStartDate', field: 'expStartDate' },
+    { header: 'AmRep', field: 'amRep' },
+    { header: 'Hold', field: 'hold' },
+    { header: 'Photo', field: 'photo' },
+    { header: 'AdSAPStatus', field: 'adSAPStatus' }
+];
+
 function importMasterListToExcel(students) {
-  // Prepare headers (column names)
-  const headers = [
-    "StudentName",
-    "Student ID",
-    "Student Number",
-    "Grade",
-    "Phone",
-    "Email",
-    "Days Out"
-  ];
+  if (!students || students.length === 0) {
+    console.log('No students to send to Excel');
+    return;
+  }
 
-  // Prepare data rows (must match header order)
-  const data = students.map(student => [
-    student.name,           // StudentName
-    student.id,             // Student ID
-    student.number,         // Student Number
-    student.grade,          // Grade
-    student.phone,          // Phone
-    student.email,          // Email
-    student.daysOut         // Days Out
-  ]);
+  // Extract headers from MASTER_LIST_COLUMNS
+  const headers = MASTER_LIST_COLUMNS.map(col => col.header);
 
-  // Send import message to add-in
+  // Transform students into data rows using MASTER_LIST_COLUMNS definitions
+  const data = students.map(student => {
+    return MASTER_LIST_COLUMNS.map(col => {
+      // Get value from student object, using fallback if primary field is empty
+      let value = student[col.field];
+
+      if ((value === null || value === undefined || value === '') && col.fallback) {
+        value = student[col.fallback];
+      }
+
+      // Return value or empty string
+      return value !== null && value !== undefined ? value : '';
+    });
+  });
+
+  // Send import message to add-in via window.postMessage
   window.postMessage({
     type: "SRK_IMPORT_MASTER_LIST",
     data: {
@@ -414,28 +539,53 @@ function importMasterListToExcel(students) {
     }
   }, "*");
 
-  console.log(`Sent ${data.length} students to Excel for import`);
+  console.log(`Sent ${students.length} students to Excel for import with ${headers.length} columns`);
 }
 
 // Example usage with sample data
 const studentsToImport = [
   {
     name: "Smith, John",
-    id: "12345",
-    number: "STU001",
+    StudentNumber: "12345",
+    url: "https://nuc.instructure.com/courses/123/grades/12345",
     grade: 85.5,
+    missingCount: 2,
+    lastLda: "12/10/2025",
+    daysout: 3,
+    gender: "M",
+    shift: "Day",
+    programVersion: "2.0",
+    SyStudentId: "SY12345",
     phone: "555-1234",
-    email: "john@school.edu",
-    daysOut: 3
+    otherPhone: "555-5678",
+    workPhone: "555-9999",
+    mobileNumber: "555-0000",
+    studentEmail: "john.smith@school.edu",
+    personalEmail: "john@email.com",
+    expStartDate: "01/15/2025",
+    amRep: "John Doe",
+    hold: "No",
+    photo: "https://example.com/photo.jpg",
+    adSAPStatus: "Active"
   },
   {
     name: "Doe, Jane",
-    id: "67890",
-    number: "STU002",
-    grade: 72,
-    phone: "555-9876",
-    email: "jane@school.edu",
-    daysOut: 7
+    StudentNumber: "67890",
+    url: "https://nuc.instructure.com/courses/123/grades/67890",
+    currentGrade: 72,  // Note: using fallback field for grade
+    missingCount: 5,
+    lastLda: "12/05/2025",
+    daysout: 7,
+    gender: "F",
+    shift: "Evening",
+    programVersion: "2.0",
+    SyStudentId: "SY67890",
+    primaryPhone: "555-9876",  // Note: using fallback field for phone
+    studentEmail: "jane.doe@school.edu",
+    expStartDate: "01/15/2025",
+    amRep: "Jane Smith",
+    hold: "No",
+    adSAPStatus: "Active"
   }
 ];
 
@@ -443,6 +593,8 @@ importMasterListToExcel(studentsToImport);
 ```
 
 **Important Notes for Import:**
+- The Chrome extension supports **22 columns** via `MASTER_LIST_COLUMNS` configuration
+- **Fallback field support**: Some fields have fallbacks (e.g., `grade` → `currentGrade`, `phone` → `primaryPhone`)
 - The add-in will only import if a "Master List" sheet already exists
 - Column headers are matched case-insensitively with whitespace normalization (e.g., "StudentName" matches "Student Name")
 - Gradebook URLs (starting with http:// or https://) are automatically wrapped in HYPERLINK formulas with "Grade Book" as the display text
@@ -451,22 +603,27 @@ importMasterListToExcel(studentsToImport);
 - Existing Gradebook links and Assigned values are preserved for existing students
 - New students will be highlighted in light blue
 - All data must be in array format matching the headers order
+- Empty or undefined values are sent as empty strings in the data array
 
 ## Important Notes
 
-1. **All Columns Included**: The add-in now sends ALL columns from the Master List sheet, not just predefined ones. This means any custom columns you add will automatically be included in the payload.
+1. **Chrome Extension Column Configuration**: The Chrome extension uses `MASTER_LIST_COLUMNS` (22 columns) for sending data to Excel via import. This configuration includes field mapping and fallback support. When the extension sends data to Excel, it transforms student objects into the correct column order automatically.
 
-2. **Column Mapping**: The `columnMapping` object maps each header name to its column index (0-based). Use this if you need to reference data back to specific columns. The `headers` array provides all column names in order.
+2. **Add-in Sends All Columns**: When the add-in sends data TO the extension (Add-in → Extension), it includes ALL columns from the Master List sheet, not just predefined ones. This means any custom columns you add to your Excel sheet will automatically be included in the payload the extension receives.
 
-3. **Dynamic Column Access**: Student objects use the actual header names as keys. Use bracket notation to access columns with spaces (e.g., `student["Student Name"]`) or dot notation for columns without spaces (e.g., `student.Grade`).
+3. **Column Mapping**: The `columnMapping` object maps each header name to its column index (0-based). Use this if you need to reference data back to specific columns. The `headers` array provides all column names in order.
 
-4. **Optional Fields**: All fields in student objects are optional (except the student name which is required). Always check if a field exists before using it.
+4. **Dynamic Column Access**: Student objects use the actual header names as keys. Use bracket notation to access columns with spaces (e.g., `student["Student Name"]`) or dot notation for columns without spaces (e.g., `student.Grade`).
 
-5. **Gradebook URLs**: The `Gradebook` field contains the full URL extracted from Excel HYPERLINK formulas, making it easy to open student gradebooks directly. The formula is automatically parsed to extract just the URL.
+5. **Optional Fields**: All fields in student objects are optional (except the student name which is required). Always check if a field exists before using it.
 
-6. **Timestamps**: Use the `timestamp` field to track when data was last synced and decide if you need to request fresh data.
+6. **Fallback Field Support**: When the Chrome extension sends data to Excel, it supports fallback fields. For example, if `grade` is empty, it will use `currentGrade`; if `phone` is empty, it will use `primaryPhone`. This ensures data is populated even when the primary field is missing.
 
-7. **Message Origin**: Always validate message origins in production for security:
+7. **Gradebook URLs**: The `Gradebook` field contains the full URL extracted from Excel HYPERLINK formulas, making it easy to open student gradebooks directly. The formula is automatically parsed to extract just the URL.
+
+8. **Timestamps**: Use the `timestamp` field to track when data was last synced and decide if you need to request fresh data.
+
+9. **Message Origin**: Always validate message origins in production for security:
    ```javascript
    window.addEventListener("message", (event) => {
      // Validate origin if needed

@@ -9,36 +9,70 @@ if (window.hasSRKConnectorRun) {
 
   console.log("%c SRK: Excel Connector Script LOADED", "background: #222; color: #bada55; font-size: 14px");
 
-  // Field aliases for flexible field matching (imported from constants)
+  /**
+   * Normalizes a field name for comparison by:
+   * - Converting to lowercase
+   * - Removing spaces, hyphens, underscores
+   * - Removing special characters
+   *
+   * @param {string} fieldName - The field name to normalize
+   * @returns {string} The normalized field name
+   */
+  function normalizeFieldName(fieldName) {
+    if (!fieldName) return '';
+    return String(fieldName)
+        .toLowerCase()
+        .replace(/[\s\-_]/g, '') // Remove spaces, hyphens, underscores
+        .replace(/[^a-z0-9]/g, ''); // Remove any remaining special characters
+  }
+
+  /**
+   * Field aliases for semantic field matching.
+   * NOTE: Case/space variations are handled automatically by normalizeFieldName().
+   * Only specify true semantic aliases here.
+   */
   const FIELD_ALIASES = {
-    name: ['student name', 'name', 'studentname', 'student'],
-    phone: ['primaryphone', 'phone', 'phone number', 'mobile', 'cell', 'cell phone', 'contact', 'telephone', 'otherphone'],
-    grade: ['grade', 'grade level', 'level'],
-    StudentNumber: ['studentnumber', 'student id', 'sis id'],
-    SyStudentId: ['systudentid', 'student sis', 'studentid'],
-    daysOut: ['days out', 'dayssincepriorlda', 'days inactive', 'days', 'daysout']
+    name: ['studentname', 'student'],
+    phone: ['primaryphone', 'phonenumber', 'mobile', 'cell', 'cellphone', 'contact', 'telephone', 'otherphone'],
+    grade: ['gradelevel', 'level'],
+    StudentNumber: ['studentid', 'sisid'],
+    SyStudentId: ['studentsis'],
+    daysOut: ['dayssincepriorlda', 'daysinactive', 'days']
   };
 
   /**
-   * Finds a field value in an object using aliases (case-insensitive)
+   * Finds a field value in an object using normalized matching and aliases.
+   * Matches fields case-insensitively and ignoring spaces/special characters.
+   *
    * @param {Object} obj - The object to search in
-   * @param {String} fieldName - The internal field name (key in FIELD_ALIASES)
+   * @param {String} fieldName - The internal field name
    * @param {*} defaultValue - Default value if field not found
    * @returns {*} The field value or defaultValue
    */
   function getFieldWithAlias(obj, fieldName, defaultValue = null) {
     if (!obj || !fieldName) return defaultValue;
 
-    const aliases = FIELD_ALIASES[fieldName];
-    if (!aliases) return defaultValue;
+    // Normalize the target field name
+    const normalizedFieldName = normalizeFieldName(fieldName);
 
-    // Try each alias (case-insensitive)
-    for (const alias of aliases) {
-      for (const key in obj) {
-        if (key.toLowerCase() === alias.toLowerCase()) {
-          const value = obj[key];
-          return value !== null && value !== undefined ? value : defaultValue;
-        }
+    // Get aliases for this field
+    const aliases = FIELD_ALIASES[fieldName] || [];
+    const normalizedAliases = aliases.map(alias => normalizeFieldName(alias));
+
+    // Search through object keys
+    for (const key in obj) {
+      const normalizedKey = normalizeFieldName(key);
+
+      // Check direct match
+      if (normalizedKey === normalizedFieldName) {
+        const value = obj[key];
+        return value !== null && value !== undefined ? value : defaultValue;
+      }
+
+      // Check alias matches
+      if (normalizedAliases.includes(normalizedKey)) {
+        const value = obj[key];
+        return value !== null && value !== undefined ? value : defaultValue;
       }
     }
 

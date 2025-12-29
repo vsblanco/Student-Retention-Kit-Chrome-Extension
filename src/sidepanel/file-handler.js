@@ -3,7 +3,8 @@ import {
     STORAGE_KEYS,
     FIELD_ALIASES,
     MASTER_LIST_COLUMNS,
-    EXPORT_MISSING_ASSIGNMENTS_COLUMNS
+    EXPORT_MISSING_ASSIGNMENTS_COLUMNS,
+    normalizeFieldName
 } from '../constants/index.js';
 import { elements } from './ui-manager.js';
 
@@ -81,18 +82,35 @@ function isValidStudentName(name) {
 }
 
 /**
- * Normalizes a header string by removing quotes and converting to lowercase
+ * Finds the column index for a field using normalized matching and aliases.
+ * Matches fields case-insensitively and ignoring spaces/special characters.
+ *
+ * @param {Array} headers - Array of header names from the file
+ * @param {String} fieldName - The internal field name to match
+ * @returns {Number} The column index, or -1 if not found
  */
-function normalizeHeader(header) {
-    if (!header) return '';
-    return String(header).trim().toLowerCase();
-}
+function findColumnIndex(headers, fieldName) {
+    // Normalize the target field name
+    const normalizedFieldName = normalizeFieldName(fieldName);
 
-/**
- * Finds the column index for a field using aliases
- */
-function findColumnIndex(headers, aliases) {
-    return headers.findIndex(h => aliases.includes(normalizeHeader(h)));
+    // Get aliases for this field (if any)
+    const aliases = FIELD_ALIASES[fieldName] || [];
+
+    // Normalize all aliases
+    const normalizedAliases = aliases.map(alias => normalizeFieldName(alias));
+
+    // Find the header that matches either the field name or one of its aliases
+    return headers.findIndex(header => {
+        const normalizedHeader = normalizeFieldName(header);
+
+        // Check direct match
+        if (normalizedHeader === normalizedFieldName) {
+            return true;
+        }
+
+        // Check alias matches
+        return normalizedAliases.includes(normalizedHeader);
+    });
 }
 
 /**
@@ -130,9 +148,14 @@ export function parseFileWithSheetJS(data, isCSV) {
             const row = rows[i];
             if (!row || row.length === 0) continue;
 
-            const hasNameField = row.some(cell =>
-                FIELD_ALIASES.name.includes(normalizeHeader(cell))
-            );
+            // Check if this row contains a name field by trying to find a name column
+            const hasNameField = row.some(cell => {
+                if (!cell) return false;
+                const normalized = normalizeFieldName(cell);
+                const nameNormalized = normalizeFieldName('name');
+                const nameAliases = (FIELD_ALIASES.name || []).map(a => normalizeFieldName(a));
+                return normalized === nameNormalized || nameAliases.includes(normalized);
+            });
 
             if (hasNameField) {
                 headerRowIndex = i;
@@ -145,14 +168,14 @@ export function parseFileWithSheetJS(data, isCSV) {
             return [];
         }
 
-        // Map column indices using aliases
+        // Map column indices using normalized field matching
         const columnIndices = {
-            name: findColumnIndex(headers, FIELD_ALIASES.name),
-            phone: findColumnIndex(headers, FIELD_ALIASES.phone),
-            grade: findColumnIndex(headers, FIELD_ALIASES.grade),
-            StudentNumber: findColumnIndex(headers, FIELD_ALIASES.StudentNumber),
-            SyStudentId: findColumnIndex(headers, FIELD_ALIASES.SyStudentId),
-            daysOut: findColumnIndex(headers, FIELD_ALIASES.daysOut)
+            name: findColumnIndex(headers, 'name'),
+            phone: findColumnIndex(headers, 'phone'),
+            grade: findColumnIndex(headers, 'grade'),
+            StudentNumber: findColumnIndex(headers, 'StudentNumber'),
+            SyStudentId: findColumnIndex(headers, 'SyStudentId'),
+            daysOut: findColumnIndex(headers, 'daysOut')
         };
 
         if (columnIndices.name === -1) {
