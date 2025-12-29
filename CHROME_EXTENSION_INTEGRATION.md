@@ -118,120 +118,61 @@ interface ImportMasterListPayload {
   data: {
     headers: string[];    // Array of column headers
     data: any[][];        // 2D array of row data (each row matches headers order)
+    students?: Student[]; // Optional: Array of student objects (for missing assignments import)
   }
 }
 ```
 
-**Supported Columns** (as defined in Chrome extension's `MASTER_LIST_COLUMNS`):
-
-The Chrome extension supports sending the following 22 columns to Excel. Each column definition includes a primary field and optional fallback field:
-
-| Header | Primary Field | Fallback Field |
-|--------|--------------|----------------|
-| Student Name | name | - |
-| Student Number | StudentNumber | - |
-| Grade Book | url | - |
-| Grade | grade | currentGrade |
-| Missing Assignments | missingCount | - |
-| LDA | lastLda | - |
-| Days Out | daysout | - |
-| Gender | gender | - |
-| Shift | shift | - |
-| Program Version | programVersion | - |
-| SyStudentId | SyStudentId | - |
-| Phone | phone | primaryPhone |
-| Other Phone | otherPhone | - |
-| Work Phone | workPhone | - |
-| Mobile Number | mobileNumber | - |
-| Student Email | studentEmail | - |
-| Personal Email | personalEmail | - |
-| ExpStartDate | expStartDate | - |
-| AmRep | amRep | - |
-| Hold | hold | - |
-| Photo | photo | - |
-| AdSAPStatus | adSAPStatus | - |
-
-**Example:**
+**Example (Basic Import):**
 ```json
 {
   "type": "SRK_IMPORT_MASTER_LIST",
   "data": {
-    "headers": [
-      "Student Name",
-      "Student Number",
-      "Grade Book",
-      "Grade",
-      "Missing Assignments",
-      "LDA",
-      "Days Out",
-      "Gender",
-      "Shift",
-      "Program Version",
-      "SyStudentId",
-      "Phone",
-      "Other Phone",
-      "Work Phone",
-      "Mobile Number",
-      "Student Email",
-      "Personal Email",
-      "ExpStartDate",
-      "AmRep",
-      "Hold",
-      "Photo",
-      "AdSAPStatus"
-    ],
+    "headers": ["StudentName", "Student ID", "Grade", "Phone", "Email"],
     "data": [
-      [
-        "Smith, John",
-        "12345",
-        "https://nuc.instructure.com/courses/123/grades/12345",
-        85.5,
-        2,
-        "12/10/2025",
-        3,
-        "M",
-        "Day",
-        "2.0",
-        "SY12345",
-        "555-1234",
-        "555-5678",
-        "555-9999",
-        "555-0000",
-        "john.smith@school.edu",
-        "john@email.com",
-        "01/15/2025",
-        "John Doe",
-        "No",
-        "https://example.com/photo.jpg",
-        "Active"
-      ],
-      [
-        "Doe, Jane",
-        "67890",
-        "https://nuc.instructure.com/courses/123/grades/67890",
-        72,
-        5,
-        "12/05/2025",
-        7,
-        "F",
-        "Evening",
-        "2.0",
-        "SY67890",
-        "555-9876",
-        "",
-        "",
-        "",
-        "jane.doe@school.edu",
-        "",
-        "01/15/2025",
-        "Jane Smith",
-        "No",
-        "",
-        "Active"
-      ]
+      ["Smith, John", "12345", 85.5, "555-1234", "john@school.edu"],
+      ["Doe, Jane", "67890", 72, "555-9876", "jane@school.edu"]
     ]
   }
 }
+```
+
+**Example (With Missing Assignments):**
+```json
+{
+  "type": "SRK_IMPORT_MASTER_LIST",
+  "data": {
+    "headers": ["StudentName", "Student ID", "Grade", "Grade Book"],
+    "data": [
+      ["Smith, John", "12345", 85.5, "https://nuc.instructure.com/courses/123/grades/12345"],
+      ["Doe, Jane", "67890", 72, "https://nuc.instructure.com/courses/123/grades/67890"]
+    ],
+    "students": [
+      {
+        "Student Name": "Smith, John",
+        "Grade": 85.5,
+        "Grade Book": "https://nuc.instructure.com/courses/123/grades/12345",
+        "missingAssignments": [
+          {
+            "assignmentUrl": "https://nuc.instructure.com/courses/123/assignments/456",
+            "assignmentTitle": "Week 5 Homework",
+            "dueDate": "12/15/2025",
+            "score": "0/100",
+            "submissionUrl": "https://nuc.instructure.com/courses/123/assignments/456/submissions/12345"
+          },
+          {
+            "assignmentUrl": "https://nuc.instructure.com/courses/123/assignments/789",
+            "assignmentTitle": "Quiz 3",
+            "dueDate": "12/18/2025",
+            "score": "0/50",
+            "submissionUrl": "https://nuc.instructure.com/courses/123/assignments/789/submissions/12345"
+          }
+        ]
+      }
+    ]
+  }
+}
+```
 
 // The Student interface is dynamic - it includes ALL columns from your Master List
 interface Student {
@@ -254,7 +195,26 @@ interface Student {
   // "Gender"?: string;
   // "Shift"?: string;
   // "ProgramVersion"?: string;
+  // "missingAssignments"?: MissingAssignment[];  // Array of missing assignments (only if Missing Assignments sheet exists)
   // ... and any other custom columns in your sheet
+}
+
+// Missing Assignment interface - includes all columns from the Missing Assignments sheet
+// When transferred from add-in to extension
+interface MissingAssignment {
+  [key: string]: any;  // Dynamic properties based on your Missing Assignments sheet columns
+
+  // The assignment data is matched by Gradebook URL
+  // All columns from the Missing Assignments sheet are included for matching students
+  // HYPERLINK columns are sent as objects with both url and text:
+  // Example:
+  // {
+  //   "Assignment": { url: "https://...", text: "Week 5 Homework" },
+  //   "Submission": { url: "https://...", text: "Missing" },
+  //   "Grade Book": { url: "https://...", text: "Grade Book" },
+  //   "Due Date": "12/15/2025",
+  //   "Score": "0/100"
+  // }
 }
 ```
 
@@ -321,7 +281,21 @@ interface Student {
         "Phone": "555-1234",
         "Other Phone": "555-5678",
         "StudentEmail": "john.smith@school.edu",
-        "PersonalEmail": "john@email.com"
+        "PersonalEmail": "john@email.com",
+        "missingAssignments": [
+          {
+            "Gradebook": "https://nuc.instructure.com/courses/123/grades/12345",
+            "Assignment Name": "Week 5 Homework",
+            "Due Date": "12/15/2025",
+            "Points": 100
+          },
+          {
+            "Gradebook": "https://nuc.instructure.com/courses/123/grades/12345",
+            "Assignment Name": "Quiz 3",
+            "Due Date": "12/18/2025",
+            "Points": 50
+          }
+        ]
       },
       {
         "Assigned": "Dr. Williams",
@@ -475,62 +449,92 @@ if (student) {
 }
 ```
 
-### 6. Importing Master List Data to Excel
+### 6. Example: Working with Missing Assignments
 
-The Chrome extension can send master list data to import into the add-in's Excel sheet. The implementation uses the `MASTER_LIST_COLUMNS` configuration to ensure all 22 supported columns are included:
+If a "Missing Assignments" sheet exists in the Excel workbook, the add-in will automatically include missing assignment data for each student, matched by their Gradebook URL:
 
 ```javascript
-// Define the column configuration (matches Chrome extension's MASTER_LIST_COLUMNS)
-const MASTER_LIST_COLUMNS = [
-    { header: 'Student Name', field: 'name' },
-    { header: 'Student Number', field: 'StudentNumber' },
-    { header: 'Grade Book', field: 'url' },
-    { header: 'Grade', field: 'grade', fallback: 'currentGrade' },
-    { header: 'Missing Assignments', field: 'missingCount' },
-    { header: 'LDA', field: 'lastLda' },
-    { header: 'Days Out', field: 'daysout' },
-    { header: 'Gender', field: 'gender' },
-    { header: 'Shift', field: 'shift' },
-    { header: 'Program Version', field: 'programVersion' },
-    { header: 'SyStudentId', field: 'SyStudentId' },
-    { header: 'Phone', field: 'phone', fallback: 'primaryPhone' },
-    { header: 'Other Phone', field: 'otherPhone' },
-    { header: 'Work Phone', field: 'workPhone' },
-    { header: 'Mobile Number', field: 'mobileNumber' },
-    { header: 'Student Email', field: 'studentEmail' },
-    { header: 'Personal Email', field: 'personalEmail' },
-    { header: 'ExpStartDate', field: 'expStartDate' },
-    { header: 'AmRep', field: 'amRep' },
-    { header: 'Hold', field: 'hold' },
-    { header: 'Photo', field: 'photo' },
-    { header: 'AdSAPStatus', field: 'adSAPStatus' }
-];
+function displayStudentMissingAssignments(studentName) {
+  const data = JSON.parse(localStorage.getItem('masterListData'));
+  if (!data) return;
 
-function importMasterListToExcel(students) {
-  if (!students || students.length === 0) {
-    console.log('No students to send to Excel');
+  const student = data.students.find(s =>
+    s["Student Name"]?.toLowerCase().includes(studentName.toLowerCase())
+  );
+
+  if (!student) {
+    console.log("Student not found");
     return;
   }
 
-  // Extract headers from MASTER_LIST_COLUMNS
-  const headers = MASTER_LIST_COLUMNS.map(col => col.header);
+  console.log(`Student: ${student["Student Name"]}`);
+  console.log(`Grade: ${student.Grade}`);
 
-  // Transform students into data rows using MASTER_LIST_COLUMNS definitions
-  const data = students.map(student => {
-    return MASTER_LIST_COLUMNS.map(col => {
-      // Get value from student object, using fallback if primary field is empty
-      let value = student[col.field];
+  // Check if student has missing assignments
+  if (student.missingAssignments && student.missingAssignments.length > 0) {
+    console.log(`Missing Assignments: ${student.missingAssignments.length}`);
 
-      if ((value === null || value === undefined || value === '') && col.fallback) {
-        value = student[col.fallback];
+    student.missingAssignments.forEach((assignment, index) => {
+      console.log(`\n${index + 1}. ${assignment["Assignment Name"]}`);
+      console.log(`   Due Date: ${assignment["Due Date"]}`);
+      console.log(`   Points: ${assignment.Points}`);
+
+      // Access any custom columns from the Missing Assignments sheet
+      for (const [key, value] of Object.entries(assignment)) {
+        if (key !== "Assignment Name" && key !== "Due Date" &&
+            key !== "Points" && key !== "Gradebook") {
+          console.log(`   ${key}: ${value}`);
+        }
       }
-
-      // Return value or empty string
-      return value !== null && value !== undefined ? value : '';
     });
-  });
+  } else {
+    console.log("No missing assignments");
+  }
+}
 
-  // Send import message to add-in via window.postMessage
+// Usage
+displayStudentMissingAssignments("John Smith");
+```
+
+**Important Notes about Missing Assignments:**
+- The `missingAssignments` array is only present if:
+  1. A "Missing Assignments" sheet exists in the workbook
+  2. The sheet has a Gradebook column that matches the student's Gradebook URL
+  3. There are missing assignments for that specific student
+- Always check if `student.missingAssignments` exists before accessing it
+- The array contains objects with ALL columns from the Missing Assignments sheet
+- Students are matched by their Gradebook URL (e.g., `https://nuc.instructure.com/courses/123/grades/12345`)
+- If the Gradebook URL is stored as a HYPERLINK formula, it will be automatically extracted
+
+### 7. Importing Master List Data to Excel
+
+The Chrome extension can send master list data to import into the add-in's Excel sheet:
+
+```javascript
+function importMasterListToExcel(students) {
+  // Prepare headers (column names)
+  const headers = [
+    "StudentName",
+    "Student ID",
+    "Student Number",
+    "Grade",
+    "Phone",
+    "Email",
+    "Days Out"
+  ];
+
+  // Prepare data rows (must match header order)
+  const data = students.map(student => [
+    student.name,           // StudentName
+    student.id,             // Student ID
+    student.number,         // Student Number
+    student.grade,          // Grade
+    student.phone,          // Phone
+    student.email,          // Email
+    student.daysOut         // Days Out
+  ]);
+
+  // Send import message to add-in
   window.postMessage({
     type: "SRK_IMPORT_MASTER_LIST",
     data: {
@@ -539,53 +543,28 @@ function importMasterListToExcel(students) {
     }
   }, "*");
 
-  console.log(`Sent ${students.length} students to Excel for import with ${headers.length} columns`);
+  console.log(`Sent ${data.length} students to Excel for import`);
 }
 
 // Example usage with sample data
 const studentsToImport = [
   {
     name: "Smith, John",
-    StudentNumber: "12345",
-    url: "https://nuc.instructure.com/courses/123/grades/12345",
+    id: "12345",
+    number: "STU001",
     grade: 85.5,
-    missingCount: 2,
-    lastLda: "12/10/2025",
-    daysout: 3,
-    gender: "M",
-    shift: "Day",
-    programVersion: "2.0",
-    SyStudentId: "SY12345",
     phone: "555-1234",
-    otherPhone: "555-5678",
-    workPhone: "555-9999",
-    mobileNumber: "555-0000",
-    studentEmail: "john.smith@school.edu",
-    personalEmail: "john@email.com",
-    expStartDate: "01/15/2025",
-    amRep: "John Doe",
-    hold: "No",
-    photo: "https://example.com/photo.jpg",
-    adSAPStatus: "Active"
+    email: "john@school.edu",
+    daysOut: 3
   },
   {
     name: "Doe, Jane",
-    StudentNumber: "67890",
-    url: "https://nuc.instructure.com/courses/123/grades/67890",
-    currentGrade: 72,  // Note: using fallback field for grade
-    missingCount: 5,
-    lastLda: "12/05/2025",
-    daysout: 7,
-    gender: "F",
-    shift: "Evening",
-    programVersion: "2.0",
-    SyStudentId: "SY67890",
-    primaryPhone: "555-9876",  // Note: using fallback field for phone
-    studentEmail: "jane.doe@school.edu",
-    expStartDate: "01/15/2025",
-    amRep: "Jane Smith",
-    hold: "No",
-    adSAPStatus: "Active"
+    id: "67890",
+    number: "STU002",
+    grade: 72,
+    phone: "555-9876",
+    email: "jane@school.edu",
+    daysOut: 7
   }
 ];
 
@@ -593,8 +572,6 @@ importMasterListToExcel(studentsToImport);
 ```
 
 **Important Notes for Import:**
-- The Chrome extension supports **22 columns** via `MASTER_LIST_COLUMNS` configuration
-- **Fallback field support**: Some fields have fallbacks (e.g., `grade` → `currentGrade`, `phone` → `primaryPhone`)
 - The add-in will only import if a "Master List" sheet already exists
 - Column headers are matched case-insensitively with whitespace normalization (e.g., "StudentName" matches "Student Name")
 - Gradebook URLs (starting with http:// or https://) are automatically wrapped in HYPERLINK formulas with "Grade Book" as the display text
@@ -603,13 +580,41 @@ importMasterListToExcel(studentsToImport);
 - Existing Gradebook links and Assigned values are preserved for existing students
 - New students will be highlighted in light blue
 - All data must be in array format matching the headers order
-- Empty or undefined values are sent as empty strings in the data array
+
+**Missing Assignments Import:**
+When the payload includes a `students` array with `missingAssignments` data:
+1. The add-in will automatically create or update a "Missing Assignments" sheet
+2. The sheet structure is fixed with these columns:
+   - **Student**: Student name
+   - **Grade**: Current grade
+   - **Grade Book**: HYPERLINK to student's gradebook
+   - **Assignment**: HYPERLINK to assignment with assignment title as friendly name
+   - **Due Date**: Assignment due date
+   - **Score**: Assignment score (e.g., "0/100")
+   - **Submission**: HYPERLINK to submission with "Missing" as friendly name
+3. All HYPERLINKs are automatically created from the provided URLs
+4. The import happens after the Master List import completes
+
+**Missing Assignment Object Structure:**
+```typescript
+interface MissingAssignmentImport {
+  assignmentUrl: string;        // URL to the assignment
+  assignmentTitle: string;      // Title/name of the assignment
+  dueDate?: string;             // Due date (any format)
+  score?: string;               // Score (e.g., "0/100")
+  submissionUrl?: string;       // URL to the submission
+}
+```
 
 ## Important Notes
 
-1. **Chrome Extension Column Configuration**: The Chrome extension uses `MASTER_LIST_COLUMNS` (22 columns) for sending data to Excel via import. This configuration includes field mapping and fallback support. When the extension sends data to Excel, it transforms student objects into the correct column order automatically.
+1. **All Columns Included**: The add-in now sends ALL columns from the Master List sheet, not just predefined ones. This means any custom columns you add will automatically be included in the payload.
 
-2. **Add-in Sends All Columns**: When the add-in sends data TO the extension (Add-in → Extension), it includes ALL columns from the Master List sheet, not just predefined ones. This means any custom columns you add to your Excel sheet will automatically be included in the payload the extension receives.
+2. **Missing Assignments Integration**: If a "Missing Assignments" sheet exists in the workbook:
+   - The add-in automatically parses it and matches assignments to students by Gradebook URL
+   - Each student object may include a `missingAssignments` array containing all assignment details
+   - The array includes ALL columns from the Missing Assignments sheet
+   - Always check if `student.missingAssignments` exists before accessing it
 
 3. **Column Mapping**: The `columnMapping` object maps each header name to its column index (0-based). Use this if you need to reference data back to specific columns. The `headers` array provides all column names in order.
 
@@ -617,13 +622,11 @@ importMasterListToExcel(studentsToImport);
 
 5. **Optional Fields**: All fields in student objects are optional (except the student name which is required). Always check if a field exists before using it.
 
-6. **Fallback Field Support**: When the Chrome extension sends data to Excel, it supports fallback fields. For example, if `grade` is empty, it will use `currentGrade`; if `phone` is empty, it will use `primaryPhone`. This ensures data is populated even when the primary field is missing.
+6. **Gradebook URLs**: The `Gradebook` field contains the full URL extracted from Excel HYPERLINK formulas, making it easy to open student gradebooks directly. The formula is automatically parsed to extract just the URL. This URL is also used to match students with their missing assignments.
 
-7. **Gradebook URLs**: The `Gradebook` field contains the full URL extracted from Excel HYPERLINK formulas, making it easy to open student gradebooks directly. The formula is automatically parsed to extract just the URL.
+7. **Timestamps**: Use the `timestamp` field to track when data was last synced and decide if you need to request fresh data.
 
-8. **Timestamps**: Use the `timestamp` field to track when data was last synced and decide if you need to request fresh data.
-
-9. **Message Origin**: Always validate message origins in production for security:
+8. **Message Origin**: Always validate message origins in production for security:
    ```javascript
    window.addEventListener("message", (event) => {
      // Validate origin if needed
