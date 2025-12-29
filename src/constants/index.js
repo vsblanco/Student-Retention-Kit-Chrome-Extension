@@ -173,16 +173,43 @@ export const CANVAS_DOMAIN = "https://nuc.instructure.com";
 export const GENERIC_AVATAR_URL = "https://nuc.instructure.com/images/messages/avatar-50.png";
 
 /**
- * Field aliases for flexible field matching in file imports and incoming payloads.
- * Maps internal field names to acceptable field name variations (handles different capitalizations and aliases).
+ * Normalizes a field name for comparison by:
+ * - Converting to lowercase
+ * - Removing spaces, hyphens, underscores
+ * - Removing special characters
+ *
+ * Examples:
+ * - "Student Number" → "studentnumber"
+ * - "StudentNumber" → "studentnumber"
+ * - "student-number" → "studentnumber"
+ * - "STUDENT_NUMBER" → "studentnumber"
+ *
+ * @param {string} fieldName - The field name to normalize
+ * @returns {string} The normalized field name
+ */
+export function normalizeFieldName(fieldName) {
+    if (!fieldName) return '';
+    return String(fieldName)
+        .toLowerCase()
+        .replace(/[\s\-_]/g, '') // Remove spaces, hyphens, underscores
+        .replace(/[^a-z0-9]/g, ''); // Remove any remaining special characters
+}
+
+/**
+ * Field aliases for semantic field matching in file imports and incoming payloads.
+ * Maps internal field names to semantically equivalent field names (actual aliases).
+ *
+ * NOTE: You don't need to specify case/space variations (e.g., "StudentNumber" vs "student number")
+ * as these are handled automatically by normalizeFieldName().
+ * Only specify true semantic aliases here (e.g., "Student ID" is an alias for "StudentNumber").
  */
 export const FIELD_ALIASES = {
-    name: ['student name', 'name', 'studentname', 'student'],
-    phone: ['primaryphone', 'phone', 'phone number', 'mobile', 'cell', 'cell phone', 'contact', 'telephone', 'otherphone'],
-    grade: ['grade', 'grade level', 'level'],
-    StudentNumber: ['studentnumber', 'student id', 'sis id'],
-    SyStudentId: ['systudentid', 'student sis', 'studentid'],
-    daysOut: ['days out', 'dayssincepriorlda', 'days inactive', 'days', 'daysout']
+    name: ['studentname', 'student'],
+    phone: ['primaryphone', 'phonenumber', 'mobile', 'cell', 'cellphone', 'contact', 'telephone', 'otherphone'],
+    grade: ['gradelevel', 'level'],
+    StudentNumber: ['studentid', 'sisid'],
+    SyStudentId: ['studentsis'],
+    daysOut: ['dayssincepriorlda', 'daysinactive', 'days']
 };
 
 /**
