@@ -8,6 +8,64 @@ import {
 import { elements } from './ui-manager.js';
 
 /**
+ * Sends master list data to Excel via SRK_IMPORT_MASTER_LIST payload
+ * @param {Array} students - Array of student objects
+ */
+async function sendMasterListToExcel(students) {
+    if (!students || students.length === 0) {
+        console.log('No students to send to Excel');
+        return;
+    }
+
+    try {
+        // Define headers for the master list
+        const headers = [
+            "StudentName",
+            "Student ID",
+            "Student Number",
+            "Grade",
+            "Phone",
+            "Days Out",
+            "Missing Count",
+            "Gradebook"
+        ];
+
+        // Transform students into data rows matching headers order
+        const data = students.map(student => [
+            student.name || '',
+            student.SyStudentId || '',
+            student.StudentNumber || '',
+            student.grade || '',
+            student.phone || '',
+            student.daysout || 0,
+            student.missingCount || 0,
+            student.url || ''
+        ]);
+
+        // Create the payload
+        const payload = {
+            type: "SRK_IMPORT_MASTER_LIST",
+            data: {
+                headers: headers,
+                data: data
+            }
+        };
+
+        // Send message to background script to forward to Excel
+        chrome.runtime.sendMessage({
+            type: "SRK_SEND_IMPORT_MASTER_LIST",
+            payload: payload
+        }).catch(() => {
+            console.log('Background script might not be ready');
+        });
+
+        console.log(`Sent ${students.length} students to Excel for import`);
+    } catch (error) {
+        console.error('Error sending master list to Excel:', error);
+    }
+}
+
+/**
  * Validates if a string is a valid student name
  */
 function isValidStudentName(name) {
@@ -183,7 +241,7 @@ export function handleFileImport(file, onSuccess) {
             chrome.storage.local.set({
                 [STORAGE_KEYS.MASTER_ENTRIES]: students,
                 [STORAGE_KEYS.LAST_UPDATED]: lastUpdated
-            }, () => {
+            }, async () => {
                 const duration = ((Date.now() - startTime) / 1000).toFixed(1);
                 step1.className = 'queue-item completed';
                 step1.querySelector('i').className = 'fas fa-check';
@@ -192,6 +250,9 @@ export function handleFileImport(file, onSuccess) {
                 if (elements.lastUpdatedText) {
                     elements.lastUpdatedText.textContent = lastUpdated;
                 }
+
+                // Send master list to Excel
+                await sendMasterListToExcel(students);
 
                 if (onSuccess) {
                     onSuccess(students);
@@ -345,7 +406,7 @@ export function restoreDefaultQueueUI() {
     if (s3) { s3.style.display = ''; }
     if (s4) {
         s4.style.display = '';
-        s4.querySelector('.queue-content').innerHTML = '<i class="far fa-circle"></i> Compiling Report';
+        s4.querySelector('.queue-content').innerHTML = '<i class="far fa-circle"></i> Sending List to Excel';
     }
 }
 
