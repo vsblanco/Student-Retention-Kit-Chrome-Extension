@@ -42,12 +42,14 @@ export async function fetchCanvasDetails(student) {
             const canvasUserId = userData.id;
 
             if (canvasUserId) {
-                const coursesUrl = `${CANVAS_DOMAIN}/api/v1/users/${canvasUserId}/courses?include[]=enrollments&enrollment_state=active&per_page=100`;
+                // Fetch ALL courses (not just active) to support Time Machine mode
+                // enrollment_state can be: active, invited_or_pending, completed
+                const coursesUrl = `${CANVAS_DOMAIN}/api/v1/users/${canvasUserId}/courses?include[]=enrollments&per_page=100`;
                 const coursesResp = await fetch(coursesUrl, { headers: { 'Accept': 'application/json' } });
 
                 if (coursesResp.ok) {
                     courses = await coursesResp.json();
-                    console.log(`✓ Cached data for ${student.name || student.SyStudentId}`);
+                    console.log(`✓ Fetched ${courses.length} course(s) for ${student.name || student.SyStudentId}`);
                 } else {
                     console.warn(`✗ Failed to fetch courses for ${student.SyStudentId}: ${coursesResp.status} ${coursesResp.statusText}`);
                     courses = [];
