@@ -287,7 +287,7 @@ export const MASTER_LIST_COLUMNS = [
     { header: 'Grade Book', field: 'url' },
     { header: 'Grade', field: 'grade', fallback: 'currentGrade' },
     { header: 'Missing Assignments', field: 'missingCount' },
-    { header: 'LDA', field: 'lastLda' },
+    { header: 'LDA', field: 'lda' },
     { header: 'Days Out', field: 'daysout' },
     { header: 'Gender', field: 'gender' },
     { header: 'Shift', field: 'shift' },
@@ -321,3 +321,4 @@ export const EXPORT_MISSING_ASSIGNMENTS_COLUMNS = [
     { header: 'Assignment Link', field: 'assignment.assignmentLink' },
     { header: 'Submission Link', field: 'assignment.submissionLink' }
 ];
+
