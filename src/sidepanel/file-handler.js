@@ -303,14 +303,14 @@ export function parseFileWithSheetJS(data, isCSV) {
             const studentName = row[columnMapping.name];
             if (!isValidStudentName(studentName)) continue;
 
-            // Validate grade column if present - skip rows with non-numeric grades
+            // Validate grade column if present - skip rows with non-integer grades
             if (columnMapping.grade !== undefined) {
                 const gradeValue = row[columnMapping.grade];
-                // Allow empty/null grades, but skip non-numeric text values
+                // Allow empty/null grades, but skip non-integer values (decimals, text, etc.)
                 if (gradeValue !== null && gradeValue !== undefined && gradeValue !== '') {
-                    const gradeNum = parseFloat(gradeValue);
-                    if (isNaN(gradeNum)) {
-                        console.log(`Skipping student ${studentName}: Grade '${gradeValue}' is not a valid number`);
+                    const gradeNum = Number(gradeValue);
+                    if (isNaN(gradeNum) || !Number.isInteger(gradeNum)) {
+                        console.log(`Skipping student ${studentName}: Grade '${gradeValue}' is not a valid integer`);
                         continue;
                     }
                 }
