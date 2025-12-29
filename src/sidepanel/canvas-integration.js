@@ -108,6 +108,8 @@ export async function fetchCanvasDetails(student) {
                 return now >= start && now <= end;
             });
 
+            // If no course is active on the reference date, pick the most recent course
+            // This ensures we always have a course-based URL for Step 3
             if (!activeCourse && validCourses.length > 0) {
                 validCourses.sort((a, b) => {
                     const dateA = a.start_at ? new Date(a.start_at) : new Date(0);
@@ -115,6 +117,7 @@ export async function fetchCanvasDetails(student) {
                     return dateB - dateA;
                 });
                 activeCourse = validCourses[0];
+                console.log(`No active course found for ${now.toLocaleDateString()}, using most recent: ${activeCourse.name}`);
             }
 
             if (activeCourse) {
@@ -127,7 +130,9 @@ export async function fetchCanvasDetails(student) {
                     }
                 }
             } else {
-                student.url = `${CANVAS_DOMAIN}/users/${canvasUserId}/grades`;
+                // This should rarely happen - only if student has no courses at all
+                console.warn(`${student.name}: No courses found, Step 3 will be skipped`);
+                student.url = null;
             }
         }
 
