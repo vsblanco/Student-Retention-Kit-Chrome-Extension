@@ -36,12 +36,8 @@ export async function sendMasterListToExcel(students) {
         // Transform students into data rows using MASTER_LIST_COLUMNS definitions
         const data = students.map(student => {
             return MASTER_LIST_COLUMNS.map(col => {
-                // Get value from student object, using fallback if primary field is empty
-                let value = student[col.field];
-
-                if ((value === null || value === undefined || value === '') && col.fallback) {
-                    value = student[col.fallback];
-                }
+                // Use getFieldValue which now uses alias-based matching
+                let value = getFieldValue(student, col.field, col.fallback);
 
                 // Return value or empty string
                 return value !== null && value !== undefined ? value : '';
@@ -446,14 +442,60 @@ function getNestedValue(obj, path) {
 }
 
 /**
+ * Finds a field value in an object using normalized matching and aliases.
+ * Matches fields case-insensitively and ignoring spaces/special characters.
+ *
+ * @param {Object} obj - The object to search in
+ * @param {String} fieldName - The internal field name
+ * @param {*} defaultValue - Default value if field not found
+ * @returns {*} The field value or defaultValue
+ */
+function getFieldWithAlias(obj, fieldName, defaultValue = null) {
+    if (!obj || !fieldName) return defaultValue;
+
+    // First try direct access (for exact matches)
+    if (fieldName in obj) {
+        const value = obj[fieldName];
+        return value !== null && value !== undefined ? value : defaultValue;
+    }
+
+    // Normalize the target field name
+    const normalizedFieldName = normalizeFieldName(fieldName);
+
+    // Get aliases for this field
+    const aliases = FIELD_ALIASES[fieldName] || [];
+    const normalizedAliases = aliases.map(alias => normalizeFieldName(alias));
+
+    // Search through object keys
+    for (const key in obj) {
+        const normalizedKey = normalizeFieldName(key);
+
+        // Check direct match
+        if (normalizedKey === normalizedFieldName) {
+            const value = obj[key];
+            return value !== null && value !== undefined ? value : defaultValue;
+        }
+
+        // Check alias matches
+        if (normalizedAliases.includes(normalizedKey)) {
+            const value = obj[key];
+            return value !== null && value !== undefined ? value : defaultValue;
+        }
+    }
+
+    return defaultValue;
+}
+
+/**
  * Helper function to get field value with fallback support
+ * Now uses alias-based matching for better field resolution
  */
 function getFieldValue(obj, field, fallback) {
-    let value = getNestedValue(obj, field);
+    let value = getFieldWithAlias(obj, field);
     if ((value === null || value === undefined || value === '') && fallback) {
-        value = getNestedValue(obj, fallback);
+        value = getFieldWithAlias(obj, fallback);
     }
-    return value || '';
+    return value !== null && value !== undefined ? value : '';
 }
 
 /**
