@@ -303,6 +303,19 @@ export function parseFileWithSheetJS(data, isCSV) {
             const studentName = row[columnMapping.name];
             if (!isValidStudentName(studentName)) continue;
 
+            // Validate grade column if present - skip rows with non-numeric grades
+            if (columnMapping.grade !== undefined) {
+                const gradeValue = row[columnMapping.grade];
+                // Allow empty/null grades, but skip non-numeric text values
+                if (gradeValue !== null && gradeValue !== undefined && gradeValue !== '') {
+                    const gradeNum = parseFloat(gradeValue);
+                    if (isNaN(gradeNum)) {
+                        console.log(`Skipping student ${studentName}: Grade '${gradeValue}' is not a valid number`);
+                        continue;
+                    }
+                }
+            }
+
             // Create entry with ONLY whitelisted columns from MASTER_LIST_COLUMNS
             const entry = {};
 
