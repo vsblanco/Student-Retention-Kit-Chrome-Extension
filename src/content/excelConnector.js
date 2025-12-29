@@ -345,6 +345,27 @@ if (window.hasSRKConnectorRun) {
                   transformedStudent.assignments = [];
               }
 
+              // Missing Assignments - process and convert Excel dates in dueDate field
+              if (student.missingAssignments && Array.isArray(student.missingAssignments)) {
+                  transformedStudent.missingAssignments = student.missingAssignments.map(assignment => {
+                      // Normalize assignment fields to use standardized names
+                      const normalizedAssignment = {
+                          assignmentTitle: assignment.assignmentTitle || assignment.title || '',
+                          assignmentLink: assignment.assignmentLink || assignment.assignmentUrl || '',
+                          submissionLink: assignment.submissionLink || assignment.submissionUrl || '',
+                          score: assignment.score || ''
+                      };
+
+                      // Convert Excel date serial number to MM-DD-YY format for dueDate
+                      const dueDateValue = assignment.dueDate;
+                      normalizedAssignment.dueDate = convertExcelDate(dueDateValue) || '';
+
+                      return normalizedAssignment;
+                  });
+              } else if (!('missingAssignments' in transformedStudent)) {
+                  transformedStudent.missingAssignments = [];
+              }
+
               return transformedStudent;
           });
 
