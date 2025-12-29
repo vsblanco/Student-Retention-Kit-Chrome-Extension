@@ -335,11 +335,6 @@ if (window.hasSRKConnectorRun) {
               const daysOutValue = getFieldWithAlias(student, 'daysOut');
               transformedStudent.daysout = parseInt(daysOutValue) || 0;
 
-              // Missing Count - initialize if not present
-              if (!('missingCount' in transformedStudent)) {
-                  transformedStudent.missingCount = 0;
-              }
-
               // Assignments - initialize if not present
               if (!('assignments' in transformedStudent)) {
                   transformedStudent.assignments = [];
@@ -362,8 +357,12 @@ if (window.hasSRKConnectorRun) {
 
                       return normalizedAssignment;
                   });
-              } else if (!('missingAssignments' in transformedStudent)) {
+
+                  // Update missingCount to match the actual number of missing assignments
+                  transformedStudent.missingCount = transformedStudent.missingAssignments.length;
+              } else {
                   transformedStudent.missingAssignments = [];
+                  transformedStudent.missingCount = 0;
               }
 
               return transformedStudent;
