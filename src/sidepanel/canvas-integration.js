@@ -82,7 +82,21 @@ export async function fetchCanvasDetails(student) {
 
         // Process courses
         if (canvasUserId && courses && courses.length > 0) {
-            const now = new Date();
+            // Check if using specific date (Time Machine mode)
+            const settings = await chrome.storage.local.get([STORAGE_KEYS.USE_SPECIFIC_DATE, STORAGE_KEYS.SPECIFIC_SUBMISSION_DATE]);
+            const useSpecificDate = settings[STORAGE_KEYS.USE_SPECIFIC_DATE] || false;
+            const specificDateStr = settings[STORAGE_KEYS.SPECIFIC_SUBMISSION_DATE];
+
+            let now;
+            if (useSpecificDate && specificDateStr) {
+                // Parse the specific date (format: YYYY-MM-DD)
+                const [year, month, day] = specificDateStr.split('-').map(Number);
+                now = new Date(year, month - 1, day); // month is 0-indexed
+                console.log(`🕐 Time Machine mode: Using date ${specificDateStr} for course selection`);
+            } else {
+                now = new Date();
+            }
+
             const validCourses = courses.filter(c => c.name && !c.name.toUpperCase().includes('CAPV'));
 
             let activeCourse = null;
