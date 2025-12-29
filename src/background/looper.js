@@ -317,6 +317,8 @@ async function loadSettings() {
 
 function prepareBatches(entries) {
     const courses = {};
+    const skippedStudents = [];
+
     entries.forEach(entry => {
         const parsed = parseIdsFromUrl(entry.url);
         if (parsed) {
@@ -325,8 +327,21 @@ function prepareBatches(entries) {
                 courses[parsed.courseId] = [];
             }
             courses[parsed.courseId].push(entry);
+        } else {
+            // Log skipped students with invalid URLs
+            const studentName = entry.name || 'Unknown Student';
+            const urlStatus = entry.url === undefined ? 'undefined' : (entry.url === null ? 'null' : `invalid: ${entry.url}`);
+            skippedStudents.push({ name: studentName, url: urlStatus });
+            console.warn(`[LOOPER] Skipping student with invalid URL - Name: ${studentName}, URL: ${urlStatus}`);
+            logToDebug('warn', `Skipping student with invalid URL - Name: ${studentName}, URL: ${urlStatus}`);
         }
     });
+
+    // Log summary if any students were skipped
+    if (skippedStudents.length > 0) {
+        console.warn(`[LOOPER] Total students skipped due to invalid URLs: ${skippedStudents.length}`);
+        logToDebug('warn', `Total students skipped due to invalid URLs: ${skippedStudents.length}`);
+    }
 
     const batches = [];
     Object.values(courses).forEach(courseEntries => {
