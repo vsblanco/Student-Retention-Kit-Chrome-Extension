@@ -155,6 +155,28 @@ if (window.hasSRKConnectorRun) {
            normalized === 'lastlda';
   }
 
+  /**
+   * Cleans up program version strings by removing year prefix and everything before it.
+   * Examples:
+   * - "D2-Q-2024 Medical Billing and Coding Specialist" → "Medical Billing and Coding Specialist"
+   * - "A1-2025 Nursing Program" → "Nursing Program"
+   * - "Medical Billing" → "Medical Billing" (unchanged if no year found)
+   *
+   * @param {string} value - The program version string to clean
+   * @returns {string} The cleaned program version string
+   */
+  function cleanProgramVersion(value) {
+    if (!value || typeof value !== 'string') return value;
+
+    // Match a 4-digit year (19xx or 20xx) and remove everything up to and including it
+    // Also removes any trailing separator (space, dash, etc.) after the year
+    const yearPattern = /.*\b(19\d{2}|20\d{2})\b[\s\-]*/;
+    const cleaned = value.replace(yearPattern, '');
+
+    // Return trimmed result, or original if no year was found
+    return cleaned.trim() || value.trim();
+  }
+
   // Notify extension that connector is active
   chrome.runtime.sendMessage({
       type: "SRK_CONNECTOR_ACTIVE",
@@ -302,13 +324,19 @@ if (window.hasSRKConnectorRun) {
               const transformedStudent = {};
 
               // Copy all fields from source to preserve all Excel columns
-              // Apply Excel date conversion to date fields
+              // Apply Excel date conversion to date fields and program version cleaning
               for (const key in student) {
                   let value = student[key];
 
                   // Convert Excel date numbers to MM-DD-YY format for date fields
                   if (isDateField(key)) {
                       value = convertExcelDate(value);
+                  }
+
+                  // Clean program version by removing year prefix
+                  const normalizedKey = normalizeFieldName(key);
+                  if (normalizedKey === 'programversion' && value !== null && value !== undefined && value !== '') {
+                      value = cleanProgramVersion(value);
                   }
 
                   transformedStudent[key] = value;
