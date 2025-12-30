@@ -198,6 +198,20 @@ chrome.runtime.onMessage.addListener(async (msg, sender, sendResponse) => {
       // Re-broadcast logs
   }
 
+  // --- AUTO-SIDELOAD MANIFEST HANDLERS ---
+  else if (msg.type === MESSAGE_TYPES.SRK_MANIFEST_INJECTED) {
+      console.log(`%c [Background] Manifest Auto-Sideloaded!`, "color: #4CAF50; font-weight: bold");
+      console.log(`   Add-in ID: ${msg.addinId}`);
+      console.log(`   Timestamp: ${msg.timestamp}`);
+
+      // Log to panel
+      chrome.runtime.sendMessage({
+          type: MESSAGE_TYPES.LOG_TO_PANEL,
+          level: 'log',
+          args: [`Excel Add-in manifest auto-sideloaded successfully`]
+      }).catch(() => {});
+  }
+
   // --- MASTER LIST UPDATE HANDLERS ---
   else if (msg.type === MESSAGE_TYPES.SRK_MASTER_LIST_UPDATED) {
       console.log(`%c [Background] Master List Updated!`, "color: green; font-weight: bold");

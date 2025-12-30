@@ -43,6 +43,16 @@
       "matches": [
         "https://excel.office.com/*",
         "https://*.officeapps.live.com/*",
+        "https://*.sharepoint.com/*"
+      ],
+      "js": ["src/content/excelManifestInjector.js"],
+      "run_at": "document_start",
+      "all_frames": true
+    },
+    {
+      "matches": [
+        "https://excel.office.com/*",
+        "https://*.officeapps.live.com/*",
         "https://vsblanco.github.io/Student-Retention-Add-in/*"
       ],
       "js": ["src/content/excelConnector.js"],
@@ -75,8 +85,10 @@
         "assets/powericon.png",
         "assets/power-automate-icon.png",
         "assets/background.png",
+        "assets/Excell Add-In Manifest.xml",
         "icon.png",
-        "src/lib/xlsx.full.min.js"
+        "src/lib/xlsx.full.min.js",
+        "src/utils/manifestSideloader.js"
       ],
       "matches": ["<all_urls>"]
     }
