@@ -292,20 +292,20 @@ export const MASTER_LIST_COLUMNS = [
     { header: 'Missing Assignments', field: 'missingCount' },
     { header: 'LDA', field: 'lda' },
     { header: 'Days Out', field: 'daysout' },
-    { header: 'Gender', field: 'gender' },
+    { header: 'Gender', field: 'gender', hidden: true },
     { header: 'Shift', field: 'shift' },
     { header: 'Program Version', field: 'programVersion' },
     { header: 'SyStudentId', field: 'SyStudentId' },
     { header: 'Phone', field: 'phone', fallback: 'primaryPhone' },
     { header: 'Other Phone', field: 'otherPhone' },
-    { header: 'Work Phone', field: 'workPhone' },
-    { header: 'Mobile Number', field: 'mobileNumber' },
+    { header: 'Work Phone', field: 'workPhone', hidden: true },
+    { header: 'Mobile Number', field: 'mobileNumber', hidden: true },
     { header: 'Student Email', field: 'studentEmail' },
     { header: 'Personal Email', field: 'personalEmail' },
     { header: 'ExpStartDate', field: 'expStartDate' },
     { header: 'AmRep', field: 'amRep' },
     { header: 'Hold', field: 'hold' },
-    { header: 'Photo', field: 'photo' },
+    { header: 'Photo', field: 'photo', hidden: true },
     { header: 'AdSAPStatus', field: 'adSAPStatus' }
 ];
 
@@ -324,4 +324,3 @@ export const EXPORT_MISSING_ASSIGNMENTS_COLUMNS = [
     { header: 'Assignment Link', field: 'assignment.assignmentLink' },
     { header: 'Submission Link', field: 'assignment.submissionLink' }
 ];
-
