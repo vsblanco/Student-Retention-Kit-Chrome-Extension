@@ -1,9 +1,9 @@
 // excelManifestInjector.js
-// Content script that injects the manifest sideloader into Excel's page context
+// Content script that auto-sideloads the Office Add-in manifest into Excel's localStorage
 
 console.log('%c [SRK] Excel Manifest Injector Script LOADED', 'background: #FF9800; color: white; font-size: 14px; font-weight: bold; padding: 2px 4px;');
 
-// Embedded manifest XML - this avoids fetch issues in SharePoint iframes
+// Embedded manifest XML - avoids fetch issues in SharePoint iframes
 const MANIFEST_XML = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <OfficeApp xmlns="http://schemas.microsoft.com/office/appforoffice/1.1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bt="http://schemas.microsoft.com/office/officeappbasictypes/1.0" xmlns:ov="http://schemas.microsoft.com/office/taskpaneappversionoverrides" xsi:type="TaskPaneApp">
   <Id>a8b1e479-1b3d-4e9e-9a1c-2f8e1c8b4a0e</Id>
@@ -256,55 +256,39 @@ const MANIFEST_XML = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
   </VersionOverrides>
 </OfficeApp>`;
 
-// Extract Add-in ID from manifest
 const ADDIN_ID = 'a8b1e479-1b3d-4e9e-9a1c-2f8e1c8b4a0e';
 
-// Check if auto-sideload is enabled
-chrome.storage.local.get(['autoSideloadManifest'], async (result) => {
-    const autoSideloadEnabled = result.autoSideloadManifest !== undefined
-        ? result.autoSideloadManifest
-        : true; // Default to enabled
-
-    if (!autoSideloadEnabled) {
-        console.log('[SRK] Auto-sideload is disabled in settings');
-        return;
-    }
-
-    console.log('[SRK] Auto-sideload is enabled, injecting manifest...');
-
+// Helper function to find or generate session ID
+function findOrGenerateSessionId() {
     try {
-        // Create and inject the script that will run in page context
-        const script = document.createElement('script');
-        script.textContent = `
-(function() {
-    console.log('%c [SRK Auto-Sideloader] Injecting manifest into localStorage...', 'background: #4CAF50; color: white; font-weight: bold; padding: 2px 4px;');
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key && key.startsWith('__OSF_UPLOADFILE.MyAddins.16.')) {
+                const parts = key.split('.');
+                if (parts.length >= 4) {
+                    return parts[3];
+                }
+            }
+        }
+    } catch (e) {
+        console.warn('[SRK Auto-Sideloader] Could not read existing session ID:', e);
+    }
+    return Math.floor(Math.random() * 9999999999).toString();
+}
 
-    const addinId = ${JSON.stringify(ADDIN_ID)};
-    const manifestXML = ${JSON.stringify(MANIFEST_XML)};
+// Main injection function
+function injectManifest() {
+    console.log('%c [SRK Auto-Sideloader] Injecting manifest into localStorage...', 'background: #4CAF50; color: white; font-weight: bold; padding: 2px 4px;');
 
     try {
         // Check if already sideloaded
-        const manifestKey = '__OSF_UPLOADFILE.Manifest.16.' + addinId;
+        const manifestKey = `__OSF_UPLOADFILE.Manifest.16.${ADDIN_ID}`;
         const alreadyExists = localStorage.getItem(manifestKey) !== null;
 
         if (alreadyExists) {
-            console.log('[SRK Auto-Sideloader] Manifest already exists in localStorage, updating...');
+            console.log('[SRK Auto-Sideloader] Manifest already exists, updating...');
         } else {
             console.log('[SRK Auto-Sideloader] First-time sideload detected');
-        }
-
-        // Find or generate session ID
-        function findOrGenerateSessionId() {
-            for (let i = 0; i < localStorage.length; i++) {
-                const key = localStorage.key(i);
-                if (key && key.startsWith('__OSF_UPLOADFILE.MyAddins.16.')) {
-                    const parts = key.split('.');
-                    if (parts.length >= 4) {
-                        return parts[3];
-                    }
-                }
-            }
-            return Math.floor(Math.random() * 9999999999).toString();
         }
 
         const sessionId = findOrGenerateSessionId();
@@ -312,14 +296,14 @@ chrome.storage.local.get(['autoSideloadManifest'], async (result) => {
 
         // Write manifest
         const manifestValue = JSON.stringify({
-            data: manifestXML,
+            data: MANIFEST_XML,
             createdOn: Date.now(),
             refreshRate: 3
         });
         localStorage.setItem(manifestKey, manifestValue);
 
         // Update MyAddins
-        const myAddinsKey = '__OSF_UPLOADFILE.MyAddins.16.' + sessionId;
+        const myAddinsKey = `__OSF_UPLOADFILE.MyAddins.16.${sessionId}`;
         const existingMyAddins = localStorage.getItem(myAddinsKey);
         let myAddinsValue;
 
@@ -327,8 +311,8 @@ chrome.storage.local.get(['autoSideloadManifest'], async (result) => {
             try {
                 const parsed = JSON.parse(existingMyAddins);
                 const addinIds = parsed.data || [];
-                if (!addinIds.includes(addinId)) {
-                    addinIds.push(addinId);
+                if (!addinIds.includes(ADDIN_ID)) {
+                    addinIds.push(ADDIN_ID);
                 }
                 myAddinsValue = JSON.stringify({
                     data: addinIds,
@@ -337,14 +321,14 @@ chrome.storage.local.get(['autoSideloadManifest'], async (result) => {
                 });
             } catch (e) {
                 myAddinsValue = JSON.stringify({
-                    data: [addinId],
+                    data: [ADDIN_ID],
                     createdOn: Date.now(),
                     refreshRate: 3
                 });
             }
         } else {
             myAddinsValue = JSON.stringify({
-                data: [addinId],
+                data: [ADDIN_ID],
                 createdOn: Date.now(),
                 refreshRate: 3
             });
@@ -352,7 +336,7 @@ chrome.storage.local.get(['autoSideloadManifest'], async (result) => {
         localStorage.setItem(myAddinsKey, myAddinsValue);
 
         // Update AddinCommandsMyAddins
-        const commandsKey = '__OSF_UPLOADFILE.AddinCommandsMyAddins.16.' + sessionId;
+        const commandsKey = `__OSF_UPLOADFILE.AddinCommandsMyAddins.16.${sessionId}`;
         const existingCommands = localStorage.getItem(commandsKey);
         let commandsValue;
 
@@ -360,8 +344,8 @@ chrome.storage.local.get(['autoSideloadManifest'], async (result) => {
             try {
                 const parsed = JSON.parse(existingCommands);
                 const addinIds = parsed.data || [];
-                if (!addinIds.includes(addinId)) {
-                    addinIds.push(addinId);
+                if (!addinIds.includes(ADDIN_ID)) {
+                    addinIds.push(ADDIN_ID);
                 }
                 commandsValue = JSON.stringify({
                     data: addinIds,
@@ -370,14 +354,14 @@ chrome.storage.local.get(['autoSideloadManifest'], async (result) => {
                 });
             } catch (e) {
                 commandsValue = JSON.stringify({
-                    data: [addinId],
+                    data: [ADDIN_ID],
                     createdOn: Date.now(),
                     refreshRate: 3
                 });
             }
         } else {
             commandsValue = JSON.stringify({
-                data: [addinId],
+                data: [ADDIN_ID],
                 createdOn: Date.now(),
                 refreshRate: 3
             });
@@ -392,18 +376,6 @@ chrome.storage.local.get(['autoSideloadManifest'], async (result) => {
         console.log('[SRK Auto-Sideloader] The Student Retention Add-in should load automatically!');
         console.log('[SRK Auto-Sideloader] If not visible, try refreshing Excel (F5)');
 
-    } catch (error) {
-        console.error('%c [SRK Auto-Sideloader] FAILED:', 'background: #f44336; color: white; font-weight: bold; padding: 2px 4px;', error);
-    }
-})();
-        `;
-
-        // Inject the script into the page
-        (document.head || document.documentElement).appendChild(script);
-        script.remove(); // Clean up the script tag
-
-        console.log('[SRK] Manifest injection script executed');
-
         // Notify the background script
         chrome.runtime.sendMessage({
             type: 'SRK_MANIFEST_INJECTED',
@@ -413,7 +385,27 @@ chrome.storage.local.get(['autoSideloadManifest'], async (result) => {
             // Extension might not be ready, that's ok
         });
 
+        return true;
+
     } catch (error) {
-        console.error('[SRK] Failed to inject manifest:', error);
+        console.error('%c [SRK Auto-Sideloader] FAILED:', 'background: #f44336; color: white; font-weight: bold; padding: 2px 4px;', error);
+        return false;
     }
+}
+
+// Check if auto-sideload is enabled and run
+chrome.storage.local.get(['autoSideloadManifest'], (result) => {
+    const autoSideloadEnabled = result.autoSideloadManifest !== undefined
+        ? result.autoSideloadManifest
+        : true; // Default to enabled
+
+    if (!autoSideloadEnabled) {
+        console.log('[SRK] Auto-sideload is disabled in settings');
+        return;
+    }
+
+    console.log('[SRK] Auto-sideload is enabled, proceeding...');
+
+    // Run the injection
+    injectManifest();
 });
