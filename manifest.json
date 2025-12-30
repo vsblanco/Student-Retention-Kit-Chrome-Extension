@@ -71,10 +71,10 @@
     {
       "resources": [
         "docs/README.md",
-        "src/sidepanel/liquid-glass.css",
-        "assets/pictures/powericon.png",
-        "assets/pictures/power-automate-icon.png",
-        "assets/pictures/background.png",
+        "src/sidepanel/sidepanel.css",
+        "assets/powericon.png",
+        "assets/power-automate-icon.png",
+        "assets/background.png",
         "icon.png",
         "src/lib/xlsx.full.min.js"
       ],
