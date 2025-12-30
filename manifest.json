@@ -42,7 +42,8 @@
     {
       "matches": [
         "https://excel.office.com/*",
-        "https://*.officeapps.live.com/*"
+        "https://*.officeapps.live.com/*",
+        "https://*.sharepoint.com/*"
       ],
       "js": ["src/content/excelManifestInjector.js"],
       "run_at": "document_start",
