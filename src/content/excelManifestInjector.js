@@ -88,30 +88,6 @@ const MANIFEST_XML = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
                   </Action>
                 </Control>
               </Group>
-              <Group id="DataGroup">
-                <Label resid="DataGroup.Label"/>
-                <Icon>
-                  <bt:Image size="16" resid="Icon.16x16"/>
-                  <bt:Image size="32" resid="Icon.32x32"/>
-                  <bt:Image size="80" resid="Icon.80x80"/>
-                </Icon>
-                <Control xsi:type="Button" id="ImportDataButton">
-                  <Label resid="ImportDataButton.Label"/>
-                  <Supertip>
-                    <Title resid="ImportDataButton.Label"/>
-                    <Description resid="ImportDataButton.Tooltip"/>
-                  </Supertip>
-                  <Icon>
-                    <bt:Image size="16" resid="ImportIcon.16x16"/>
-                    <bt:Image size="32" resid="ImportIcon.32x32"/>
-                    <bt:Image size="80" resid="ImportIcon.80x80"/>
-                  </Icon>
-                  <Action xsi:type="ShowTaskpane">
-                    <TaskpaneId>ImportDataPane</TaskpaneId>
-                    <SourceLocation resid="Import.Url"/>
-                  </Action>
-                </Control>
-              </Group>
               <Group id="ReportGroup">
                 <Label resid="ReportGroup.Label"/>
                 <Icon>
@@ -186,9 +162,6 @@ const MANIFEST_XML = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
         <bt:Image id="Icon.16x16" DefaultValue="https://vsblanco.github.io/Student-Retention-Add-in/assets/icon-16.png"/>
         <bt:Image id="Icon.32x32" DefaultValue="https://vsblanco.github.io/Student-Retention-Add-in/assets/icon-32.png"/>
         <bt:Image id="Icon.80x80" DefaultValue="https://vsblanco.github.io/Student-Retention-Add-in/assets/icon-80.png"/>
-        <bt:Image id="ImportIcon.16x16" DefaultValue="https://vsblanco.github.io/Student-Retention-Add-in/assets/import-icon.png"/>
-        <bt:Image id="ImportIcon.32x32" DefaultValue="https://vsblanco.github.io/Student-Retention-Add-in/assets/import-icon.png"/>
-        <bt:Image id="ImportIcon.80x80" DefaultValue="https://vsblanco.github.io/Student-Retention-Add-in/assets/import-icon.png"/>
         <bt:Image id="CreateLdaIcon.16x16" DefaultValue="https://vsblanco.github.io/Student-Retention-Add-in/assets/create-lda-icon.png"/>
         <bt:Image id="CreateLdaIcon.32x32" DefaultValue="https://vsblanco.github.io/Student-Retention-Add-in/assets/create-lda-icon.png"/>
         <bt:Image id="CreateLdaIcon.80x80" DefaultValue="https://vsblanco.github.io/Student-Retention-Add-in/assets/create-lda-icon.png"/>
@@ -207,7 +180,6 @@ const MANIFEST_XML = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
         <bt:Url id="Commands.Url" DefaultValue="https://vsblanco.github.io/Student-Retention-Add-in/background-services/commands.html"/>
         <bt:Url id="StudentView.Url" DefaultValue="https://vsblanco.github.io/Student-Retention-Add-in/react/dist/index.html?page=student-view"/>
         <bt:Url id="Settings.Url" DefaultValue="https://vsblanco.github.io/Student-Retention-Add-in/react/dist/index.html?page=settings"/>
-        <bt:Url id="Import.Url" DefaultValue="https://vsblanco.github.io/Student-Retention-Add-in/react/dist/index.html?page=import"/>
         <bt:Url id="CreateLdaDialog.Url" DefaultValue="https://vsblanco.github.io/Student-Retention-Add-in/react/dist/index.html?page=create-lda"/>
         <bt:Url id="WelcomeDialog.Url" DefaultValue="https://vsblanco.github.io/Student-Retention-Add-in/welcome-dialog.html"/>
         <bt:Url id="PersonalizedEmail.Url" DefaultValue="https://vsblanco.github.io/Student-Retention-Add-in/personalized-email/personalized-email.html"/>
@@ -215,12 +187,10 @@ const MANIFEST_XML = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
       <bt:ShortStrings>
         <bt:String id="GetStarted.Title" DefaultValue="Get started with the Retention Add-in!"/>
         <bt:String id="RetentionTab.Label" DefaultValue="Retention"/>
-        <bt:String id="DataGroup.Label" DefaultValue="Data"/>
         <bt:String id="SystemGroup.Label" DefaultValue="System"/>
         <bt:String id="ReportGroup.Label" DefaultValue="Report"/>
         <bt:String id="StudentViewGroup.Label" DefaultValue="Student View"/>
         <bt:String id="StudentViewButton.Label" DefaultValue="Student View"/>
-        <bt:String id="ImportDataButton.Label" DefaultValue="Import Data"/>
         <bt:String id="CreateLdaButton.Label" DefaultValue="Create LDA"/>
         <bt:String id="SettingsButton.Label" DefaultValue="Settings"/>
         <bt:String id="PersonalizedEmailButton.Label" DefaultValue="Send Emails"/>
@@ -228,7 +198,6 @@ const MANIFEST_XML = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
       <bt:LongStrings>
         <bt:String id="GetStarted.Description" DefaultValue="Your add-in loaded successfully. Go to the 'Retention' tab to get started."/>
         <bt:String id="StudentViewButton.Tooltip" DefaultValue="Click to show the student details pane."/>
-        <bt:String id="ImportDataButton.Tooltip" DefaultValue="Import student data from a CSV or Excel file into the active sheet."/>
         <bt:String id="CreateLdaButton.Tooltip" DefaultValue="Creates a new LDA sheet for the current date."/>
         <bt:String id="SettingsButton.Tooltip" DefaultValue="Click to configure add-in settings."/>
         <bt:String id="PersonalizedEmailButton.Tooltip" DefaultValue="Opens a task pane to send a personalized email to the selected student."/>
@@ -246,11 +215,12 @@ const MANIFEST_XML = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
     -->
     <WebApplicationInfo>
       <Id>71f37f39-a330-413a-be61-0baa5ce03ea3</Id>
-      <Resource>api://71f37f39-a330-413a-be61-0baa5ce03ea3</Resource>
+      <Resource>api://vsblanco.github.io/71f37f39-a330-413a-be61-0baa5ce03ea3</Resource>
       <Scopes>
         <Scope>openid</Scope>
         <Scope>profile</Scope>
         <Scope>User.Read</Scope>
+        <Scope>User.ReadBasic.All</Scope>
       </Scopes>
     </WebApplicationInfo>
   </VersionOverrides>
