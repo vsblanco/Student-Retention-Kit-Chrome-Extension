@@ -431,13 +431,6 @@ async function sendConnectionPings(payload) {
     for (const conn of connections) {
         if (conn.type === CONNECTION_TYPES.POWER_AUTOMATE) {
             pingPromises.push(triggerPowerAutomate(conn, bodyPayload));
-        } else if (conn.type === CONNECTION_TYPES.PUSHER) {
-            chrome.runtime.sendMessage({
-                type: MESSAGE_TYPES.TRIGGER_PUSHER,
-                target: 'offscreen',
-                connection: conn,
-                payload: bodyPayload
-            }).catch(e => console.error("Error sending to offscreen:", e));
         }
     }
     await Promise.all(pingPromises);
