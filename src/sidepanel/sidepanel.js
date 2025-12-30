@@ -29,7 +29,6 @@ import {
 
 import {
     handleFileImport,
-    handleJsonClipboardProcess,
     resetQueueUI,
     restoreDefaultQueueUI,
     exportMasterListCSV,
@@ -673,30 +672,7 @@ async function handleUpdateMasterList() {
 
         resetQueueUI();
 
-        // Check clipboard for JSON
-        try {
-            const text = await navigator.clipboard.readText();
-            const trimmed = text ? text.trim() : '';
-            if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
-                let jsonData;
-                try {
-                    jsonData = JSON.parse(trimmed);
-                } catch (e) { /* invalid json */ }
-
-                if (jsonData && Array.isArray(jsonData) && jsonData.length > 0) {
-                    handleJsonClipboardProcess(jsonData, (students) => {
-                        renderMasterList(students, (entry, li, evt) => {
-                            queueManager.handleStudentClick(entry, li, evt);
-                        });
-                    });
-                    return;
-                }
-            }
-        } catch (err) {
-            console.log("Clipboard check failed or empty:", err);
-        }
-
-        // Fallback to CSV upload
+        // Direct CSV upload
         restoreDefaultQueueUI();
 
         const step1 = document.getElementById('step1');
