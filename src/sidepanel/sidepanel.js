@@ -2,6 +2,7 @@
 import { STORAGE_KEYS, EXTENSION_STATES, MESSAGE_TYPES } from '../constants/index.js';
 import { hasDispositionCode } from '../constants/dispositions.js';
 import { getCacheStats, clearAllCache } from '../utils/canvasCache.js';
+import { loadAndRenderMarkdown } from '../utils/markdownRenderer.js';
 import CallManager from './callManager.js';
 
 // Import all module functions
@@ -47,8 +48,6 @@ import {
     openQueueModal,
     closeQueueModal,
     renderQueueModal,
-    openVersionModal,
-    closeVersionModal,
     openConnectionsModal,
     closeConnectionsModal,
     saveConnectionsSettings,
@@ -145,6 +144,26 @@ async function initializeApp() {
     }
 }
 
+// --- ABOUT PAGE ---
+let aboutContentLoaded = false;
+async function loadAboutContent() {
+    // Only load once
+    if (aboutContentLoaded) return;
+
+    const aboutContainer = document.getElementById('aboutContent');
+    if (!aboutContainer) {
+        console.error('About content container not found');
+        return;
+    }
+
+    try {
+        await loadAndRenderMarkdown('about.md', aboutContainer);
+        aboutContentLoaded = true;
+    } catch (error) {
+        console.error('Failed to load about content:', error);
+    }
+}
+
 // --- EVENT LISTENERS ---
 function setupEventListeners() {
     // Tab switching
@@ -153,6 +172,8 @@ function setupEventListeners() {
             switchTab(tab.dataset.tab);
             if (tab.dataset.tab === 'settings') {
                 updateCacheStats();
+            } else if (tab.dataset.tab === 'about') {
+                loadAboutContent();
             }
         });
     });
@@ -172,11 +193,10 @@ function setupEventListeners() {
     }
 
     if (elements.versionText) {
-        elements.versionText.addEventListener('click', openVersionModal);
-    }
-
-    if (elements.closeVersionBtn) {
-        elements.closeVersionBtn.addEventListener('click', closeVersionModal);
+        elements.versionText.addEventListener('click', () => {
+            switchTab('about');
+            loadAboutContent();
+        });
     }
 
     if (elements.clearMasterListBtn) {
@@ -404,9 +424,6 @@ function setupEventListeners() {
 
     // Modal outside click handlers
     window.addEventListener('click', (e) => {
-        if (elements.versionModal && e.target === elements.versionModal) {
-            closeVersionModal();
-        }
         if (elements.scanFilterModal && e.target === elements.scanFilterModal) {
             closeScanFilterModal();
         }

@@ -108,8 +108,6 @@ export function cacheDomElements() {
     elements.studentPopFile = document.getElementById('studentPopFile');
 
     // Modals & Settings
-    elements.versionModal = document.getElementById('versionModal');
-    elements.closeVersionBtn = document.getElementById('closeVersionBtn');
     elements.clearMasterListBtn = document.getElementById('clearMasterListBtn');
     elements.useSpecificDateToggle = document.getElementById('useSpecificDateToggle');
     elements.specificDatePicker = document.getElementById('specificDatePicker');

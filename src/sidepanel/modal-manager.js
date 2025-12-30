@@ -264,24 +264,6 @@ function handleDrop(e, onReorder) {
 }
 
 /**
- * Opens the version history modal
- */
-export function openVersionModal() {
-    if (elements.versionModal) {
-        elements.versionModal.style.display = 'flex';
-    }
-}
-
-/**
- * Closes the version history modal
- */
-export function closeVersionModal() {
-    if (elements.versionModal) {
-        elements.versionModal.style.display = 'none';
-    }
-}
-
-/**
  * Opens the connections modal for a specific connection type
  * @param {string} connectionType - 'excel', 'powerAutomate', or 'canvas'
  */
