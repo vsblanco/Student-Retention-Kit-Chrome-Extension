@@ -39,7 +39,6 @@ export const MESSAGE_TYPES = {
     SEND_DEBUG_PAYLOAD: 'send-debug-payload',
     LOG_TO_PANEL: 'logToPanel',
     SHOW_MISSING_ASSIGNMENTS_REPORT: 'showMissingAssignmentsReport',
-    UPDATE_SCHEDULE: 'updateSchedule',
     SRK_CONNECTOR_ACTIVE: 'SRK_CONNECTOR_ACTIVE',
     SRK_CONNECTOR_HEARTBEAT: 'SRK_CONNECTOR_HEARTBEAT',
     SRK_OFFICE_ADDIN_CONNECTED: 'SRK_OFFICE_ADDIN_CONNECTED',
@@ -79,9 +78,6 @@ export const STORAGE_KEYS = {
     CUSTOM_KEYWORD: 'customKeyword',
     LOOPER_DAYS_OUT_FILTER: 'looperDaysOutFilter',
     EMBED_IN_CANVAS: 'embedInCanvas',
-    SCHEDULED_CHECK_ENABLED: 'scheduledCheckEnabled',
-    SCHEDULED_CHECK_TIME: 'scheduledCheckTime',
-    SCHEDULED_MASTER_LIST: 'scheduledMasterList',
     INCLUDE_ALL_ASSIGNMENTS: 'includeAllAssignments',
     CANVAS_API_CACHE: 'canvasApiCache',
     // Scan Filter Settings
@@ -120,9 +116,6 @@ export const DEFAULT_SETTINGS = {
     [STORAGE_KEYS.LOOPER_DAYS_OUT_FILTER]: 'all',
     [STORAGE_KEYS.DEBUG_MODE]: false,
     [STORAGE_KEYS.EMBED_IN_CANVAS]: true,
-    [STORAGE_KEYS.SCHEDULED_CHECK_ENABLED]: false,
-    [STORAGE_KEYS.SCHEDULED_CHECK_TIME]: '08:00',
-    [STORAGE_KEYS.SCHEDULED_MASTER_LIST]: '',
     [STORAGE_KEYS.INCLUDE_ALL_ASSIGNMENTS]: false,
     [STORAGE_KEYS.SCAN_FILTER_DAYS_OUT]: '>=5',
     [STORAGE_KEYS.SCAN_FILTER_INCLUDE_FAILING]: false,
@@ -141,11 +134,6 @@ export const DEFAULT_SETTINGS = {
     [STORAGE_KEYS.USE_SPECIFIC_DATE]: false,
     [STORAGE_KEYS.SPECIFIC_SUBMISSION_DATE]: null
 };
-
-/**
- * The name for the scheduled alarm.
- */
-export const SCHEDULED_ALARM_NAME = 'daily_missing_check';
 
 /**
  * The name for the network recovery alarm.
