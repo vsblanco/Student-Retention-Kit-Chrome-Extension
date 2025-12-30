@@ -48,7 +48,8 @@ export const MESSAGE_TYPES = {
     SRK_OFFICE_USER_INFO: 'SRK_OFFICE_USER_INFO',
     SRK_SEND_IMPORT_MASTER_LIST: 'SRK_SEND_IMPORT_MASTER_LIST',
     SRK_TASKPANE_PING: 'SRK_TASKPANE_PING',
-    SRK_TASKPANE_PONG: 'SRK_TASKPANE_PONG'
+    SRK_TASKPANE_PONG: 'SRK_TASKPANE_PONG',
+    SRK_MANIFEST_INJECTED: 'SRK_MANIFEST_INJECTED'
 };
 
 /**
@@ -102,7 +103,9 @@ export const STORAGE_KEYS = {
     USE_SPECIFIC_DATE: 'useSpecificDate',
     SPECIFIC_SUBMISSION_DATE: 'specificSubmissionDate',
     // Office User Info
-    OFFICE_USER_INFO: 'officeUserInfo'
+    OFFICE_USER_INFO: 'officeUserInfo',
+    // Auto-Sideload Manifest Settings
+    AUTO_SIDELOAD_MANIFEST: 'autoSideloadManifest'
 };
 
 /**
@@ -132,7 +135,9 @@ export const DEFAULT_SETTINGS = {
     [STORAGE_KEYS.HIGHLIGHT_COLOR]: '#92d050',
     // Specific Submission Date Defaults
     [STORAGE_KEYS.USE_SPECIFIC_DATE]: false,
-    [STORAGE_KEYS.SPECIFIC_SUBMISSION_DATE]: null
+    [STORAGE_KEYS.SPECIFIC_SUBMISSION_DATE]: null,
+    // Auto-Sideload Manifest Defaults
+    [STORAGE_KEYS.AUTO_SIDELOAD_MANIFEST]: true // Auto-sideload enabled by default
 };
 
 /**
