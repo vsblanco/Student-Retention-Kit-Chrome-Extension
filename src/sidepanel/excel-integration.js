@@ -95,6 +95,12 @@ function handleConnectorMessage(message) {
             lastConnectorHeartbeat = now;
             console.log('✅ Office Add-in connected to Excel connector');
             break;
+
+        case MESSAGE_TYPES.SRK_TASKPANE_PONG:
+            lastOfficeAddinPing = now;
+            lastConnectorHeartbeat = now;
+            console.log('🏓 Received pong from Office Add-in');
+            break;
     }
 
     // Trigger immediate status update
@@ -178,6 +184,34 @@ export function stopExcelConnectionMonitor() {
         clearInterval(excelConnectionCheckInterval);
         excelConnectionCheckInterval = null;
         console.log('⏹️ Excel connection monitor stopped');
+    }
+}
+
+/**
+ * Sends a ping to the Excel add-in to check connectivity
+ * This is called when the taskpane opens
+ */
+export async function pingExcelAddIn() {
+    try {
+        const hasExcelTab = await checkExcelTabOpen();
+
+        if (!hasExcelTab) {
+            console.log('🏓 No Excel tab open, skipping ping');
+            return;
+        }
+
+        console.log('🏓 Sending ping to Excel Add-in...');
+
+        // Send ping message to background/content script which will relay to Office Add-in
+        chrome.runtime.sendMessage({
+            type: MESSAGE_TYPES.SRK_TASKPANE_PING,
+            timestamp: Date.now()
+        }).catch((error) => {
+            console.log('🏓 Ping failed (extension context may not be ready):', error.message);
+        });
+
+    } catch (error) {
+        console.error('🏓 Error sending ping to Excel Add-in:', error);
     }
 }
 

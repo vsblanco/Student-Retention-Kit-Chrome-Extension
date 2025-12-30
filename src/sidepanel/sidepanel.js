@@ -77,7 +77,8 @@ import {
 
 import {
     startExcelConnectionMonitor,
-    stopExcelConnectionMonitor
+    stopExcelConnectionMonitor,
+    pingExcelAddIn
 } from './excel-integration.js';
 
 // --- STATE MANAGEMENT ---
@@ -133,6 +134,9 @@ async function initializeApp() {
 
     // Start Excel connection monitoring
     startExcelConnectionMonitor();
+
+    // Send ping to Excel add-in to check connectivity on taskpane open
+    await pingExcelAddIn();
 
     // Check if daily update modal should be shown
     const showModal = await shouldShowDailyUpdateModal();

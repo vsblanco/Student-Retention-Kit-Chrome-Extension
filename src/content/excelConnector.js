@@ -184,6 +184,19 @@ if (window.hasSRKConnectorRun) {
           });
       }
 
+      // Handle Taskpane Pong from Office Add-in - forward to extension
+      else if (event.data.type === "SRK_TASKPANE_PONG") {
+          console.log("%c SRK Connector: Pong received from Office Add-in, forwarding to extension", "color: green; font-weight: bold");
+
+          // Notify extension that we received a pong
+          chrome.runtime.sendMessage({
+              type: "SRK_TASKPANE_PONG",
+              timestamp: Date.now()
+          }).catch(() => {
+              // Extension might not be ready, that's ok
+          });
+      }
+
       // Handle Master List Request
       else if (event.data.type === "SRK_REQUEST_MASTER_LIST") {
           console.log("%c SRK Connector: Master List Request Received", "color: blue; font-weight: bold");
@@ -529,11 +542,17 @@ if (window.hasSRKConnectorRun) {
       }
   }
 
-  // Listen for messages from extension (e.g., highlight student row requests)
+  // Listen for messages from extension (e.g., highlight student row requests, ping checks)
   chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       if (request.action === "postToPage" && request.message) {
           console.log("%c SRK Connector: Forwarding message to page", "color: blue; font-weight: bold", request.message);
           window.postMessage(request.message, "*");
+          sendResponse({ success: true });
+      }
+      // Handle taskpane ping from extension - forward to Office Add-in
+      else if (request.type === "SRK_TASKPANE_PING") {
+          console.log("%c SRK Connector: Ping request from taskpane, forwarding to Office Add-in", "color: blue; font-weight: bold");
+          window.postMessage({ type: "SRK_TASKPANE_PING", timestamp: request.timestamp }, "*");
           sendResponse({ success: true });
       }
       return true; // Keep channel open for async response
