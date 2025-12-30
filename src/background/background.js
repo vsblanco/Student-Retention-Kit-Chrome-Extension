@@ -1,8 +1,7 @@
 // [2025-12-17 01:25 PM]
 // Version: 14.4 - Added Five9 Integration
 import { startLoop, stopLoop, addToFoundUrlCache } from './looper.js';
-import { STORAGE_KEYS, CHECKER_MODES, MESSAGE_TYPES, EXTENSION_STATES, CONNECTION_TYPES, SCHEDULED_ALARM_NAME } from '../constants/index.js';
-import { setupSchedule, runScheduledCheck } from './schedule.js';
+import { STORAGE_KEYS, CHECKER_MODES, MESSAGE_TYPES, EXTENSION_STATES, CONNECTION_TYPES } from '../constants/index.js';
 
 let logBuffer = [];
 const MAX_LOG_BUFFER_SIZE = 100;
@@ -163,7 +162,6 @@ chrome.commands.onCommand.addListener((command, tab) => {
 });
 chrome.runtime.onStartup.addListener(() => {
   updateBadge();
-  setupSchedule();
   chrome.storage.local.get(STORAGE_KEYS.EXTENSION_STATE, data => handleStateChange(data[STORAGE_KEYS.EXTENSION_STATE]));
 });
 chrome.storage.onChanged.addListener((changes) => {
@@ -172,12 +170,6 @@ chrome.storage.onChanged.addListener((changes) => {
   }
   if (changes[STORAGE_KEYS.EXTENSION_STATE] || changes[STORAGE_KEYS.FOUND_ENTRIES]) {
     updateBadge();
-  }
-});
-
-chrome.alarms.onAlarm.addListener(async (alarm) => {
-  if (alarm.name === SCHEDULED_ALARM_NAME) {
-    runScheduledCheck();
   }
 });
 
@@ -202,8 +194,6 @@ chrome.runtime.onMessage.addListener(async (msg, sender, sendResponse) => {
     if (msg.payload) {
       await sendConnectionPings(msg.payload);
     }
-  } else if (msg.type === MESSAGE_TYPES.UPDATE_SCHEDULE) {
-    await setupSchedule();
   } else if (msg.type === MESSAGE_TYPES.LOG_TO_PANEL) {
       // Re-broadcast logs
   }
@@ -560,7 +550,6 @@ chrome.runtime.onStartup.addListener(async () => {
 
 // --- INITIALIZATION ---
 updateBadge();
-setupSchedule();
 chrome.storage.local.get(STORAGE_KEYS.EXTENSION_STATE, data => {
     handleStateChange(data[STORAGE_KEYS.EXTENSION_STATE]);
 });
