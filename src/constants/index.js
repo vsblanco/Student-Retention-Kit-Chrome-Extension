@@ -282,7 +282,7 @@ export const MASTER_LIST_COLUMNS = [
     { header: 'Grade', field: 'grade', fallback: 'currentGrade' },
     { header: 'Missing Assignments', field: 'missingCount' },
     { header: 'LDA', field: 'lda' },
-    { header: 'Days Out', field: 'daysout' },
+    { header: 'Days Out', field: 'daysOut' },
     { header: 'Gender', field: 'gender', hidden: true },
     { header: 'Shift', field: 'shift' },
     { header: 'Program Version', field: 'programVersion' },
