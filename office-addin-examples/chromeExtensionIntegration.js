@@ -174,6 +174,9 @@ export async function completeInitializationExample() {
         // Wait for Office to be ready
         await Office.onReady();
 
+        // Set up ping response listener for connectivity checks
+        setupPingResponseListener();
+
         // Initialize user info sync
         await initializeUserInfoSync();
 
@@ -220,6 +223,28 @@ function checkChromeExtension() {
             resolve(false);
         }, 2000);
     });
+}
+
+/**
+ * Sets up listener to respond to ping checks from the Chrome extension
+ * Call this during add-in initialization to enable connectivity checks
+ */
+export function setupPingResponseListener() {
+    window.addEventListener("message", (event) => {
+        if (event.data && event.data.type === "SRK_TASKPANE_PING") {
+            console.log('🏓 Received ping from Chrome extension taskpane, sending pong...');
+
+            // Send pong response back to extension
+            window.postMessage({
+                type: "SRK_TASKPANE_PONG",
+                timestamp: new Date().toISOString()
+            }, "*");
+
+            console.log('✅ Pong sent to Chrome extension');
+        }
+    });
+
+    console.log('🔔 Ping response listener set up');
 }
 
 /**
