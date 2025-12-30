@@ -37,7 +37,6 @@ export const MESSAGE_TYPES = {
     TEST_CONNECTION_PA: 'test-connection-pa',
     CONNECTION_TEST_RESULT: 'connection-test-result',
     SEND_DEBUG_PAYLOAD: 'send-debug-payload',
-    TRIGGER_PUSHER: 'trigger-pusher',
     LOG_TO_PANEL: 'logToPanel',
     SHOW_MISSING_ASSIGNMENTS_REPORT: 'showMissingAssignmentsReport',
     UPDATE_SCHEDULE: 'updateSchedule',
@@ -58,7 +57,6 @@ export const MESSAGE_TYPES = {
  */
 export const CONNECTION_TYPES = {
     POWER_AUTOMATE: 'power-automate',
-    PUSHER: 'pusher',
     EXCEL: 'excel'
 };
 

@@ -13,9 +13,7 @@
     "tabs",
     "alarms",
     "sidePanel",
-    "offscreen",
     "webRequest",
-    "cookies",
     "scripting"
   ],
 "host_permissions": [
@@ -77,10 +75,8 @@
         "src/sidepanel/liquid-glass.css",
         "assets/pictures/powericon.png",
         "assets/pictures/power-automate-icon.png",
-        "assets/pictures/pusher-icon.png",
         "assets/pictures/background.png",
         "icon.png",
-        "src/lib/pusher.min.js",
         "src/lib/xlsx.full.min.js"
       ],
       "matches": ["<all_urls>"]
