@@ -133,6 +133,12 @@ export function cacheDomElements() {
     elements.queueList = document.getElementById('queueList');
     elements.queueCount = document.getElementById('queueCount');
 
+    // Daily Update Modal
+    elements.dailyUpdateModal = document.getElementById('dailyUpdateModal');
+    elements.closeDailyUpdateBtn = document.getElementById('closeDailyUpdateBtn');
+    elements.dailyUpdateBtn = document.getElementById('dailyUpdateBtn');
+    elements.dailyUpdateLaterBtn = document.getElementById('dailyUpdateLaterBtn');
+
     // Connections Modal
     elements.connectionsModal = document.getElementById('connectionsModal');
     elements.closeConnectionsBtn = document.getElementById('closeConnectionsBtn');
