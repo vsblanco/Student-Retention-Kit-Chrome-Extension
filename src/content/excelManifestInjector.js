@@ -257,24 +257,7 @@ const MANIFEST_XML = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 </OfficeApp>`;
 
 const ADDIN_ID = 'a8b1e479-1b3d-4e9e-9a1c-2f8e1c8b4a0e';
-
-// Helper function to find or generate session ID
-function findOrGenerateSessionId() {
-    try {
-        for (let i = 0; i < localStorage.length; i++) {
-            const key = localStorage.key(i);
-            if (key && key.startsWith('__OSF_UPLOADFILE.MyAddins.16.')) {
-                const parts = key.split('.');
-                if (parts.length >= 4) {
-                    return parts[3];
-                }
-            }
-        }
-    } catch (e) {
-        console.warn('[SRK Auto-Sideloader] Could not read existing session ID:', e);
-    }
-    return Math.floor(Math.random() * 9999999999).toString();
-}
+const SESSION_ID = '3735224676'; // Fixed session ID for consistent add-in loading
 
 // Main injection function
 function injectManifest() {
@@ -291,8 +274,7 @@ function injectManifest() {
             console.log('[SRK Auto-Sideloader] First-time sideload detected');
         }
 
-        const sessionId = findOrGenerateSessionId();
-        console.log('[SRK Auto-Sideloader] Using session ID:', sessionId);
+        console.log('[SRK Auto-Sideloader] Using session ID:', SESSION_ID);
 
         // Write manifest
         const manifestValue = JSON.stringify({
@@ -303,7 +285,7 @@ function injectManifest() {
         localStorage.setItem(manifestKey, manifestValue);
 
         // Update MyAddins
-        const myAddinsKey = `__OSF_UPLOADFILE.MyAddins.16.${sessionId}`;
+        const myAddinsKey = `__OSF_UPLOADFILE.MyAddins.16.${SESSION_ID}`;
         const existingMyAddins = localStorage.getItem(myAddinsKey);
         let myAddinsValue;
 
@@ -336,7 +318,7 @@ function injectManifest() {
         localStorage.setItem(myAddinsKey, myAddinsValue);
 
         // Update AddinCommandsMyAddins
-        const commandsKey = `__OSF_UPLOADFILE.AddinCommandsMyAddins.16.${sessionId}`;
+        const commandsKey = `__OSF_UPLOADFILE.AddinCommandsMyAddins.16.${SESSION_ID}`;
         const existingCommands = localStorage.getItem(commandsKey);
         let commandsValue;
 
@@ -369,7 +351,7 @@ function injectManifest() {
         localStorage.setItem(commandsKey, commandsValue);
 
         // CRITICAL: Set the acknowledgment flag that tells Office the add-ins list has been loaded
-        const ackKey = `ack3_WAC_Excel_${sessionId}_8`;
+        const ackKey = `ack3_WAC_Excel_${SESSION_ID}_8`;
         localStorage.setItem(ackKey, 'true');
 
         console.log('%c [SRK Auto-Sideloader] ✓ SUCCESS!', 'background: #4CAF50; color: white; font-weight: bold; padding: 2px 4px;');
