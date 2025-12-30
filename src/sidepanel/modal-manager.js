@@ -803,3 +803,75 @@ export async function clearCacheFromModal() {
         alert('Error clearing cache. Check console for details.');
     }
 }
+
+/**
+ * Checks if the daily update modal should be shown
+ * Returns true if the modal should be shown, false otherwise
+ */
+export async function shouldShowDailyUpdateModal() {
+    const data = await chrome.storage.local.get([
+        STORAGE_KEYS.LAST_UPDATED,
+        STORAGE_KEYS.LAST_MODAL_SHOWN
+    ]);
+
+    const lastUpdated = data[STORAGE_KEYS.LAST_UPDATED];
+    const lastModalShown = data[STORAGE_KEYS.LAST_MODAL_SHOWN];
+
+    // If there's no master list yet, don't show the modal
+    if (!lastUpdated) {
+        return false;
+    }
+
+    const now = new Date();
+    const todayDateString = now.toLocaleDateString('en-US');
+
+    // Check if modal was already shown today
+    if (lastModalShown) {
+        const lastShownDate = new Date(lastModalShown);
+        const lastShownDateString = lastShownDate.toLocaleDateString('en-US');
+
+        if (todayDateString === lastShownDateString) {
+            // Modal already shown today
+            return false;
+        }
+    }
+
+    // Check if master list was updated today
+    if (lastUpdated) {
+        const lastUpdatedDate = new Date(lastUpdated);
+        const lastUpdatedDateString = lastUpdatedDate.toLocaleDateString('en-US');
+
+        if (todayDateString === lastUpdatedDateString) {
+            // Master list already updated today
+            return false;
+        }
+    }
+
+    // Show modal if:
+    // 1. Master list exists
+    // 2. Modal hasn't been shown today
+    // 3. Master list hasn't been updated today
+    return true;
+}
+
+/**
+ * Opens the daily update modal
+ */
+export function openDailyUpdateModal() {
+    if (!elements.dailyUpdateModal) return;
+    elements.dailyUpdateModal.style.display = 'flex';
+}
+
+/**
+ * Closes the daily update modal and records that it was shown today
+ */
+export async function closeDailyUpdateModal() {
+    if (!elements.dailyUpdateModal) return;
+    elements.dailyUpdateModal.style.display = 'none';
+
+    // Record that modal was shown today
+    const now = new Date();
+    await chrome.storage.local.set({
+        [STORAGE_KEYS.LAST_MODAL_SHOWN]: now.toISOString()
+    });
+}

@@ -106,7 +106,9 @@ export const STORAGE_KEYS = {
     USE_SPECIFIC_DATE: 'useSpecificDate',
     SPECIFIC_SUBMISSION_DATE: 'specificSubmissionDate',
     // Office User Info
-    OFFICE_USER_INFO: 'officeUserInfo'
+    OFFICE_USER_INFO: 'officeUserInfo',
+    // Daily Update Modal
+    LAST_MODAL_SHOWN: 'lastModalShown'
 };
 
 /**

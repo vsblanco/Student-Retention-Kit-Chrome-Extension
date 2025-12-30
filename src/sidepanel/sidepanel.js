@@ -60,7 +60,10 @@ import {
     toggleSyncActiveStudentModal,
     toggleSendMasterListModal,
     toggleHighlightStudentRowModal,
-    clearCacheFromModal
+    clearCacheFromModal,
+    shouldShowDailyUpdateModal,
+    openDailyUpdateModal,
+    closeDailyUpdateModal
 } from './modal-manager.js';
 
 import { QueueManager } from './queue-manager.js';
@@ -130,6 +133,12 @@ async function initializeApp() {
 
     // Start Excel connection monitoring
     startExcelConnectionMonitor();
+
+    // Check if daily update modal should be shown
+    const showModal = await shouldShowDailyUpdateModal();
+    if (showModal) {
+        openDailyUpdateModal();
+    }
 }
 
 // --- EVENT LISTENERS ---
@@ -365,6 +374,30 @@ function setupEventListeners() {
         elements.closeQueueModalBtn.addEventListener('click', closeQueueModal);
     }
 
+    // Daily Update Modal
+    if (elements.closeDailyUpdateBtn) {
+        elements.closeDailyUpdateBtn.addEventListener('click', closeDailyUpdateModal);
+    }
+
+    if (elements.dailyUpdateLaterBtn) {
+        elements.dailyUpdateLaterBtn.addEventListener('click', closeDailyUpdateModal);
+    }
+
+    if (elements.dailyUpdateBtn) {
+        elements.dailyUpdateBtn.addEventListener('click', async () => {
+            // Close the modal
+            await closeDailyUpdateModal();
+
+            // Switch to data tab
+            switchTab('data');
+
+            // Trigger the update master list process
+            if (elements.updateMasterBtn) {
+                elements.updateMasterBtn.click();
+            }
+        });
+    }
+
     // Modal outside click handlers
     window.addEventListener('click', (e) => {
         if (elements.versionModal && e.target === elements.versionModal) {
@@ -378,6 +411,9 @@ function setupEventListeners() {
         }
         if (elements.connectionsModal && e.target === elements.connectionsModal) {
             closeConnectionsModal();
+        }
+        if (elements.dailyUpdateModal && e.target === elements.dailyUpdateModal) {
+            closeDailyUpdateModal();
         }
     });
 
