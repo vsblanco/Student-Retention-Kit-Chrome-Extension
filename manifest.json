@@ -13,11 +13,10 @@
     "tabs",
     "alarms",
     "sidePanel",
-    "clipboardRead",
     "offscreen",
     "webRequest",
     "cookies",
-    "scripting" 
+    "scripting"
   ],
 "host_permissions": [
     "https://nuc.instructure.com/*",
