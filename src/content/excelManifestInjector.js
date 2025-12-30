@@ -368,11 +368,16 @@ function injectManifest() {
         }
         localStorage.setItem(commandsKey, commandsValue);
 
+        // CRITICAL: Set the acknowledgment flag that tells Office the add-ins list has been loaded
+        const ackKey = `ack3_WAC_Excel_${sessionId}_8`;
+        localStorage.setItem(ackKey, 'true');
+
         console.log('%c [SRK Auto-Sideloader] ✓ SUCCESS!', 'background: #4CAF50; color: white; font-weight: bold; padding: 2px 4px;');
         console.log('[SRK Auto-Sideloader] Manifest injected. Keys written:');
         console.log('  •', manifestKey);
         console.log('  •', myAddinsKey);
         console.log('  •', commandsKey);
+        console.log('  •', ackKey, '= true (Office acknowledgment flag)');
         console.log('[SRK Auto-Sideloader] The Student Retention Add-in should load automatically!');
         console.log('[SRK Auto-Sideloader] If not visible, try refreshing Excel (F5)');
 
@@ -406,6 +411,6 @@ chrome.storage.local.get(['autoSideloadManifest'], (result) => {
 
     console.log('[SRK] Auto-sideload is enabled, proceeding...');
 
-    // Run the injection
+    // Simply inject the manifest - the ack key should make Office recognize it
     injectManifest();
 });
