@@ -188,6 +188,28 @@ function isDateField(fieldName) {
 }
 
 /**
+ * Cleans up program version strings by removing year prefix and everything before it.
+ * Examples:
+ * - "D2-Q-2024 Medical Billing and Coding Specialist" → "Medical Billing and Coding Specialist"
+ * - "A1-2025 Nursing Program" → "Nursing Program"
+ * - "Medical Billing" → "Medical Billing" (unchanged if no year found)
+ *
+ * @param {string} value - The program version string to clean
+ * @returns {string} The cleaned program version string
+ */
+function cleanProgramVersion(value) {
+    if (!value || typeof value !== 'string') return value;
+
+    // Match a 4-digit year (19xx or 20xx) and remove everything up to and including it
+    // Also removes any trailing separator (space, dash, etc.) after the year
+    const yearPattern = /.*\b(19\d{2}|20\d{2})\b[\s\-]*/;
+    const cleaned = value.replace(yearPattern, '');
+
+    // Return trimmed result, or original if no year was found
+    return cleaned.trim() || value.trim();
+}
+
+/**
  * Finds the column index for a field using normalized matching and aliases.
  * Matches fields case-insensitively and ignoring spaces/special characters.
  *
@@ -325,6 +347,11 @@ export function parseFileWithSheetJS(data, isCSV) {
                     // Apply Excel date conversion to date fields
                     if (isDateField(col.field)) {
                         value = convertExcelDate(value);
+                    }
+
+                    // Clean program version by removing year prefix
+                    if (col.field === 'programVersion' && value !== null && value !== undefined && value !== '') {
+                        value = cleanProgramVersion(value);
                     }
 
                     // Use the field name from MASTER_LIST_COLUMNS definition
@@ -479,6 +506,12 @@ export function handleJsonClipboardProcess(data, onSuccess) {
         try {
             // Normalize Data
             const normalized = data.map(entry => {
+                // Clean program version if present
+                let programVersion = entry.programVersion || entry.ProgramVersion || null;
+                if (programVersion) {
+                    programVersion = cleanProgramVersion(programVersion);
+                }
+
                 return {
                     name: entry.name || entry.StudentName || 'Unknown',
                     url: entry.GradeBook || entry.url || entry.link || null,
@@ -489,6 +522,7 @@ export function handleJsonClipboardProcess(data, onSuccess) {
                     lda: entry.LDA || entry.lda || null,
                     StudentNumber: entry.StudentNumber || null,
                     SyStudentId: entry.SyStudentId || null,
+                    programVersion: programVersion,
                     lastSubmission: entry.lastSubmission || null,
                     isNew: entry.isNew || false,
                     Photo: entry.Photo || null
