@@ -262,7 +262,9 @@ export const FIELD_ALIASES = {
     StudentNumber: ['studentid', 'sisid'],
     SyStudentId: ['studentsis'],
     daysOut: ['dayssincepriorlda', 'daysinactive', 'days'],
-    url: ['gradebook', 'gradeBookUrl', 'canvasUrl', 'studentUrl']
+    url: ['gradebook', 'gradeBookUrl', 'canvasUrl', 'studentUrl'],
+	studentEmail: ['email', 'studentsemail', 'studentemails', 'studentsemails'],
+	personalEmail: ['otheremail', 'studentspersonalemail', 'personalstudentemail', 'othermemails']
 };
 
 /**
