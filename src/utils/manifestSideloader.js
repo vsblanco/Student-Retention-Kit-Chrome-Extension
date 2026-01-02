@@ -7,7 +7,7 @@
  */
 export async function getManifestXML() {
     try {
-        const manifestUrl = chrome.runtime.getURL('assets/Excell Add-In Manifest.xml');
+        const manifestUrl = chrome.runtime.getURL('assets/Excel Add-In Manifest.xml');
         const response = await fetch(manifestUrl);
         const manifestXML = await response.text();
         return manifestXML;
