@@ -85,7 +85,7 @@
         "assets/powericon.png",
         "assets/power-automate-icon.png",
         "assets/background.png",
-        "assets/Excell Add-In Manifest.xml",
+        "assets/Excel Add-In Manifest.xml",
         "icon.png",
         "src/lib/xlsx.full.min.js",
         "src/utils/manifestSideloader.js"
