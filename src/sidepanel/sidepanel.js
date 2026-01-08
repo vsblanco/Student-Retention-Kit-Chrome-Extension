@@ -304,7 +304,11 @@ function setupEventListeners() {
     }
 
     if (elements.saveConnectionsBtn) {
-        elements.saveConnectionsBtn.addEventListener('click', saveConnectionsSettings);
+        elements.saveConnectionsBtn.addEventListener('click', async () => {
+            await saveConnectionsSettings();
+            // Update Five9 indicator immediately after settings change
+            updateFive9ConnectionIndicator(queueManager.getQueue());
+        });
     }
 
     // Canvas Modal Settings
