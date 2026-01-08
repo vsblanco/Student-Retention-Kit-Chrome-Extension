@@ -83,6 +83,47 @@ export async function getCachedData(syStudentId) {
 }
 
 /**
+ * Filters user data to only include fields we actually use
+ * This significantly reduces cache size
+ * @param {Object} userData - Full Canvas user object
+ * @returns {Object} Filtered user data with only necessary fields
+ */
+function filterUserData(userData) {
+    if (!userData) return null;
+
+    return {
+        id: userData.id,
+        name: userData.name,
+        sortable_name: userData.sortable_name,
+        avatar_url: userData.avatar_url,
+        created_at: userData.created_at
+    };
+}
+
+/**
+ * Filters course data to only include fields we actually use
+ * This significantly reduces cache size
+ * @param {Array} courses - Full Canvas courses array
+ * @returns {Array} Filtered courses with only necessary fields
+ */
+function filterCourses(courses) {
+    if (!courses || !Array.isArray(courses)) return [];
+
+    return courses.map(course => ({
+        id: course.id,
+        name: course.name,
+        start_at: course.start_at,
+        end_at: course.end_at,
+        enrollments: course.enrollments ? course.enrollments.map(enrollment => ({
+            type: enrollment.type,
+            grades: enrollment.grades ? {
+                current_score: enrollment.grades.current_score
+            } : null
+        })) : []
+    }));
+}
+
+/**
  * Caches Canvas API data for a student
  * @param {string} syStudentId - The SyStudentId
  * @param {Object} userData - The Canvas user profile data
@@ -92,12 +133,16 @@ export async function getCachedData(syStudentId) {
 export async function setCachedData(syStudentId, userData, courses) {
     if (!syStudentId) return;
 
+    // Filter data to only cache what we need
+    const filteredUserData = filterUserData(userData);
+    const filteredCourses = filterCourses(courses);
+
     // Determine expiration date from courses
     let latestEndDate = null;
 
-    if (courses && courses.length > 0) {
+    if (filteredCourses && filteredCourses.length > 0) {
         // Find the latest end_at date among all courses
-        for (const course of courses) {
+        for (const course of filteredCourses) {
             if (course.end_at) {
                 const endDate = new Date(course.end_at);
                 if (!latestEndDate || endDate > latestEndDate) {
@@ -116,8 +161,8 @@ export async function setCachedData(syStudentId, userData, courses) {
     const cache = await getCache();
 
     cache[syStudentId] = {
-        userData: userData,
-        courses: courses,
+        userData: filteredUserData,
+        courses: filteredCourses,
         expiresAt: latestEndDate.toISOString(),
         cachedAt: new Date().toISOString()
     };
