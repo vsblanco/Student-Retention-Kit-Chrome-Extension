@@ -18,7 +18,11 @@ export async function fetchCanvasDetails(student) {
     if (!student.SyStudentId) return student;
 
     try {
-        const cachedData = await getCachedData(student.SyStudentId);
+        // Ensure SyStudentId is a string for consistent cache key lookup
+        const syStudentId = String(student.SyStudentId);
+        console.log(`[fetchCanvasDetails] Processing student: ${student.name}, SyStudentId: ${syStudentId}`);
+
+        const cachedData = await getCachedData(syStudentId);
 
         let userData;
         let courses;
@@ -55,7 +59,7 @@ export async function fetchCanvasDetails(student) {
                     courses = [];
                 }
 
-                await setCachedData(student.SyStudentId, userData, courses);
+                await setCachedData(syStudentId, userData, courses);
             }
         }
 
@@ -178,7 +182,10 @@ export async function processStep2(students, renderCallback) {
         const uncachedStudents = [];
 
         for (const student of students) {
-            if (student.SyStudentId && await hasCachedData(student.SyStudentId)) {
+            const syStudentId = student.SyStudentId ? String(student.SyStudentId) : null;
+            console.log(`[Step 2] Checking cache for student: ${student.name}, SyStudentId: ${syStudentId} (type: ${typeof student.SyStudentId})`);
+
+            if (syStudentId && await hasCachedData(syStudentId)) {
                 cachedStudents.push(student);
             } else {
                 uncachedStudents.push(student);

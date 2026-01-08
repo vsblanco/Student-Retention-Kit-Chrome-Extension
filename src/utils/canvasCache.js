@@ -55,12 +55,16 @@ async function saveCache(cache) {
  * @returns {Promise<Object|null>} The cached data or null if not found/expired
  */
 export async function getCachedData(syStudentId) {
-    if (!syStudentId) return null;
+    if (!syStudentId) {
+        console.log('[Cache] getCachedData: No syStudentId provided');
+        return null;
+    }
 
     const cache = await getCache();
     const entry = cache[syStudentId];
 
     if (!entry) {
+        console.log(`[Cache] getCachedData: No cache entry found for ${syStudentId}`);
         return null; // No cache entry
     }
 
@@ -68,12 +72,16 @@ export async function getCachedData(syStudentId) {
     const now = new Date();
     const expiresAt = new Date(entry.expiresAt);
 
+    console.log(`[Cache] getCachedData: Found cache for ${syStudentId}, expires ${expiresAt.toISOString()}, now is ${now.toISOString()}`);
+
     if (now > expiresAt) {
+        console.log(`[Cache] getCachedData: Cache expired for ${syStudentId}, removing`);
         // Cache expired, remove it
         await removeCachedData(syStudentId);
         return null;
     }
 
+    console.log(`[Cache] getCachedData: Returning valid cache for ${syStudentId}`);
     return {
         userData: entry.userData,
         courses: entry.courses,
@@ -133,9 +141,13 @@ function filterCourses(courses) {
 export async function setCachedData(syStudentId, userData, courses) {
     if (!syStudentId) return;
 
+    console.log(`[Cache] setCachedData: Caching data for ${syStudentId}`);
+
     // Filter data to only cache what we need
     const filteredUserData = filterUserData(userData);
     const filteredCourses = filterCourses(courses);
+
+    console.log(`[Cache] setCachedData: Filtered ${courses?.length || 0} courses to ${filteredCourses.length} essential fields`);
 
     // Determine expiration date from courses
     let latestEndDate = null;
@@ -158,6 +170,8 @@ export async function setCachedData(syStudentId, userData, courses) {
         latestEndDate.setDate(latestEndDate.getDate() + 30);
     }
 
+    console.log(`[Cache] setCachedData: Cache will expire at ${latestEndDate.toISOString()}`);
+
     const cache = await getCache();
 
     cache[syStudentId] = {
@@ -168,6 +182,7 @@ export async function setCachedData(syStudentId, userData, courses) {
     };
 
     await saveCache(cache);
+    console.log(`[Cache] setCachedData: Successfully cached data for ${syStudentId}`);
 }
 
 /**
@@ -197,12 +212,16 @@ export async function clearAllCache() {
  * @returns {Promise<boolean>} True if valid cache exists, false otherwise
  */
 export async function hasCachedData(syStudentId) {
-    if (!syStudentId) return false;
+    if (!syStudentId) {
+        console.log('[Cache] hasCachedData: No syStudentId provided');
+        return false;
+    }
 
     const cache = await getCache();
     const entry = cache[syStudentId];
 
     if (!entry) {
+        console.log(`[Cache] hasCachedData: No entry found for ${syStudentId}`);
         return false; // No cache entry
     }
 
@@ -211,9 +230,11 @@ export async function hasCachedData(syStudentId) {
     const expiresAt = new Date(entry.expiresAt);
 
     if (now > expiresAt) {
+        console.log(`[Cache] hasCachedData: Cache expired for ${syStudentId}`);
         return false; // Cache expired
     }
 
+    console.log(`[Cache] hasCachedData: Valid cache exists for ${syStudentId}`);
     return true; // Valid cache exists
 }
 
