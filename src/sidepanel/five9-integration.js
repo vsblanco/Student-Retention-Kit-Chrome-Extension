@@ -1,10 +1,9 @@
-// Five9 Integration - Monitors Five9 connection status and handles auto-connect
+// Five9 Integration - Monitors Five9 connection status
 import { STORAGE_KEYS } from '../constants/index.js';
 import { elements } from './ui-manager.js';
 
 let five9ConnectionCheckInterval = null;
 let lastFive9ConnectionState = false;
-let autoConnectAttempted = false;
 
 /**
  * Checks if Five9 tab is currently open
@@ -17,43 +16,6 @@ export async function checkFive9Connection() {
     } catch (error) {
         console.error("Error checking Five9 connection:", error);
         return false;
-    }
-}
-
-/**
- * Attempts to auto-connect to Five9 via background SSO
- */
-async function autoConnectFive9() {
-    try {
-        console.log("🔄 Attempting background Five9 SSO connection...");
-
-        const tab = await chrome.tabs.create({
-            url: 'https://m365.cloud.microsoft/',
-            active: false
-        });
-
-        // Monitor for Five9 tab opening
-        const checkForFive9 = setInterval(async () => {
-            const five9Tabs = await chrome.tabs.query({ url: "https://app-atl.five9.com/*" });
-
-            if (five9Tabs.length > 0) {
-                clearInterval(checkForFive9);
-                try {
-                    await chrome.tabs.remove(tab.id);
-                    console.log("✅ Five9 SSO successful - Microsoft tab closed");
-                } catch (e) {
-                    // Tab might already be closed
-                }
-            }
-        }, 1000);
-
-        // Stop checking after 30 seconds
-        setTimeout(() => {
-            clearInterval(checkForFive9);
-        }, 30000);
-
-    } catch (error) {
-        console.error("❌ Auto-connect failed:", error);
     }
 }
 
@@ -72,26 +34,15 @@ export async function updateFive9ConnectionIndicator(selectedQueue) {
 
     const shouldShowFive9Indicator = !isDebugMode && !isFive9Connected && hasStudentSelected;
 
-    // Auto-connect if needed (only once per session)
-    if (shouldShowFive9Indicator && !autoConnectAttempted) {
-        autoConnectAttempted = true;
-        autoConnectFive9();
-    }
+    // Update overlay visibility (sits on top of call screen)
+    // Only change display if state is actually changing to prevent re-triggering fade-in animation
+    if (elements.five9ConnectionIndicator) {
+        const currentDisplay = elements.five9ConnectionIndicator.style.display;
+        const targetDisplay = shouldShowFive9Indicator ? 'flex' : 'none';
 
-    // Update visibility
-    const contactTab = document.getElementById('contact');
-    if (contactTab) {
-        Array.from(contactTab.children).forEach(child => {
-            if (child.id === 'five9ConnectionIndicator') {
-                child.style.display = shouldShowFive9Indicator ? 'flex' : 'none';
-            } else if (child.id === 'contactPlaceholder') {
-                // Keep placeholder logic as is
-            } else {
-                if (shouldShowFive9Indicator) {
-                    child.style.display = 'none';
-                }
-            }
-        });
+        if (currentDisplay !== targetDisplay) {
+            elements.five9ConnectionIndicator.style.display = targetDisplay;
+        }
     }
 
     // Log connection state changes
@@ -130,13 +81,6 @@ export function stopFive9ConnectionMonitor() {
         clearInterval(five9ConnectionCheckInterval);
         five9ConnectionCheckInterval = null;
     }
-}
-
-/**
- * Resets the auto-connect flag (useful for testing)
- */
-export function resetAutoConnectFlag() {
-    autoConnectAttempted = false;
 }
 
 /**
