@@ -159,7 +159,7 @@ async function loadAboutContent() {
     }
 
     try {
-        await loadAndRenderMarkdown('about.md', aboutContainer);
+        await loadAndRenderMarkdown('../../README.md', aboutContainer);
         aboutContentLoaded = true;
     } catch (error) {
         console.error('Failed to load about content:', error);
