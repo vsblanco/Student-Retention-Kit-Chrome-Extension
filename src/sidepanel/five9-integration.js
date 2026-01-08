@@ -35,8 +35,14 @@ export async function updateFive9ConnectionIndicator(selectedQueue) {
     const shouldShowFive9Indicator = !isDebugMode && !isFive9Connected && hasStudentSelected;
 
     // Update overlay visibility (sits on top of call screen)
+    // Only change display if state is actually changing to prevent re-triggering fade-in animation
     if (elements.five9ConnectionIndicator) {
-        elements.five9ConnectionIndicator.style.display = shouldShowFive9Indicator ? 'flex' : 'none';
+        const currentDisplay = elements.five9ConnectionIndicator.style.display;
+        const targetDisplay = shouldShowFive9Indicator ? 'flex' : 'none';
+
+        if (currentDisplay !== targetDisplay) {
+            elements.five9ConnectionIndicator.style.display = targetDisplay;
+        }
     }
 
     // Log connection state changes
