@@ -34,20 +34,9 @@ export async function updateFive9ConnectionIndicator(selectedQueue) {
 
     const shouldShowFive9Indicator = !isDebugMode && !isFive9Connected && hasStudentSelected;
 
-    // Update visibility
-    const contactTab = document.getElementById('contact');
-    if (contactTab) {
-        Array.from(contactTab.children).forEach(child => {
-            if (child.id === 'five9ConnectionIndicator') {
-                child.style.display = shouldShowFive9Indicator ? 'flex' : 'none';
-            } else if (child.id === 'contactPlaceholder') {
-                // Keep placeholder logic as is
-            } else {
-                if (shouldShowFive9Indicator) {
-                    child.style.display = 'none';
-                }
-            }
-        });
+    // Update overlay visibility (sits on top of call screen)
+    if (elements.five9ConnectionIndicator) {
+        elements.five9ConnectionIndicator.style.display = shouldShowFive9Indicator ? 'flex' : 'none';
     }
 
     // Log connection state changes
