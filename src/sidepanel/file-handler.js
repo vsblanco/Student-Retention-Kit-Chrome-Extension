@@ -7,7 +7,9 @@ import {
     normalizeFieldName,
     convertExcelDate,
     isExcelDateNumber,
-    calculateDaysSinceLastAttendance
+    calculateDaysSinceLastAttendance,
+    parseDate,
+    formatDateToMMDDYY
 } from '../constants/index.js';
 import { elements } from './ui-manager.js';
 
@@ -41,6 +43,14 @@ export async function sendMasterListToExcel(students) {
             return MASTER_LIST_COLUMNS.map(col => {
                 // Use getFieldValue which now uses alias-based matching
                 let value = getFieldValue(student, col.field, col.fallback);
+
+                // Format LDA dates to MM-DD-YY format
+                if (col.field === 'lda' && value) {
+                    const dateObj = parseDate(value);
+                    if (dateObj) {
+                        value = formatDateToMMDDYY(dateObj);
+                    }
+                }
 
                 // Return value or empty string
                 return value !== null && value !== undefined ? value : '';
@@ -101,6 +111,14 @@ export async function sendMasterListWithMissingAssignmentsToExcel(students) {
             return MASTER_LIST_COLUMNS.map(col => {
                 // Use getFieldValue which now uses alias-based matching
                 let value = getFieldValue(student, col.field, col.fallback);
+
+                // Format LDA dates to MM-DD-YY format
+                if (col.field === 'lda' && value) {
+                    const dateObj = parseDate(value);
+                    if (dateObj) {
+                        value = formatDateToMMDDYY(dateObj);
+                    }
+                }
 
                 // Return value or empty string
                 return value !== null && value !== undefined ? value : '';
@@ -616,6 +634,12 @@ export async function exportMasterListCSV() {
                     value = value || 0;
                 } else if (col.field === 'daysout') {
                     value = parseInt(value || 0);
+                } else if (col.field === 'lda' && value) {
+                    // Format LDA dates to MM-DD-YY format
+                    const dateObj = parseDate(value);
+                    if (dateObj) {
+                        value = formatDateToMMDDYY(dateObj);
+                    }
                 }
 
                 return value;
