@@ -438,6 +438,13 @@ export function handleFileImport(file, onSuccess) {
     const timeSpan = step1.querySelector('.step-time');
     const startTime = Date.now();
 
+    // Store the overall process start time for total time calculation
+    const queueTotalTimeDiv = document.getElementById('queueTotalTime');
+    if (queueTotalTimeDiv) {
+        queueTotalTimeDiv.dataset.processStartTime = startTime;
+        queueTotalTimeDiv.style.display = 'none'; // Hide until complete
+    }
+
     const isCSV = file.name.toLowerCase().endsWith('.csv');
     const isXLSX = file.name.toLowerCase().endsWith('.xlsx') || file.name.toLowerCase().endsWith('.xls');
 
@@ -521,7 +528,11 @@ export function resetQueueUI() {
         el.style.color = '';
     });
     const totalTimeDisplay = document.getElementById('queueTotalTime');
-    if (totalTimeDisplay) totalTimeDisplay.style.display = 'none';
+    if (totalTimeDisplay) {
+        totalTimeDisplay.style.display = 'none';
+        totalTimeDisplay.textContent = 'Total Time: 0.0s';
+        delete totalTimeDisplay.dataset.processStartTime;
+    }
 }
 
 /**

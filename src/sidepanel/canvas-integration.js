@@ -572,6 +572,14 @@ export async function processStep4(students) {
 
         console.log(`[Step 4] ✓ Complete in ${duration}s`);
 
+        // Calculate and display total completion time
+        const queueTotalTimeDiv = document.getElementById('queueTotalTime');
+        if (queueTotalTimeDiv && queueTotalTimeDiv.dataset.processStartTime) {
+            const totalDuration = ((Date.now() - parseInt(queueTotalTimeDiv.dataset.processStartTime)) / 1000).toFixed(1);
+            queueTotalTimeDiv.textContent = `Total Time: ${totalDuration}s`;
+            queueTotalTimeDiv.style.display = 'block';
+        }
+
         return students;
 
     } catch (error) {
