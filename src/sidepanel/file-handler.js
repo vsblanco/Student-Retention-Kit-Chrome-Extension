@@ -6,7 +6,8 @@ import {
     EXPORT_MISSING_ASSIGNMENTS_COLUMNS,
     normalizeFieldName,
     convertExcelDate,
-    isExcelDateNumber
+    isExcelDateNumber,
+    calculateDaysSinceLastAttendance
 } from '../constants/index.js';
 import { elements } from './ui-manager.js';
 
@@ -245,9 +246,10 @@ function findColumnIndex(headers, fieldName) {
  * Unified parser for both CSV and Excel files using SheetJS
  * @param {String|ArrayBuffer} data - File content
  * @param {Boolean} isCSV - True if parsing CSV, false for Excel
+ * @param {Number} fileModifiedTime - File last modified timestamp (milliseconds since epoch)
  * @returns {Array} Array of student objects
  */
-export function parseFileWithSheetJS(data, isCSV) {
+export function parseFileWithSheetJS(data, isCSV, fileModifiedTime = null) {
     try {
         if (typeof XLSX === 'undefined') {
             throw new Error('XLSX library not loaded. Please refresh the page.');
@@ -257,12 +259,24 @@ export function parseFileWithSheetJS(data, isCSV) {
         if (isCSV) {
             workbook = XLSX.read(data, { type: 'string' });
         } else {
-            workbook = XLSX.read(data, { type: 'array' });
+            workbook = XLSX.read(data, { type: 'array', cellDates: true });
         }
 
         const firstSheetName = workbook.SheetNames[0];
         const worksheet = workbook.Sheets[firstSheetName];
         const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: null });
+
+        // Determine reference date for daysOut calculation
+        // For Excel files, try to get creation date from workbook properties
+        // Otherwise use file modified time or current date
+        let referenceDate = null;
+        if (!isCSV && workbook.Props && workbook.Props.CreatedDate) {
+            referenceDate = new Date(workbook.Props.CreatedDate);
+        } else if (fileModifiedTime) {
+            referenceDate = new Date(fileModifiedTime);
+        } else {
+            referenceDate = new Date(); // Fallback to current date
+        }
 
         if (rows.length < 2) {
             return [];
@@ -365,7 +379,15 @@ export function parseFileWithSheetJS(data, isCSV) {
             if (entry.grade) entry.grade = String(entry.grade);
             if (entry.StudentNumber) entry.StudentNumber = String(entry.StudentNumber);
             if (entry.SyStudentId) entry.SyStudentId = String(entry.SyStudentId);
-            entry.daysout = parseInt(entry.daysOut) || 0;
+
+            // Calculate daysOut based on LDA if available, otherwise use imported value
+            const ldaValue = entry.lda;
+            if (ldaValue && referenceDate) {
+                entry.daysout = calculateDaysSinceLastAttendance(ldaValue, referenceDate);
+            } else {
+                // Fall back to imported daysOut value if LDA is not available
+                entry.daysout = parseInt(entry.daysOut) || 0;
+            }
 
             // Initialize fields required by the extension
             entry.missingCount = 0;
@@ -414,7 +436,8 @@ export function handleFileImport(file, onSuccess) {
         let students = [];
 
         try {
-            students = parseFileWithSheetJS(content, isCSV);
+            // Pass file last modified time for daysOut calculation
+            students = parseFileWithSheetJS(content, isCSV, file.lastModified);
 
             if (students.length === 0) {
                 throw new Error("No valid student data found (Check header row).");

@@ -37,7 +37,8 @@ if (window.hasSRKConnectorRun) {
     grade: ['gradelevel', 'level'],
     StudentNumber: ['studentid', 'sisid'],
     SyStudentId: ['studentsis'],
-    daysOut: ['dayssincepriorlda', 'daysinactive', 'days']
+    daysOut: ['daysinactive', 'days'],
+    lda: ['lastdayofattendance', 'lastattendance', 'lastdateofattendance', 'lastdayattended']
   };
 
   /**
@@ -136,6 +137,104 @@ if (window.hasSRKConnectorRun) {
       return formatDateToMMDDYY(jsDate);
     }
     return value;
+  }
+
+  /**
+   * Parses a date string in various formats and returns a JavaScript Date object.
+   * Supports formats like: MM-DD-YY, MM/DD/YY, MM-DD-YYYY, MM/DD/YYYY
+   *
+   * @param {string|number} dateValue - The date value to parse
+   * @returns {Date|null} JavaScript Date object or null if parsing fails
+   */
+  function parseDate(dateValue) {
+    if (!dateValue) return null;
+
+    // If it's an Excel date number, convert it first
+    if (isExcelDateNumber(dateValue)) {
+      return excelDateToJSDate(dateValue);
+    }
+
+    // If it's already a Date object, return it
+    if (dateValue instanceof Date) {
+      return dateValue;
+    }
+
+    // Convert to string and try to parse
+    const dateStr = String(dateValue).trim();
+    if (!dateStr) return null;
+
+    // Try parsing common date formats: MM-DD-YY, MM/DD/YY, MM-DD-YYYY, MM/DD/YYYY
+    const patterns = [
+      /^(\d{1,2})[-\/](\d{1,2})[-\/](\d{2})$/,     // MM-DD-YY or MM/DD/YY
+      /^(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})$/      // MM-DD-YYYY or MM/DD/YYYY
+    ];
+
+    for (const pattern of patterns) {
+      const match = dateStr.match(pattern);
+      if (match) {
+        const month = parseInt(match[1], 10);
+        const day = parseInt(match[2], 10);
+        let year = parseInt(match[3], 10);
+
+        // Convert 2-digit year to 4-digit year
+        if (year < 100) {
+          year += year < 50 ? 2000 : 1900;
+        }
+
+        // Validate month and day
+        if (month >= 1 && month <= 12 && day >= 1 && day <= 31) {
+          return new Date(year, month - 1, day);
+        }
+      }
+    }
+
+    // Try standard Date parsing as fallback
+    const parsed = new Date(dateStr);
+    return isNaN(parsed.getTime()) ? null : parsed;
+  }
+
+  /**
+   * Calculates the number of days between two dates.
+   * Returns the absolute difference in days, rounded down.
+   *
+   * @param {Date} date1 - First date
+   * @param {Date} date2 - Second date
+   * @returns {number} Number of days between the dates
+   */
+  function daysBetween(date1, date2) {
+    if (!date1 || !date2) return 0;
+
+    const msPerDay = 24 * 60 * 60 * 1000;
+    const diffMs = Math.abs(date2.getTime() - date1.getTime());
+    return Math.floor(diffMs / msPerDay);
+  }
+
+  /**
+   * Calculates days since last attendance based on LDA value and reference date.
+   * Used for both Excel and CSV imports.
+   *
+   * @param {string|number} ldaValue - The Last Day of Attendance value
+   * @param {Date|number} referenceDate - Reference date (file creation date or current date)
+   * @returns {number} Number of days since last attendance, or 0 if calculation fails
+   */
+  function calculateDaysSinceLastAttendance(ldaValue, referenceDate) {
+    if (!ldaValue || !referenceDate) return 0;
+
+    // Parse the LDA date
+    const ldaDate = parseDate(ldaValue);
+    if (!ldaDate) return 0;
+
+    // Ensure referenceDate is a Date object
+    let refDate = referenceDate;
+    if (typeof referenceDate === 'number') {
+      refDate = new Date(referenceDate);
+    }
+    if (!(refDate instanceof Date) || isNaN(refDate.getTime())) {
+      return 0;
+    }
+
+    // Calculate days between LDA and reference date
+    return daysBetween(ldaDate, refDate);
   }
 
   /**
@@ -372,9 +471,17 @@ if (window.hasSRKConnectorRun) {
               const gradeValue = getFieldWithAlias(student, 'grade');
               transformedStudent.grade = gradeValue !== undefined && gradeValue !== null ? String(gradeValue) : null;
 
-              // Days Out - convert to integer and normalize field name to 'daysout'
-              const daysOutValue = getFieldWithAlias(student, 'daysOut');
-              transformedStudent.daysout = parseInt(daysOutValue) || 0;
+              // Days Out - calculate from LDA if available, otherwise use imported value
+              const ldaValue = getFieldWithAlias(student, 'lda');
+              if (ldaValue) {
+                  // Use data timestamp as reference date for calculation
+                  const referenceDate = data.timestamp ? new Date(data.timestamp) : new Date();
+                  transformedStudent.daysout = calculateDaysSinceLastAttendance(ldaValue, referenceDate);
+              } else {
+                  // Fall back to imported daysOut value if LDA is not available
+                  const daysOutValue = getFieldWithAlias(student, 'daysOut');
+                  transformedStudent.daysout = parseInt(daysOutValue) || 0;
+              }
 
               // Assignments - initialize if not present
               if (!('assignments' in transformedStudent)) {
