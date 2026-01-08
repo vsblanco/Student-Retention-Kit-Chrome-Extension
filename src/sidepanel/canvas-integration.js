@@ -1,6 +1,6 @@
 // Canvas Integration - Handles all Canvas API calls for student data and assignments
 import { STORAGE_KEYS, CANVAS_DOMAIN, GENERIC_AVATAR_URL } from '../constants/index.js';
-import { getCachedData, setCachedData } from '../utils/canvasCache.js';
+import { getCachedData, setCachedData, hasCachedData } from '../utils/canvasCache.js';
 
 /**
  * Preload image for faster rendering
@@ -148,6 +148,7 @@ export async function fetchCanvasDetails(student) {
 
 /**
  * Process Step 2: Fetch Canvas IDs, courses, and photos for all students
+ * Optimized to process cached students first for faster initial progress
  */
 export async function processStep2(students, renderCallback) {
     const step2 = document.getElementById('step2');
@@ -160,7 +161,22 @@ export async function processStep2(students, renderCallback) {
 
     try {
         console.log(`[Step 2] Pinging Canvas API: ${CANVAS_DOMAIN}`);
-        console.log(`[Step 2] Processing ${students.length} students in batches of 20`);
+        console.log(`[Step 2] Checking cache status for ${students.length} students...`);
+
+        // Separate students into cached and uncached groups
+        const cachedStudents = [];
+        const uncachedStudents = [];
+
+        for (const student of students) {
+            if (student.SyStudentId && await hasCachedData(student.SyStudentId)) {
+                cachedStudents.push(student);
+            } else {
+                uncachedStudents.push(student);
+            }
+        }
+
+        console.log(`[Step 2] Found ${cachedStudents.length} cached, ${uncachedStudents.length} uncached`);
+        console.log(`[Step 2] Processing cached students first for faster progress...`);
 
         const BATCH_SIZE = 20;
         const BATCH_DELAY_MS = 100;
@@ -168,25 +184,60 @@ export async function processStep2(students, renderCallback) {
         let processedCount = 0;
         let updatedStudents = [...students];
 
-        const totalBatches = Math.ceil(updatedStudents.length / BATCH_SIZE);
+        // Create a map to track student indices
+        const studentIndexMap = new Map();
+        students.forEach((student, index) => {
+            studentIndexMap.set(student, index);
+        });
 
-        for (let i = 0; i < updatedStudents.length; i += BATCH_SIZE) {
-            const batch = updatedStudents.slice(i, i + BATCH_SIZE);
+        // Process cached students first
+        const totalCachedBatches = Math.ceil(cachedStudents.length / BATCH_SIZE);
+        for (let i = 0; i < cachedStudents.length; i += BATCH_SIZE) {
+            const batch = cachedStudents.slice(i, i + BATCH_SIZE);
             const batchNumber = Math.floor(i / BATCH_SIZE) + 1;
 
-            console.log(`[Step 2] Processing batch ${batchNumber}/${totalBatches} (students ${i + 1}-${Math.min(i + BATCH_SIZE, updatedStudents.length)})`);
+            console.log(`[Step 2] Cached batch ${batchNumber}/${totalCachedBatches} (students ${i + 1}-${Math.min(i + BATCH_SIZE, cachedStudents.length)})`);
 
             const promises = batch.map(student => fetchCanvasDetails(student));
             const results = await Promise.all(promises);
 
-            results.forEach((updatedStudent, index) => {
-                updatedStudents[i + index] = updatedStudent;
+            results.forEach((updatedStudent, batchIndex) => {
+                const originalStudent = batch[batchIndex];
+                const originalIndex = studentIndexMap.get(originalStudent);
+                updatedStudents[originalIndex] = updatedStudent;
             });
 
             processedCount += batch.length;
-            timeSpan.textContent = `${Math.round((processedCount / updatedStudents.length) * 100)}%`;
+            timeSpan.textContent = `${Math.round((processedCount / students.length) * 100)}%`;
 
-            if (i + BATCH_SIZE < updatedStudents.length) {
+            // No delay needed for cached students (they're fast)
+        }
+
+        // Process uncached students (requires API calls)
+        if (uncachedStudents.length > 0) {
+            console.log(`[Step 2] Now processing uncached students (API calls required)...`);
+        }
+
+        const totalUncachedBatches = Math.ceil(uncachedStudents.length / BATCH_SIZE);
+        for (let i = 0; i < uncachedStudents.length; i += BATCH_SIZE) {
+            const batch = uncachedStudents.slice(i, i + BATCH_SIZE);
+            const batchNumber = Math.floor(i / BATCH_SIZE) + 1;
+
+            console.log(`[Step 2] Uncached batch ${batchNumber}/${totalUncachedBatches} (students ${i + 1}-${Math.min(i + BATCH_SIZE, uncachedStudents.length)})`);
+
+            const promises = batch.map(student => fetchCanvasDetails(student));
+            const results = await Promise.all(promises);
+
+            results.forEach((updatedStudent, batchIndex) => {
+                const originalStudent = batch[batchIndex];
+                const originalIndex = studentIndexMap.get(originalStudent);
+                updatedStudents[originalIndex] = updatedStudent;
+            });
+
+            processedCount += batch.length;
+            timeSpan.textContent = `${Math.round((processedCount / students.length) * 100)}%`;
+
+            if (i + BATCH_SIZE < uncachedStudents.length) {
                 await new Promise(resolve => setTimeout(resolve, BATCH_DELAY_MS));
             }
         }

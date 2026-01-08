@@ -147,6 +147,32 @@ export async function clearAllCache() {
 }
 
 /**
+ * Checks if a student has valid cached data (without retrieving the full cache)
+ * @param {string} syStudentId - The SyStudentId to check
+ * @returns {Promise<boolean>} True if valid cache exists, false otherwise
+ */
+export async function hasCachedData(syStudentId) {
+    if (!syStudentId) return false;
+
+    const cache = await getCache();
+    const entry = cache[syStudentId];
+
+    if (!entry) {
+        return false; // No cache entry
+    }
+
+    // Check if cache has expired
+    const now = new Date();
+    const expiresAt = new Date(entry.expiresAt);
+
+    if (now > expiresAt) {
+        return false; // Cache expired
+    }
+
+    return true; // Valid cache exists
+}
+
+/**
  * Gets cache statistics (total entries, expired entries, etc.)
  * @returns {Promise<Object>} Statistics about the cache
  */
