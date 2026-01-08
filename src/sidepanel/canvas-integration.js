@@ -84,6 +84,8 @@ export async function fetchCanvasDetails(student) {
 
         // Process courses
         if (canvasUserId && courses && courses.length > 0) {
+            console.log(`Processing ${courses.length} course(s) for ${student.name || student.SyStudentId}`);
+
             // Check if using specific date (Time Machine mode)
             const settings = await chrome.storage.local.get([STORAGE_KEYS.USE_SPECIFIC_DATE, STORAGE_KEYS.SPECIFIC_SUBMISSION_DATE]);
             const useSpecificDate = settings[STORAGE_KEYS.USE_SPECIFIC_DATE] || false;
@@ -99,7 +101,15 @@ export async function fetchCanvasDetails(student) {
                 now = new Date();
             }
 
+            // Debug: Show all course names before filtering
+            console.log(`Courses before filtering:`, courses.map(c => c.name || '(no name)'));
+
             const validCourses = courses.filter(c => c.name && !c.name.toUpperCase().includes('CAPV'));
+
+            console.log(`${validCourses.length} course(s) after CAPV filter`);
+            if (validCourses.length > 0) {
+                console.log(`Valid courses:`, validCourses.map(c => c.name));
+            }
 
             let activeCourse = null;
 
