@@ -181,6 +181,7 @@ export async function processStep2(students, renderCallback) {
         const cachedStudents = [];
         const uncachedStudents = [];
 
+        let checkedCount = 0;
         for (const student of students) {
             const syStudentId = student.SyStudentId ? String(student.SyStudentId) : null;
             console.log(`[Step 2] Checking cache for student: ${student.name}, SyStudentId: ${syStudentId} (type: ${typeof student.SyStudentId})`);
@@ -190,6 +191,11 @@ export async function processStep2(students, renderCallback) {
             } else {
                 uncachedStudents.push(student);
             }
+
+            // Update progress during cache check
+            checkedCount++;
+            const checkProgress = Math.round((checkedCount / students.length) * 15); // Use 15% of progress bar for cache checking
+            timeSpan.textContent = `${checkProgress}%`;
         }
 
         console.log(`[Step 2] Found ${cachedStudents.length} cached, ${uncachedStudents.length} uncached`);
@@ -225,7 +231,9 @@ export async function processStep2(students, renderCallback) {
             });
 
             processedCount += batch.length;
-            timeSpan.textContent = `${Math.round((processedCount / students.length) * 100)}%`;
+            // Progress starts at 15% (after cache check) and goes to 100%
+            const processingProgress = 15 + Math.round((processedCount / students.length) * 85);
+            timeSpan.textContent = `${processingProgress}%`;
 
             // No delay needed for cached students (they're fast)
         }
@@ -252,7 +260,9 @@ export async function processStep2(students, renderCallback) {
             });
 
             processedCount += batch.length;
-            timeSpan.textContent = `${Math.round((processedCount / students.length) * 100)}%`;
+            // Progress starts at 15% (after cache check) and goes to 100%
+            const processingProgress = 15 + Math.round((processedCount / students.length) * 85);
+            timeSpan.textContent = `${processingProgress}%`;
 
             if (i + BATCH_SIZE < uncachedStudents.length) {
                 await new Promise(resolve => setTimeout(resolve, BATCH_DELAY_MS));
