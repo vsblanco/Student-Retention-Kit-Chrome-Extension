@@ -55,12 +55,16 @@ async function saveCache(cache) {
  * @returns {Promise<Object|null>} The cached data or null if not found/expired
  */
 export async function getCachedData(syStudentId) {
-    if (!syStudentId) return null;
+    if (!syStudentId) {
+        console.log('[Cache] getCachedData: No syStudentId provided');
+        return null;
+    }
 
     const cache = await getCache();
     const entry = cache[syStudentId];
 
     if (!entry) {
+        console.log(`[Cache] getCachedData: No cache entry found for ${syStudentId}`);
         return null; // No cache entry
     }
 
@@ -68,18 +72,63 @@ export async function getCachedData(syStudentId) {
     const now = new Date();
     const expiresAt = new Date(entry.expiresAt);
 
+    console.log(`[Cache] getCachedData: Found cache for ${syStudentId}, expires ${expiresAt.toISOString()}, now is ${now.toISOString()}`);
+
     if (now > expiresAt) {
+        console.log(`[Cache] getCachedData: Cache expired for ${syStudentId}, removing`);
         // Cache expired, remove it
         await removeCachedData(syStudentId);
         return null;
     }
 
+    console.log(`[Cache] getCachedData: Returning valid cache for ${syStudentId}`);
     return {
         userData: entry.userData,
         courses: entry.courses,
         expiresAt: entry.expiresAt,
         cachedAt: entry.cachedAt
     };
+}
+
+/**
+ * Filters user data to only include fields we actually use
+ * This significantly reduces cache size
+ * @param {Object} userData - Full Canvas user object
+ * @returns {Object} Filtered user data with only necessary fields
+ */
+function filterUserData(userData) {
+    if (!userData) return null;
+
+    return {
+        id: userData.id,
+        name: userData.name,
+        sortable_name: userData.sortable_name,
+        avatar_url: userData.avatar_url,
+        created_at: userData.created_at
+    };
+}
+
+/**
+ * Filters course data to only include fields we actually use
+ * This significantly reduces cache size
+ * @param {Array} courses - Full Canvas courses array
+ * @returns {Array} Filtered courses with only necessary fields
+ */
+function filterCourses(courses) {
+    if (!courses || !Array.isArray(courses)) return [];
+
+    return courses.map(course => ({
+        id: course.id,
+        name: course.name,
+        start_at: course.start_at,
+        end_at: course.end_at,
+        enrollments: course.enrollments ? course.enrollments.map(enrollment => ({
+            type: enrollment.type,
+            grades: enrollment.grades ? {
+                current_score: enrollment.grades.current_score
+            } : null
+        })) : []
+    }));
 }
 
 /**
@@ -92,12 +141,20 @@ export async function getCachedData(syStudentId) {
 export async function setCachedData(syStudentId, userData, courses) {
     if (!syStudentId) return;
 
+    console.log(`[Cache] setCachedData: Caching data for ${syStudentId}`);
+
+    // Filter data to only cache what we need
+    const filteredUserData = filterUserData(userData);
+    const filteredCourses = filterCourses(courses);
+
+    console.log(`[Cache] setCachedData: Filtered ${courses?.length || 0} courses to ${filteredCourses.length} essential fields`);
+
     // Determine expiration date from courses
     let latestEndDate = null;
 
-    if (courses && courses.length > 0) {
+    if (filteredCourses && filteredCourses.length > 0) {
         // Find the latest end_at date among all courses
-        for (const course of courses) {
+        for (const course of filteredCourses) {
             if (course.end_at) {
                 const endDate = new Date(course.end_at);
                 if (!latestEndDate || endDate > latestEndDate) {
@@ -113,16 +170,19 @@ export async function setCachedData(syStudentId, userData, courses) {
         latestEndDate.setDate(latestEndDate.getDate() + 30);
     }
 
+    console.log(`[Cache] setCachedData: Cache will expire at ${latestEndDate.toISOString()}`);
+
     const cache = await getCache();
 
     cache[syStudentId] = {
-        userData: userData,
-        courses: courses,
+        userData: filteredUserData,
+        courses: filteredCourses,
         expiresAt: latestEndDate.toISOString(),
         cachedAt: new Date().toISOString()
     };
 
     await saveCache(cache);
+    console.log(`[Cache] setCachedData: Successfully cached data for ${syStudentId}`);
 }
 
 /**
@@ -144,6 +204,38 @@ export async function removeCachedData(syStudentId) {
  */
 export async function clearAllCache() {
     await chrome.storage.local.remove(CANVAS_CACHE_KEY);
+}
+
+/**
+ * Checks if a student has valid cached data (without retrieving the full cache)
+ * @param {string} syStudentId - The SyStudentId to check
+ * @returns {Promise<boolean>} True if valid cache exists, false otherwise
+ */
+export async function hasCachedData(syStudentId) {
+    if (!syStudentId) {
+        console.log('[Cache] hasCachedData: No syStudentId provided');
+        return false;
+    }
+
+    const cache = await getCache();
+    const entry = cache[syStudentId];
+
+    if (!entry) {
+        console.log(`[Cache] hasCachedData: No entry found for ${syStudentId}`);
+        return false; // No cache entry
+    }
+
+    // Check if cache has expired
+    const now = new Date();
+    const expiresAt = new Date(entry.expiresAt);
+
+    if (now > expiresAt) {
+        console.log(`[Cache] hasCachedData: Cache expired for ${syStudentId}`);
+        return false; // Cache expired
+    }
+
+    console.log(`[Cache] hasCachedData: Valid cache exists for ${syStudentId}`);
+    return true; // Valid cache exists
 }
 
 /**

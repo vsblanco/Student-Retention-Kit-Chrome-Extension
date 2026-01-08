@@ -1,6 +1,6 @@
 // Canvas Integration - Handles all Canvas API calls for student data and assignments
 import { STORAGE_KEYS, CANVAS_DOMAIN, GENERIC_AVATAR_URL } from '../constants/index.js';
-import { getCachedData, setCachedData } from '../utils/canvasCache.js';
+import { getCachedData, setCachedData, hasCachedData } from '../utils/canvasCache.js';
 
 /**
  * Preload image for faster rendering
@@ -18,7 +18,11 @@ export async function fetchCanvasDetails(student) {
     if (!student.SyStudentId) return student;
 
     try {
-        const cachedData = await getCachedData(student.SyStudentId);
+        // Ensure SyStudentId is a string for consistent cache key lookup
+        const syStudentId = String(student.SyStudentId);
+        console.log(`[fetchCanvasDetails] Processing student: ${student.name}, SyStudentId: ${syStudentId}`);
+
+        const cachedData = await getCachedData(syStudentId);
 
         let userData;
         let courses;
@@ -55,7 +59,7 @@ export async function fetchCanvasDetails(student) {
                     courses = [];
                 }
 
-                await setCachedData(student.SyStudentId, userData, courses);
+                await setCachedData(syStudentId, userData, courses);
             }
         }
 
@@ -84,6 +88,8 @@ export async function fetchCanvasDetails(student) {
 
         // Process courses
         if (canvasUserId && courses && courses.length > 0) {
+            console.log(`Processing ${courses.length} course(s) for ${student.name || student.SyStudentId}`);
+
             // Check if using specific date (Time Machine mode)
             const settings = await chrome.storage.local.get([STORAGE_KEYS.USE_SPECIFIC_DATE, STORAGE_KEYS.SPECIFIC_SUBMISSION_DATE]);
             const useSpecificDate = settings[STORAGE_KEYS.USE_SPECIFIC_DATE] || false;
@@ -99,7 +105,15 @@ export async function fetchCanvasDetails(student) {
                 now = new Date();
             }
 
+            // Debug: Show all course names before filtering
+            console.log(`Courses before filtering:`, courses.map(c => c.name || '(no name)'));
+
             const validCourses = courses.filter(c => c.name && !c.name.toUpperCase().includes('CAPV'));
+
+            console.log(`${validCourses.length} course(s) after CAPV filter`);
+            if (validCourses.length > 0) {
+                console.log(`Valid courses:`, validCourses.map(c => c.name));
+            }
 
             let activeCourse = null;
 
@@ -148,6 +162,7 @@ export async function fetchCanvasDetails(student) {
 
 /**
  * Process Step 2: Fetch Canvas IDs, courses, and photos for all students
+ * Optimized to process cached students first for faster initial progress
  */
 export async function processStep2(students, renderCallback) {
     const step2 = document.getElementById('step2');
@@ -160,7 +175,31 @@ export async function processStep2(students, renderCallback) {
 
     try {
         console.log(`[Step 2] Pinging Canvas API: ${CANVAS_DOMAIN}`);
-        console.log(`[Step 2] Processing ${students.length} students in batches of 20`);
+        console.log(`[Step 2] Checking cache status for ${students.length} students...`);
+
+        // Separate students into cached and uncached groups
+        const cachedStudents = [];
+        const uncachedStudents = [];
+
+        let checkedCount = 0;
+        for (const student of students) {
+            const syStudentId = student.SyStudentId ? String(student.SyStudentId) : null;
+            console.log(`[Step 2] Checking cache for student: ${student.name}, SyStudentId: ${syStudentId} (type: ${typeof student.SyStudentId})`);
+
+            if (syStudentId && await hasCachedData(syStudentId)) {
+                cachedStudents.push(student);
+            } else {
+                uncachedStudents.push(student);
+            }
+
+            // Update progress during cache check
+            checkedCount++;
+            const checkProgress = Math.round((checkedCount / students.length) * 15); // Use 15% of progress bar for cache checking
+            timeSpan.textContent = `${checkProgress}%`;
+        }
+
+        console.log(`[Step 2] Found ${cachedStudents.length} cached, ${uncachedStudents.length} uncached`);
+        console.log(`[Step 2] Processing cached students first for faster progress...`);
 
         const BATCH_SIZE = 20;
         const BATCH_DELAY_MS = 100;
@@ -168,25 +207,64 @@ export async function processStep2(students, renderCallback) {
         let processedCount = 0;
         let updatedStudents = [...students];
 
-        const totalBatches = Math.ceil(updatedStudents.length / BATCH_SIZE);
+        // Create a map to track student indices
+        const studentIndexMap = new Map();
+        students.forEach((student, index) => {
+            studentIndexMap.set(student, index);
+        });
 
-        for (let i = 0; i < updatedStudents.length; i += BATCH_SIZE) {
-            const batch = updatedStudents.slice(i, i + BATCH_SIZE);
+        // Process cached students first
+        const totalCachedBatches = Math.ceil(cachedStudents.length / BATCH_SIZE);
+        for (let i = 0; i < cachedStudents.length; i += BATCH_SIZE) {
+            const batch = cachedStudents.slice(i, i + BATCH_SIZE);
             const batchNumber = Math.floor(i / BATCH_SIZE) + 1;
 
-            console.log(`[Step 2] Processing batch ${batchNumber}/${totalBatches} (students ${i + 1}-${Math.min(i + BATCH_SIZE, updatedStudents.length)})`);
+            console.log(`[Step 2] Cached batch ${batchNumber}/${totalCachedBatches} (students ${i + 1}-${Math.min(i + BATCH_SIZE, cachedStudents.length)})`);
 
             const promises = batch.map(student => fetchCanvasDetails(student));
             const results = await Promise.all(promises);
 
-            results.forEach((updatedStudent, index) => {
-                updatedStudents[i + index] = updatedStudent;
+            results.forEach((updatedStudent, batchIndex) => {
+                const originalStudent = batch[batchIndex];
+                const originalIndex = studentIndexMap.get(originalStudent);
+                updatedStudents[originalIndex] = updatedStudent;
             });
 
             processedCount += batch.length;
-            timeSpan.textContent = `${Math.round((processedCount / updatedStudents.length) * 100)}%`;
+            // Progress starts at 15% (after cache check) and goes to 100%
+            const processingProgress = 15 + Math.round((processedCount / students.length) * 85);
+            timeSpan.textContent = `${processingProgress}%`;
 
-            if (i + BATCH_SIZE < updatedStudents.length) {
+            // No delay needed for cached students (they're fast)
+        }
+
+        // Process uncached students (requires API calls)
+        if (uncachedStudents.length > 0) {
+            console.log(`[Step 2] Now processing uncached students (API calls required)...`);
+        }
+
+        const totalUncachedBatches = Math.ceil(uncachedStudents.length / BATCH_SIZE);
+        for (let i = 0; i < uncachedStudents.length; i += BATCH_SIZE) {
+            const batch = uncachedStudents.slice(i, i + BATCH_SIZE);
+            const batchNumber = Math.floor(i / BATCH_SIZE) + 1;
+
+            console.log(`[Step 2] Uncached batch ${batchNumber}/${totalUncachedBatches} (students ${i + 1}-${Math.min(i + BATCH_SIZE, uncachedStudents.length)})`);
+
+            const promises = batch.map(student => fetchCanvasDetails(student));
+            const results = await Promise.all(promises);
+
+            results.forEach((updatedStudent, batchIndex) => {
+                const originalStudent = batch[batchIndex];
+                const originalIndex = studentIndexMap.get(originalStudent);
+                updatedStudents[originalIndex] = updatedStudent;
+            });
+
+            processedCount += batch.length;
+            // Progress starts at 15% (after cache check) and goes to 100%
+            const processingProgress = 15 + Math.round((processedCount / students.length) * 85);
+            timeSpan.textContent = `${processingProgress}%`;
+
+            if (i + BATCH_SIZE < uncachedStudents.length) {
                 await new Promise(resolve => setTimeout(resolve, BATCH_DELAY_MS));
             }
         }
@@ -510,6 +588,14 @@ export async function processStep4(students) {
         timeSpan.textContent = `${duration}s`;
 
         console.log(`[Step 4] ✓ Complete in ${duration}s`);
+
+        // Calculate and display total completion time
+        const queueTotalTimeDiv = document.getElementById('queueTotalTime');
+        if (queueTotalTimeDiv && queueTotalTimeDiv.dataset.processStartTime) {
+            const totalDuration = ((Date.now() - parseInt(queueTotalTimeDiv.dataset.processStartTime)) / 1000).toFixed(1);
+            queueTotalTimeDiv.textContent = `Total Time: ${totalDuration}s`;
+            queueTotalTimeDiv.style.display = 'block';
+        }
 
         return students;
 

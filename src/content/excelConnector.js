@@ -37,7 +37,8 @@ if (window.hasSRKConnectorRun) {
     grade: ['gradelevel', 'level'],
     StudentNumber: ['studentid', 'sisid'],
     SyStudentId: ['studentsis'],
-    daysOut: ['dayssincepriorlda', 'daysinactive', 'days']
+    daysOut: ['daysinactive', 'days'],
+    lda: ['lastdayofattendance', 'lastattendance', 'lastdateofattendance', 'lastdayattended']
   };
 
   /**
@@ -372,7 +373,7 @@ if (window.hasSRKConnectorRun) {
               const gradeValue = getFieldWithAlias(student, 'grade');
               transformedStudent.grade = gradeValue !== undefined && gradeValue !== null ? String(gradeValue) : null;
 
-              // Days Out - convert to integer and normalize field name to 'daysout'
+              // Days Out - trust the value from Excel master list
               const daysOutValue = getFieldWithAlias(student, 'daysOut');
               transformedStudent.daysout = parseInt(daysOutValue) || 0;
 
