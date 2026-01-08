@@ -127,6 +127,9 @@ async function initializeApp() {
     // Start Five9 connection monitoring
     startFive9ConnectionMonitor(() => queueManager.getQueue());
 
+    // Check Five9 connection immediately on sidepanel open
+    updateFive9ConnectionIndicator(queueManager.getQueue());
+
     // Setup Five9 status listeners
     setupFive9StatusListeners(callManager);
 
@@ -173,6 +176,9 @@ function setupEventListeners() {
                 updateCacheStats();
             } else if (tab.dataset.tab === 'about') {
                 loadAboutContent();
+            } else if (tab.dataset.tab === 'contact') {
+                // Check Five9 connection when switching to contact tab
+                updateFive9ConnectionIndicator(queueManager.getQueue());
             }
         });
     });
@@ -182,6 +188,8 @@ function setupEventListeners() {
         if (e.key === 'Control' || e.key === 'Meta') {
             if (queueManager.getLength() > 1) {
                 switchTab('contact');
+                // Check Five9 connection when switching to contact tab
+                updateFive9ConnectionIndicator(queueManager.getQueue());
             }
         }
     });
@@ -823,6 +831,8 @@ chrome.runtime.onMessage.addListener(async (msg, sender, sendResponse) => {
 
             // Switch to contact tab to show the selected student(s)
             switchTab('contact');
+            // Check Five9 connection when switching to contact tab
+            updateFive9ConnectionIndicator(queueManager.getQueue());
 
             if (msg.count === 1) {
                 console.log(`Active student set to: ${studentsToSet[0].name}`);

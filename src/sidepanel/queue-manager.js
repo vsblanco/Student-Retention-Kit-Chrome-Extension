@@ -1,6 +1,7 @@
 // Queue Manager - Handles multi-select queue operations
 import { setActiveStudent, setAutomationModeUI } from './student-renderer.js';
 import { switchTab } from './ui-manager.js';
+import { updateFive9ConnectionIndicator } from './five9-integration.js';
 
 /**
  * Queue Manager Class - Manages student queue operations
@@ -76,6 +77,8 @@ export class QueueManager {
 
         setActiveStudent(entry, this.callManager);
         switchTab('contact');
+        // Check Five9 connection when switching to contact tab
+        updateFive9ConnectionIndicator(this.selectedQueue);
     }
 
     /**
