@@ -69,8 +69,8 @@ export function cacheDomElements() {
             five9Indicator.style.cssText = 'display:none; flex-direction:column; align-items:center; justify-content:flex-start; padding-top:80px; height:100%; min-height:400px; color:#6b7280; text-align:center; padding-left:20px; padding-right:20px;';
             five9Indicator.innerHTML = `
                 <i class="fas fa-spinner fa-spin" style="font-size:3em; margin-bottom:15px; opacity:0.4;"></i>
-                <span style="font-size:1.1em; font-weight:500; color:#374151;">Connecting to Five9...</span>
-                <span style="font-size:0.9em; margin-top:5px; color:#6b7280;">Attempting automatic SSO login in background</span>
+                <span style="font-size:1.1em; font-weight:500; color:#374151;">Awaiting Five9 tab</span>
+                <span style="font-size:0.9em; margin-top:5px; color:#6b7280;">Please open Five9 in a new tab to continue</span>
             `;
             contactTab.insertBefore(five9Indicator, contactTab.firstChild);
         }
