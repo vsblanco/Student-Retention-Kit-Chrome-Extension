@@ -1,6 +1,6 @@
 # Student Retention Kit
 
-**Version 15.0** | Last Updated: December 2025
+**Version 10.0** | Last Updated: December 30th, 2025
 
 ## Overview
 
@@ -24,29 +24,6 @@ The Student Retention Kit is a comprehensive Chrome extension designed to help N
 - **Smart Search & Sort**: Quickly find students by name, missing count, or days out
 - **Export Functionality**: Download reports for offline analysis
 
-### 🔗 Integrations
-
-**Excel Add-in**
-- Bi-directional sync with Office Add-in
-- Automatic master list updates
-- Student row highlighting on submissions
-- Missing assignments import
-
-**Power Automate**
-- Webhook-based automation
-- Custom workflow triggers
-- Real-time data push
-
-**Canvas LMS**
-- Direct API integration
-- Assignment tracking
-- Grade monitoring
-- Embedded helper interface
-
-**Five9 VoIP**
-- Click-to-call functionality
-- Call status monitoring
-
 ---
 
-Built for NUC University
+Built for NUC University; Created by Victor Blanco
