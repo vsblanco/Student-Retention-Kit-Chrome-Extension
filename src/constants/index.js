@@ -166,6 +166,18 @@ export const CANVAS_DOMAIN = "https://nuc.instructure.com";
 export const GENERIC_AVATAR_URL = "https://nuc.instructure.com/images/messages/avatar-50.png";
 
 /**
+ * Guide resources available in the extension.
+ * Each guide has a name and path to the PDF file.
+ */
+export const GUIDES = [
+    {
+        name: 'LDA Guide',
+        path: '../../assets/LDA-Guide.pdf',
+        icon: 'fa-book'
+    }
+];
+
+/**
  * Normalizes a field name for comparison by:
  * - Converting to lowercase
  * - Removing spaces, hyphens, underscores
