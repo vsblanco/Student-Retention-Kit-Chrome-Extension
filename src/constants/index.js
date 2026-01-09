@@ -174,6 +174,11 @@ export const GUIDES = [
         name: 'LDA Guide',
         path: '../../assets/LDA-Guide.pdf',
         icon: 'fa-book'
+    },
+	{
+        name: 'Student Population Report Guide',
+        path: '../../assets/Download-Student-Population-Report.pdf',
+        icon: 'fa-book'
     }
 ];
 
