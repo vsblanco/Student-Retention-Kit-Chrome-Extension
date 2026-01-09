@@ -706,6 +706,39 @@ function applyGradeConditionalFormatting(worksheet, colIndex, startRow, endRow) 
 }
 
 /**
+ * Calculates column widths based on custom width or auto-fit
+ * @param {Array} columns - Column configuration array (e.g., MASTER_LIST_COLUMNS)
+ * @param {Array} data - Data rows (including header row)
+ * @returns {Array} Array of column width objects { wch: number }
+ */
+function calculateColumnWidths(columns, data) {
+    const colWidths = [];
+
+    for (let i = 0; i < columns.length; i++) {
+        const col = columns[i];
+
+        // Use custom width if specified
+        if (col.width !== undefined && col.width !== null) {
+            colWidths.push({ wch: col.width });
+        } else {
+            // Auto-fit based on content
+            let maxWidth = col.header.length;
+            for (let j = 1; j < data.length; j++) {
+                const cellValue = data[j][i];
+                if (cellValue) {
+                    const cellLength = String(cellValue).length;
+                    maxWidth = Math.max(maxWidth, cellLength);
+                }
+            }
+            // Add some padding and cap at reasonable max
+            colWidths.push({ wch: Math.min(maxWidth + 2, 50) });
+        }
+    }
+
+    return colWidths;
+}
+
+/**
  * Exports master list to Excel file with three sheets
  */
 export async function exportMasterListCSV() {
@@ -865,37 +898,11 @@ export async function exportMasterListCSV() {
             applyGradeConditionalFormatting(ws2, missingGradeColIndex, 2, missingAssignmentsData.length);
         }
 
-        // Auto-fit columns for Master List
-        const masterListColWidths = [];
-        for (let i = 0; i < MASTER_LIST_COLUMNS.length; i++) {
-            let maxWidth = MASTER_LIST_COLUMNS[i].header.length;
-            for (let j = 1; j < masterListData.length; j++) {
-                const cellValue = masterListData[j][i];
-                if (cellValue) {
-                    const cellLength = String(cellValue).length;
-                    maxWidth = Math.max(maxWidth, cellLength);
-                }
-            }
-            // Add some padding and cap at reasonable max
-            masterListColWidths.push({ wch: Math.min(maxWidth + 2, 50) });
-        }
-        ws1['!cols'] = masterListColWidths;
+        // Set column widths for Master List (custom or auto-fit)
+        ws1['!cols'] = calculateColumnWidths(MASTER_LIST_COLUMNS, masterListData);
 
-        // Auto-fit columns for Missing Assignments
-        const missingAssignmentsColWidths = [];
-        for (let i = 0; i < EXPORT_MISSING_ASSIGNMENTS_COLUMNS.length; i++) {
-            let maxWidth = EXPORT_MISSING_ASSIGNMENTS_COLUMNS[i].header.length;
-            for (let j = 1; j < missingAssignmentsData.length; j++) {
-                const cellValue = missingAssignmentsData[j][i];
-                if (cellValue) {
-                    const cellLength = String(cellValue).length;
-                    maxWidth = Math.max(maxWidth, cellLength);
-                }
-            }
-            // Add some padding and cap at reasonable max
-            missingAssignmentsColWidths.push({ wch: Math.min(maxWidth + 2, 50) });
-        }
-        ws2['!cols'] = missingAssignmentsColWidths;
+        // Set column widths for Missing Assignments (custom or auto-fit)
+        ws2['!cols'] = calculateColumnWidths(EXPORT_MISSING_ASSIGNMENTS_COLUMNS, missingAssignmentsData);
 
         // --- SHEET 3: LDA (Filtered and Sorted Master List) ---
         // Filter students by daysOut >= 5
@@ -969,23 +976,10 @@ export async function exportMasterListCSV() {
             applyGradeConditionalFormatting(ws3, gradeColIndex, 2, filteredStudents.length + 1);
         }
 
-        // Auto-fit columns for LDA sheet
-        const ldaColWidths = [];
-        for (let i = 0; i < MASTER_LIST_COLUMNS.length; i++) {
-            let maxWidth = MASTER_LIST_COLUMNS[i].header.length;
-            for (let j = 1; j < ldaData.length; j++) {
-                const cellValue = ldaData[j][i];
-                if (cellValue) {
-                    const cellLength = String(cellValue).length;
-                    maxWidth = Math.max(maxWidth, cellLength);
-                }
-            }
-            // Add some padding and cap at reasonable max
-            ldaColWidths.push({ wch: Math.min(maxWidth + 2, 50) });
-        }
-        ws3['!cols'] = ldaColWidths;
+        // Set column widths for LDA sheet (custom or auto-fit)
+        ws3['!cols'] = calculateColumnWidths(MASTER_LIST_COLUMNS, ldaData);
 
-        // Hide columns not in LDA_VISIBLE_COLUMNS whitelist (applied after auto-fit)
+        // Hide columns not in LDA_VISIBLE_COLUMNS whitelist (applied after width calculation)
         MASTER_LIST_COLUMNS.forEach((col, i) => {
             if (!LDA_VISIBLE_COLUMNS.includes(col.field)) {
                 if (!ws3['!cols'][i]) ws3['!cols'][i] = {};
