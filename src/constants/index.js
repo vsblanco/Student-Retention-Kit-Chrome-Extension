@@ -397,27 +397,27 @@ export const FIELD_ALIASES = {
  */
 export const MASTER_LIST_COLUMNS = [
     { header: 'Student Name', field: 'name', width: 25 },
-    { header: 'Student Number', field: 'StudentNumber', width: 15 },
-    { header: 'Grade Book', field: 'url', hyperlink: true, hyperlinkText: 'Grade Book', width: 12 },
-    { header: 'Grade', field: 'grade', fallback: 'currentGrade', conditionalFormatting: 'grade', width: 8 },
+    { header: 'Student Number', field: 'StudentNumber', width: 13 },
+    { header: 'Grade Book', field: 'url', hyperlink: true, hyperlinkText: 'Grade Book', width: 9 },
+    { header: 'Grade', field: 'grade', fallback: 'currentGrade', conditionalFormatting: 'grade', width: 6 },
     { header: 'Missing Assignments', field: 'missingCount', width: 10 },
-    { header: 'LDA', field: 'lda', width: 12 },
-    { header: 'Days Out', field: 'daysOut', width: 10 },
+    { header: 'LDA', field: 'lda', width: 8 },
+    { header: 'Days Out', field: 'daysOut', width: 8 },
     { header: 'Gender', field: 'gender', hidden: true },
     { header: 'Shift', field: 'shift', width: 10 },
     { header: 'Program Version', field: 'programVersion', width: 30 },
-    { header: 'SyStudentId', field: 'SyStudentId', width: 15 },
-    { header: 'Phone', field: 'phone', fallback: 'primaryPhone', width: 15 },
-    { header: 'Other Phone', field: 'otherPhone', width: 15 },
-    { header: 'Work Phone', field: 'workPhone', hidden: true },
-    { header: 'Mobile Number', field: 'mobileNumber', hidden: true },
-    { header: 'Student Email', field: 'studentEmail', width: 25 },
-    { header: 'Personal Email', field: 'personalEmail', width: 25 },
+    { header: 'SyStudentId', field: 'SyStudentId', width: 10 },
+    { header: 'Phone', field: 'phone', fallback: 'primaryPhone', width: 10 },
+    { header: 'Other Phone', field: 'otherPhone', width: 10 },
+    { header: 'Work Phone', field: 'workPhone', hidden: true , width: 8},
+    { header: 'Mobile Number', field: 'mobileNumber', hidden: true , width: 8},
+    { header: 'Student Email', field: 'studentEmail', width: 20 },
+    { header: 'Personal Email', field: 'personalEmail', width: 20 },
     { header: 'ExpStartDate', field: 'expStartDate', width: 12 },
     { header: 'AmRep', field: 'amRep', width: 15 },
     { header: 'Hold', field: 'hold', width: 10 },
-    { header: 'Photo', field: 'photo', hidden: true },
-    { header: 'AdSAPStatus', field: 'adSAPStatus', width: 15 }
+    { header: 'Photo', field: 'photo', hidden: true, width: 4 },
+    { header: 'AdSAPStatus', field: 'adSAPStatus', width: 8 }
 ];
 
 /**
@@ -453,7 +453,5 @@ export const LDA_VISIBLE_COLUMNS = [
     'shift',
     'programVersion',
     'phone',
-    'otherPhone',
-    'studentEmail',
-    'personalEmail'
+    'otherPhone'
 ];
