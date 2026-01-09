@@ -416,7 +416,13 @@ export function parseFileWithSheetJS(data, isCSV, fileModifiedTime = null) {
 
                     // Apply Excel date conversion to date fields
                     if (isDateField(col.field)) {
-                        value = convertExcelDate(value);
+                        // Handle Date objects (from XLSX cellDates: true)
+                        if (value instanceof Date) {
+                            value = formatDateToMMDDYY(value);
+                        } else {
+                            // Handle Excel serial numbers
+                            value = convertExcelDate(value);
+                        }
                     }
 
                     // Clean program version by removing year prefix
@@ -431,7 +437,7 @@ export function parseFileWithSheetJS(data, isCSV, fileModifiedTime = null) {
 
                     // Debug logging for LDA
                     if (col.field === 'lda') {
-                        console.log(`[LDA Import Debug] Student: ${studentName}, Raw LDA value:`, row[colIndex], 'Converted value:', value);
+                        console.log(`[LDA Import Debug] Student: ${studentName}, Raw LDA value:`, row[colIndex], 'Type:', typeof row[colIndex], 'Converted value:', value);
                     }
 
                     // Use the field name from MASTER_LIST_COLUMNS definition
@@ -447,9 +453,14 @@ export function parseFileWithSheetJS(data, isCSV, fileModifiedTime = null) {
             if (entry.StudentNumber) entry.StudentNumber = String(entry.StudentNumber);
             if (entry.SyStudentId) entry.SyStudentId = String(entry.SyStudentId);
 
+            // Ensure LDA is stored as a string (handle Date objects that might slip through)
+            if (entry.lda instanceof Date) {
+                entry.lda = formatDateToMMDDYY(entry.lda);
+            }
+
             // Calculate daysOut based on LDA if available, otherwise use imported value
             const ldaValue = entry.lda;
-            console.log(`[LDA Storage Debug] Student: ${studentName}, entry.lda:`, entry.lda, 'entry.daysOut:', entry.daysOut);
+            console.log(`[LDA Storage Debug] Student: ${studentName}, entry.lda:`, entry.lda, 'Type:', typeof entry.lda, 'entry.daysOut:', entry.daysOut);
             if (ldaValue && referenceDate) {
                 entry.daysOut = calculateDaysSinceLastAttendance(ldaValue, referenceDate);
             } else {
