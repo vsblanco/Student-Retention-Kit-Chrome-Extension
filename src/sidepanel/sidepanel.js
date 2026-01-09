@@ -1,5 +1,5 @@
 // Sidepanel Main - Orchestrates all modules and manages app lifecycle
-import { STORAGE_KEYS, EXTENSION_STATES, MESSAGE_TYPES } from '../constants/index.js';
+import { STORAGE_KEYS, EXTENSION_STATES, MESSAGE_TYPES, GUIDES } from '../constants/index.js';
 import { hasDispositionCode } from '../constants/dispositions.js';
 import { getCacheStats, clearAllCache } from '../utils/canvasCache.js';
 import { loadAndRenderMarkdown } from '../utils/markdownRenderer.js';
@@ -123,6 +123,7 @@ async function initializeApp() {
     setupEventListeners();
     await loadStorageData();
     setActiveStudent(null, callManager);
+    populateGuides();
 
     // Start Five9 connection monitoring
     startFive9ConnectionMonitor(() => queueManager.getQueue());
@@ -164,6 +165,43 @@ async function loadAboutContent() {
     } catch (error) {
         console.error('Failed to load about content:', error);
     }
+}
+
+// --- GUIDES ---
+/**
+ * Populates the guides section with PDF links from GUIDES constant
+ */
+function populateGuides() {
+    const guidesContainer = document.getElementById('guidesContainer');
+    if (!guidesContainer) {
+        console.error('Guides container not found');
+        return;
+    }
+
+    // Clear existing content
+    guidesContainer.innerHTML = '';
+
+    // Create guide cards
+    GUIDES.forEach(guide => {
+        const guideCard = document.createElement('div');
+        guideCard.className = 'setting-card';
+        guideCard.style.cursor = 'pointer';
+        guideCard.innerHTML = `
+            <div style="display:flex; align-items:center; gap:10px; flex-grow:1;">
+                <i class="fas ${guide.icon}" style="color:var(--primary-color); font-size:1.5em; width:28px; text-align:center;"></i>
+                <span style="font-weight:500;">${guide.name}</span>
+            </div>
+            <i class="fas fa-external-link-alt" style="color:var(--text-secondary); font-size:1em;"></i>
+        `;
+
+        // Add click handler to open PDF in new tab
+        guideCard.addEventListener('click', () => {
+            const guideUrl = chrome.runtime.getURL(guide.path);
+            chrome.tabs.create({ url: guideUrl });
+        });
+
+        guidesContainer.appendChild(guideCard);
+    });
 }
 
 // --- EVENT LISTENERS ---
