@@ -46,10 +46,13 @@ export async function sendMasterListToExcel(students) {
                 let value = getFieldValue(student, col.field, col.fallback);
 
                 // Format LDA dates to MM-DD-YY format
-                if (col.field === 'lda' && value) {
-                    const dateObj = parseDate(value);
-                    if (dateObj) {
-                        value = formatDateToMMDDYY(dateObj);
+                if (col.field === 'lda') {
+                    console.log(`[LDA To Excel Debug] Student: ${student.name}, Retrieved LDA:`, value, 'student.lda:', student.lda);
+                    if (value) {
+                        const dateObj = parseDate(value);
+                        if (dateObj) {
+                            value = formatDateToMMDDYY(dateObj);
+                        }
                     }
                 }
 
@@ -114,10 +117,13 @@ export async function sendMasterListWithMissingAssignmentsToExcel(students) {
                 let value = getFieldValue(student, col.field, col.fallback);
 
                 // Format LDA dates to MM-DD-YY format
-                if (col.field === 'lda' && value) {
-                    const dateObj = parseDate(value);
-                    if (dateObj) {
-                        value = formatDateToMMDDYY(dateObj);
+                if (col.field === 'lda') {
+                    console.log(`[LDA To Excel Debug] Student: ${student.name}, Retrieved LDA:`, value, 'student.lda:', student.lda);
+                    if (value) {
+                        const dateObj = parseDate(value);
+                        if (dateObj) {
+                            value = formatDateToMMDDYY(dateObj);
+                        }
                     }
                 }
 
@@ -423,6 +429,11 @@ export function parseFileWithSheetJS(data, isCSV, fileModifiedTime = null) {
                         value = cleanPhoneNumber(value);
                     }
 
+                    // Debug logging for LDA
+                    if (col.field === 'lda') {
+                        console.log(`[LDA Import Debug] Student: ${studentName}, Raw LDA value:`, row[colIndex], 'Converted value:', value);
+                    }
+
                     // Use the field name from MASTER_LIST_COLUMNS definition
                     entry[col.field] = value !== null && value !== undefined ? value : null;
                 }
@@ -438,11 +449,12 @@ export function parseFileWithSheetJS(data, isCSV, fileModifiedTime = null) {
 
             // Calculate daysOut based on LDA if available, otherwise use imported value
             const ldaValue = entry.lda;
+            console.log(`[LDA Storage Debug] Student: ${studentName}, entry.lda:`, entry.lda, 'entry.daysOut:', entry.daysOut);
             if (ldaValue && referenceDate) {
-                entry.daysout = calculateDaysSinceLastAttendance(ldaValue, referenceDate);
+                entry.daysOut = calculateDaysSinceLastAttendance(ldaValue, referenceDate);
             } else {
                 // Fall back to imported daysOut value if LDA is not available
-                entry.daysout = parseInt(entry.daysOut) || 0;
+                entry.daysOut = parseInt(entry.daysOut) || 0;
             }
 
             // Initialize fields required by the extension
@@ -768,13 +780,16 @@ export async function exportMasterListCSV() {
 
                 if (col.field === 'missingCount') {
                     value = value || 0;
-                } else if (col.field === 'daysout') {
+                } else if (col.field === 'daysOut') {
                     value = parseInt(value || 0);
-                } else if (col.field === 'lda' && value) {
-                    // Format LDA dates to MM-DD-YY format
-                    const dateObj = parseDate(value);
-                    if (dateObj) {
-                        value = formatDateToMMDDYY(dateObj);
+                } else if (col.field === 'lda') {
+                    console.log(`[LDA Export Debug] Student: ${student.name}, Retrieved LDA:`, value, 'student.lda:', student.lda);
+                    if (value) {
+                        // Format LDA dates to MM-DD-YY format
+                        const dateObj = parseDate(value);
+                        if (dateObj) {
+                            value = formatDateToMMDDYY(dateObj);
+                        }
                     }
                 }
 
@@ -907,14 +922,14 @@ export async function exportMasterListCSV() {
         // --- SHEET 3: LDA (Filtered and Sorted Master List) ---
         // Filter students by daysOut >= 5
         const filteredStudents = students.filter(student => {
-            const daysOut = parseInt(student.daysOut || student.daysout || 0);
+            const daysOut = parseInt(student.daysOut || 0);
             return daysOut >= 5;
         });
 
         // Sort by daysOut from highest to lowest
         filteredStudents.sort((a, b) => {
-            const daysOutA = parseInt(a.daysOut || a.daysout || 0);
-            const daysOutB = parseInt(b.daysOut || b.daysout || 0);
+            const daysOutA = parseInt(a.daysOut || 0);
+            const daysOutB = parseInt(b.daysOut || 0);
             return daysOutB - daysOutA; // Descending order
         });
 
@@ -930,13 +945,15 @@ export async function exportMasterListCSV() {
 
                 if (col.field === 'missingCount') {
                     value = value || 0;
-                } else if (col.field === 'daysout') {
+                } else if (col.field === 'daysOut') {
                     value = parseInt(value || 0);
-                } else if (col.field === 'lda' && value) {
-                    // Format LDA dates to MM-DD-YY format
-                    const dateObj = parseDate(value);
-                    if (dateObj) {
-                        value = formatDateToMMDDYY(dateObj);
+                } else if (col.field === 'lda') {
+                    if (value) {
+                        // Format LDA dates to MM-DD-YY format
+                        const dateObj = parseDate(value);
+                        if (dateObj) {
+                            value = formatDateToMMDDYY(dateObj);
+                        }
                     }
                 }
 
