@@ -68,6 +68,7 @@ export const STORAGE_KEYS = {
     FOUND_ENTRIES: 'foundEntries',
     MASTER_ENTRIES: 'masterEntries',
     LAST_UPDATED: 'lastUpdated',
+    REFERENCE_DATE: 'referenceDate',
     LOOP_STATUS: 'loopStatus',
     CONNECTIONS: 'connections',
     DEBUG_MODE: 'debugMode',
