@@ -460,13 +460,17 @@ export function parseFileWithSheetJS(data, isCSV, fileModifiedTime = null) {
 
             // Calculate daysOut based on LDA if available, otherwise use imported value
             const ldaValue = entry.lda;
-            console.log(`[LDA Storage Debug] Student: ${studentName}, entry.lda:`, entry.lda, 'Type:', typeof entry.lda, 'entry.daysOut:', entry.daysOut);
+            console.log(`[LDA Storage Debug] Student: ${studentName}, entry.lda:`, entry.lda, 'Type:', typeof entry.lda, 'entry.daysOut before calc:', entry.daysOut);
             if (ldaValue && referenceDate) {
-                entry.daysOut = calculateDaysSinceLastAttendance(ldaValue, referenceDate);
+                const calculatedDays = calculateDaysSinceLastAttendance(ldaValue, referenceDate);
+                console.log(`[Days Out Calculation] Student: ${studentName}, LDA: ${ldaValue}, Reference Date: ${referenceDate.toISOString()}, Calculated Days: ${calculatedDays}`);
+                entry.daysOut = calculatedDays;
             } else {
                 // Fall back to imported daysOut value if LDA is not available
+                console.log(`[Days Out Fallback] Student: ${studentName}, No LDA or Reference Date. LDA:`, ldaValue, 'Ref Date:', referenceDate);
                 entry.daysOut = parseInt(entry.daysOut) || 0;
             }
+            console.log(`[LDA Storage Debug] Student: ${studentName}, FINAL entry.daysOut:`, entry.daysOut);
 
             // Initialize fields required by the extension
             entry.missingCount = 0;
