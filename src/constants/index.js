@@ -422,14 +422,13 @@ export const MASTER_LIST_COLUMNS = [
  * Missing Assignments sheet columns
  * Use 'student.' prefix for student fields and 'assignment.' prefix for assignment fields
  * Standardized field names: assignmentTitle, assignmentLink, submissionLink
+ * Note: Some columns use hyperlink: true to indicate they should be exported as HYPERLINK formulas
  */
 export const EXPORT_MISSING_ASSIGNMENTS_COLUMNS = [
-    { header: 'Student Name', field: 'student.name' },
-	{ header: 'Grade Book', field: 'student.url' },
-	{ header: 'Overall Grade', field: 'student.currentGrade', fallback: 'student.grade' },
-    { header: 'Assignment Title', field: 'assignment.assignmentTitle' },
+    { header: 'Student', field: 'student.name' },
+	{ header: 'Grade Book', field: 'student.url', hyperlink: true, hyperlinkText: 'Grade Book' },
+    { header: 'Assignment', field: 'assignment.assignmentTitle', hyperlinkField: 'assignment.assignmentLink', hyperlink: true },
     { header: 'Due Date', field: 'assignment.dueDate' },
     { header: 'Score', field: 'assignment.score' },
-    { header: 'Assignment Link', field: 'assignment.assignmentLink' },
-    { header: 'Submission Link', field: 'assignment.submissionLink' }
+    { header: 'Submission', field: 'assignment.submissionLink', hyperlink: true, hyperlinkText: 'Missing' }
 ];

@@ -698,6 +698,7 @@ export async function exportMasterListCSV() {
         // --- SHEET 2: MISSING ASSIGNMENTS ---
         const missingAssignmentsHeaders = EXPORT_MISSING_ASSIGNMENTS_COLUMNS.map(col => col.header);
         const missingAssignmentsData = [missingAssignmentsHeaders];
+        const hyperlinkMetadata = []; // Store hyperlink info for each row
 
         students.forEach(student => {
             if (student.missingAssignments && student.missingAssignments.length > 0) {
@@ -716,17 +717,34 @@ export async function exportMasterListCSV() {
                         normalizedAssignment.assignmentLink = normalizedAssignment.submissionLink.replace(/\/submissions\/.*$/, '');
                     }
 
-                    const row = EXPORT_MISSING_ASSIGNMENTS_COLUMNS.map(col => {
+                    const rowMetadata = {}; // Store hyperlink info for this row
+                    const row = EXPORT_MISSING_ASSIGNMENTS_COLUMNS.map((col, colIndex) => {
+                        let value = '';
                         if (col.field.startsWith('student.')) {
                             const field = col.field.replace('student.', '');
-                            return getFieldValue(student, field, col.fallback?.replace('student.', ''));
+                            value = getFieldValue(student, field, col.fallback?.replace('student.', ''));
                         } else if (col.field.startsWith('assignment.')) {
                             const field = col.field.replace('assignment.', '');
-                            return getFieldValue(normalizedAssignment, field, col.fallback?.replace('assignment.', ''));
+                            value = getFieldValue(normalizedAssignment, field, col.fallback?.replace('assignment.', ''));
                         }
-                        return '';
+
+                        // Store hyperlink metadata for this column
+                        if (col.hyperlink) {
+                            if (col.hyperlinkField) {
+                                // Assignment column: use assignmentLink as URL and assignmentTitle as text
+                                const linkField = col.hyperlinkField.replace('assignment.', '');
+                                const url = getFieldValue(normalizedAssignment, linkField);
+                                rowMetadata[colIndex] = { url: url, text: value };
+                            } else if (col.hyperlinkText) {
+                                // Fixed text columns: Grade Book and Submission
+                                rowMetadata[colIndex] = { url: value, text: col.hyperlinkText };
+                            }
+                        }
+
+                        return value;
                     });
                     missingAssignmentsData.push(row);
+                    hyperlinkMetadata.push(rowMetadata);
                 });
             }
         });
@@ -735,6 +753,23 @@ export async function exportMasterListCSV() {
         const wb = XLSX.utils.book_new();
         const ws1 = XLSX.utils.aoa_to_sheet(masterListData);
         const ws2 = XLSX.utils.aoa_to_sheet(missingAssignmentsData);
+
+        // Add HYPERLINK formulas to Missing Assignments sheet
+        hyperlinkMetadata.forEach((rowMeta, rowIndex) => {
+            Object.entries(rowMeta).forEach(([colIndex, linkData]) => {
+                const cellAddress = XLSX.utils.encode_cell({ r: rowIndex + 1, c: parseInt(colIndex) }); // +1 to skip header row
+                if (ws2[cellAddress] && linkData.url) {
+                    // Create HYPERLINK formula: =HYPERLINK("url", "text")
+                    const escapedUrl = linkData.url.replace(/"/g, '""'); // Escape quotes in URL
+                    const escapedText = String(linkData.text || 'Link').replace(/"/g, '""'); // Escape quotes in text
+                    ws2[cellAddress] = {
+                        t: 'f',
+                        f: `HYPERLINK("${escapedUrl}","${escapedText}")`,
+                        v: linkData.text || 'Link'
+                    };
+                }
+            });
+        });
 
         XLSX.utils.book_append_sheet(wb, ws1, 'Master List');
         XLSX.utils.book_append_sheet(wb, ws2, 'Missing Assignments');
