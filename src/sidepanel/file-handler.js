@@ -229,6 +229,37 @@ function cleanProgramVersion(value) {
 }
 
 /**
+ * Cleans up phone number strings by removing trailing spaces and anything after the phone number.
+ * Examples:
+ * - "555-1234 " → "555-1234"
+ * - "555-1234 ext 123" → "555-1234"
+ * - "(555) 123-4567 work" → "(555) 123-4567"
+ * - "+1-555-123-4567 mobile" → "+1-555-123-4567"
+ *
+ * @param {string|number} value - The phone number string to clean
+ * @returns {string} The cleaned phone number string
+ */
+function cleanPhoneNumber(value) {
+    if (!value) return value;
+
+    // Convert to string and trim
+    let cleaned = String(value).trim();
+
+    // Extract only the phone number part (digits, hyphens, parentheses, spaces, dots, plus signs)
+    // This regex captures the phone number portion and stops at any trailing text/spaces
+    const phonePattern = /^([+\d\s\-().]+?)(?:\s+[a-zA-Z].*)?$/;
+    const match = cleaned.match(phonePattern);
+
+    if (match) {
+        // Return the captured phone number, trimmed
+        return match[1].trim();
+    }
+
+    // If no match, just return trimmed value
+    return cleaned;
+}
+
+/**
  * Finds the column index for a field using normalized matching and aliases.
  * Matches fields case-insensitively and ignoring spaces/special characters.
  *
@@ -386,6 +417,11 @@ export function parseFileWithSheetJS(data, isCSV, fileModifiedTime = null) {
                         value = cleanProgramVersion(value);
                     }
 
+                    // Clean phone numbers by removing trailing spaces and text
+                    if ((col.field === 'phone' || col.field === 'otherPhone') && value !== null && value !== undefined && value !== '') {
+                        value = cleanPhoneNumber(value);
+                    }
+
                     // Use the field name from MASTER_LIST_COLUMNS definition
                     entry[col.field] = value !== null && value !== undefined ? value : null;
                 }
@@ -393,7 +429,8 @@ export function parseFileWithSheetJS(data, isCSV, fileModifiedTime = null) {
 
             // Ensure critical fields are present with proper types
             entry.name = String(studentName);
-            if (entry.phone) entry.phone = String(entry.phone);
+            if (entry.phone) entry.phone = cleanPhoneNumber(String(entry.phone));
+            if (entry.otherPhone) entry.otherPhone = cleanPhoneNumber(String(entry.otherPhone));
             if (entry.grade) entry.grade = String(entry.grade);
             if (entry.StudentNumber) entry.StudentNumber = String(entry.StudentNumber);
             if (entry.SyStudentId) entry.SyStudentId = String(entry.SyStudentId);
