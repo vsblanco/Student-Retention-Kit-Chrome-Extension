@@ -396,8 +396,8 @@ export const FIELD_ALIASES = {
 export const MASTER_LIST_COLUMNS = [
     { header: 'Student Name', field: 'name' },
     { header: 'Student Number', field: 'StudentNumber' },
-    { header: 'Grade Book', field: 'url' },
-    { header: 'Grade', field: 'grade', fallback: 'currentGrade' },
+    { header: 'Grade Book', field: 'url', hyperlink: true, hyperlinkText: 'Grade Book' },
+    { header: 'Grade', field: 'grade', fallback: 'currentGrade', conditionalFormatting: 'grade' },
     { header: 'Missing Assignments', field: 'missingCount' },
     { header: 'LDA', field: 'lda' },
     { header: 'Days Out', field: 'daysOut' },

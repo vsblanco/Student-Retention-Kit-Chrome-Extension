@@ -673,9 +673,11 @@ export async function exportMasterListCSV() {
         // --- SHEET 1: MASTER LIST ---
         const masterListHeaders = MASTER_LIST_COLUMNS.map(col => col.header);
         const masterListData = [masterListHeaders];
+        const masterListHyperlinkMetadata = []; // Store hyperlink info for each row
 
         students.forEach(student => {
-            const row = MASTER_LIST_COLUMNS.map(col => {
+            const rowMetadata = {}; // Store hyperlink info for this row
+            const row = MASTER_LIST_COLUMNS.map((col, colIndex) => {
                 let value = getFieldValue(student, col.field, col.fallback);
 
                 if (col.field === 'missingCount') {
@@ -690,9 +692,15 @@ export async function exportMasterListCSV() {
                     }
                 }
 
+                // Store hyperlink metadata for this column
+                if (col.hyperlink && col.hyperlinkText && value) {
+                    rowMetadata[colIndex] = { url: value, text: col.hyperlinkText };
+                }
+
                 return value;
             });
             masterListData.push(row);
+            masterListHyperlinkMetadata.push(rowMetadata);
         });
 
         // --- SHEET 2: MISSING ASSIGNMENTS ---
@@ -754,6 +762,23 @@ export async function exportMasterListCSV() {
         const ws1 = XLSX.utils.aoa_to_sheet(masterListData);
         const ws2 = XLSX.utils.aoa_to_sheet(missingAssignmentsData);
 
+        // Add HYPERLINK formulas to Master List sheet
+        masterListHyperlinkMetadata.forEach((rowMeta, rowIndex) => {
+            Object.entries(rowMeta).forEach(([colIndex, linkData]) => {
+                const cellAddress = XLSX.utils.encode_cell({ r: rowIndex + 1, c: parseInt(colIndex) }); // +1 to skip header row
+                if (ws1[cellAddress] && linkData.url) {
+                    // Create HYPERLINK formula: =HYPERLINK("url", "text")
+                    const escapedUrl = linkData.url.replace(/"/g, '""'); // Escape quotes in URL
+                    const escapedText = String(linkData.text || 'Link').replace(/"/g, '""'); // Escape quotes in text
+                    ws1[cellAddress] = {
+                        t: 'f',
+                        f: `HYPERLINK("${escapedUrl}","${escapedText}")`,
+                        v: linkData.text || 'Link'
+                    };
+                }
+            });
+        });
+
         // Add HYPERLINK formulas to Missing Assignments sheet
         hyperlinkMetadata.forEach((rowMeta, rowIndex) => {
             Object.entries(rowMeta).forEach(([colIndex, linkData]) => {
@@ -770,6 +795,87 @@ export async function exportMasterListCSV() {
                 }
             });
         });
+
+        // Find Grade column index for conditional formatting
+        const gradeColIndex = MASTER_LIST_COLUMNS.findIndex(col => col.conditionalFormatting === 'grade');
+
+        // Add conditional formatting to Grade column (GREEN >= 70, YELLOW 60-69, RED < 60)
+        if (gradeColIndex !== -1 && students.length > 0) {
+            const gradeColLetter = XLSX.utils.encode_col(gradeColIndex);
+            const lastRow = students.length + 1; // +1 for header
+
+            // Initialize conditional formatting array if not exists
+            if (!ws1['!conditionalFormats']) {
+                ws1['!conditionalFormats'] = [];
+            }
+
+            // Add three conditional formatting rules for the Grade column
+            // Rule 1: GREEN for >= 70
+            ws1['!conditionalFormats'].push({
+                ref: `${gradeColLetter}2:${gradeColLetter}${lastRow}`,
+                rules: [
+                    {
+                        type: 'cellIs',
+                        operator: 'greaterThanOrEqual',
+                        formula: ['70'],
+                        style: {
+                            fill: { fgColor: { rgb: '92D050' } }, // Green
+                            font: { color: { rgb: '000000' } }
+                        }
+                    },
+                    {
+                        type: 'cellIs',
+                        operator: 'between',
+                        formula: ['60', '69'],
+                        style: {
+                            fill: { fgColor: { rgb: 'FFFF00' } }, // Yellow
+                            font: { color: { rgb: '000000' } }
+                        }
+                    },
+                    {
+                        type: 'cellIs',
+                        operator: 'lessThan',
+                        formula: ['60'],
+                        style: {
+                            fill: { fgColor: { rgb: 'FF0000' } }, // Red
+                            font: { color: { rgb: 'FFFFFF' } }
+                        }
+                    }
+                ]
+            });
+        }
+
+        // Auto-fit columns for Master List
+        const masterListColWidths = [];
+        for (let i = 0; i < MASTER_LIST_COLUMNS.length; i++) {
+            let maxWidth = MASTER_LIST_COLUMNS[i].header.length;
+            for (let j = 1; j < masterListData.length; j++) {
+                const cellValue = masterListData[j][i];
+                if (cellValue) {
+                    const cellLength = String(cellValue).length;
+                    maxWidth = Math.max(maxWidth, cellLength);
+                }
+            }
+            // Add some padding and cap at reasonable max
+            masterListColWidths.push({ wch: Math.min(maxWidth + 2, 50) });
+        }
+        ws1['!cols'] = masterListColWidths;
+
+        // Auto-fit columns for Missing Assignments
+        const missingAssignmentsColWidths = [];
+        for (let i = 0; i < EXPORT_MISSING_ASSIGNMENTS_COLUMNS.length; i++) {
+            let maxWidth = EXPORT_MISSING_ASSIGNMENTS_COLUMNS[i].header.length;
+            for (let j = 1; j < missingAssignmentsData.length; j++) {
+                const cellValue = missingAssignmentsData[j][i];
+                if (cellValue) {
+                    const cellLength = String(cellValue).length;
+                    maxWidth = Math.max(maxWidth, cellLength);
+                }
+            }
+            // Add some padding and cap at reasonable max
+            missingAssignmentsColWidths.push({ wch: Math.min(maxWidth + 2, 50) });
+        }
+        ws2['!cols'] = missingAssignmentsColWidths;
 
         XLSX.utils.book_append_sheet(wb, ws1, 'Master List');
         XLSX.utils.book_append_sheet(wb, ws2, 'Missing Assignments');
