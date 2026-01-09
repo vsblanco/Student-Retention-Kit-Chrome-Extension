@@ -68,6 +68,7 @@ export const STORAGE_KEYS = {
     FOUND_ENTRIES: 'foundEntries',
     MASTER_ENTRIES: 'masterEntries',
     LAST_UPDATED: 'lastUpdated',
+    REFERENCE_DATE: 'referenceDate',
     LOOP_STATUS: 'loopStatus',
     CONNECTIONS: 'connections',
     DEBUG_MODE: 'debugMode',
@@ -391,45 +392,68 @@ export const FIELD_ALIASES = {
 
 /**
  * Master List sheet columns
- * Each object defines: { header: 'Column Name', field: 'propertyName', fallback: optional fallback field }
+ * Each object defines: { header: 'Column Name', field: 'propertyName', fallback: optional fallback field, width: optional column width }
+ * width: Custom column width in characters (wch). If not specified, column will auto-fit based on content.
  */
 export const MASTER_LIST_COLUMNS = [
-    { header: 'Student Name', field: 'name' },
-    { header: 'Student Number', field: 'StudentNumber' },
-    { header: 'Grade Book', field: 'url' },
-    { header: 'Grade', field: 'grade', fallback: 'currentGrade' },
-    { header: 'Missing Assignments', field: 'missingCount' },
-    { header: 'LDA', field: 'lda' },
-    { header: 'Days Out', field: 'daysOut' },
+    { header: 'Student Name', field: 'name', width: 25 },
+    { header: 'Student Number', field: 'StudentNumber', width: 15 },
+    { header: 'Grade Book', field: 'url', hyperlink: true, hyperlinkText: 'Grade Book', width: 12 },
+    { header: 'Grade', field: 'grade', fallback: 'currentGrade', conditionalFormatting: 'grade', width: 8 },
+    { header: 'Missing Assignments', field: 'missingCount', width: 10 },
+    { header: 'LDA', field: 'lda', width: 12 },
+    { header: 'Days Out', field: 'daysOut', width: 10 },
     { header: 'Gender', field: 'gender', hidden: true },
-    { header: 'Shift', field: 'shift' },
-    { header: 'Program Version', field: 'programVersion' },
-    { header: 'SyStudentId', field: 'SyStudentId' },
-    { header: 'Phone', field: 'phone', fallback: 'primaryPhone' },
-    { header: 'Other Phone', field: 'otherPhone' },
+    { header: 'Shift', field: 'shift', width: 10 },
+    { header: 'Program Version', field: 'programVersion', width: 30 },
+    { header: 'SyStudentId', field: 'SyStudentId', width: 15 },
+    { header: 'Phone', field: 'phone', fallback: 'primaryPhone', width: 15 },
+    { header: 'Other Phone', field: 'otherPhone', width: 15 },
     { header: 'Work Phone', field: 'workPhone', hidden: true },
     { header: 'Mobile Number', field: 'mobileNumber', hidden: true },
-    { header: 'Student Email', field: 'studentEmail' },
-    { header: 'Personal Email', field: 'personalEmail' },
-    { header: 'ExpStartDate', field: 'expStartDate' },
-    { header: 'AmRep', field: 'amRep' },
-    { header: 'Hold', field: 'hold' },
+    { header: 'Student Email', field: 'studentEmail', width: 25 },
+    { header: 'Personal Email', field: 'personalEmail', width: 25 },
+    { header: 'ExpStartDate', field: 'expStartDate', width: 12 },
+    { header: 'AmRep', field: 'amRep', width: 15 },
+    { header: 'Hold', field: 'hold', width: 10 },
     { header: 'Photo', field: 'photo', hidden: true },
-    { header: 'AdSAPStatus', field: 'adSAPStatus' }
+    { header: 'AdSAPStatus', field: 'adSAPStatus', width: 15 }
 ];
 
 /**
  * Missing Assignments sheet columns
  * Use 'student.' prefix for student fields and 'assignment.' prefix for assignment fields
  * Standardized field names: assignmentTitle, assignmentLink, submissionLink
+ * Note: Some columns use hyperlink: true to indicate they should be exported as HYPERLINK formulas
+ * width: Custom column width in characters (wch). If not specified, column will auto-fit based on content.
  */
 export const EXPORT_MISSING_ASSIGNMENTS_COLUMNS = [
-    { header: 'Student Name', field: 'student.name' },
-	{ header: 'Grade Book', field: 'student.url' },
-	{ header: 'Overall Grade', field: 'student.currentGrade', fallback: 'student.grade' },
-    { header: 'Assignment Title', field: 'assignment.assignmentTitle' },
-    { header: 'Due Date', field: 'assignment.dueDate' },
-    { header: 'Score', field: 'assignment.score' },
-    { header: 'Assignment Link', field: 'assignment.assignmentLink' },
-    { header: 'Submission Link', field: 'assignment.submissionLink' }
+    { header: 'Student', field: 'student.name', width: 25 },
+	{ header: 'Grade Book', field: 'student.url', hyperlink: true, hyperlinkText: 'Grade Book', width: 12 },
+	{ header: 'Overall Grade', field: 'student.currentGrade', fallback: 'student.grade', conditionalFormatting: 'grade', width: 8 },
+    { header: 'Assignment', field: 'assignment.assignmentTitle', hyperlinkField: 'assignment.assignmentLink', hyperlink: true, width: 35 },
+    { header: 'Due Date', field: 'assignment.dueDate', width: 12 },
+    { header: 'Score', field: 'assignment.score', width: 8 },
+    { header: 'Submission', field: 'assignment.submissionLink', hyperlink: true, hyperlinkText: 'Missing', width: 12 }
+];
+
+/**
+ * LDA Sheet visible columns whitelist
+ * Only columns listed here will be visible in the LDA sheet
+ * Columns are identified by their field name from MASTER_LIST_COLUMNS
+ */
+export const LDA_VISIBLE_COLUMNS = [
+    'name',
+    'StudentNumber',
+    'url',
+    'grade',
+    'missingCount',
+    'lda',
+    'daysOut',
+    'shift',
+    'programVersion',
+    'phone',
+    'otherPhone',
+    'studentEmail',
+    'personalEmail'
 ];

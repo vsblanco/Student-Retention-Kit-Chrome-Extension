@@ -4,6 +4,7 @@ import {
     FIELD_ALIASES,
     MASTER_LIST_COLUMNS,
     EXPORT_MISSING_ASSIGNMENTS_COLUMNS,
+    LDA_VISIBLE_COLUMNS,
     normalizeFieldName,
     convertExcelDate,
     isExcelDateNumber,
@@ -45,10 +46,13 @@ export async function sendMasterListToExcel(students) {
                 let value = getFieldValue(student, col.field, col.fallback);
 
                 // Format LDA dates to MM-DD-YY format
-                if (col.field === 'lda' && value) {
-                    const dateObj = parseDate(value);
-                    if (dateObj) {
-                        value = formatDateToMMDDYY(dateObj);
+                if (col.field === 'lda') {
+                    console.log(`[LDA To Excel Debug] Student: ${student.name}, Retrieved LDA:`, value, 'student.lda:', student.lda);
+                    if (value) {
+                        const dateObj = parseDate(value);
+                        if (dateObj) {
+                            value = formatDateToMMDDYY(dateObj);
+                        }
                     }
                 }
 
@@ -113,10 +117,13 @@ export async function sendMasterListWithMissingAssignmentsToExcel(students) {
                 let value = getFieldValue(student, col.field, col.fallback);
 
                 // Format LDA dates to MM-DD-YY format
-                if (col.field === 'lda' && value) {
-                    const dateObj = parseDate(value);
-                    if (dateObj) {
-                        value = formatDateToMMDDYY(dateObj);
+                if (col.field === 'lda') {
+                    console.log(`[LDA To Excel Debug] Student: ${student.name}, Retrieved LDA:`, value, 'student.lda:', student.lda);
+                    if (value) {
+                        const dateObj = parseDate(value);
+                        if (dateObj) {
+                            value = formatDateToMMDDYY(dateObj);
+                        }
                     }
                 }
 
@@ -296,7 +303,7 @@ function findColumnIndex(headers, fieldName) {
  * @param {String|ArrayBuffer} data - File content
  * @param {Boolean} isCSV - True if parsing CSV, false for Excel
  * @param {Number} fileModifiedTime - File last modified timestamp (milliseconds since epoch)
- * @returns {Array} Array of student objects
+ * @returns {Object} Object containing { students: Array, referenceDate: Date }
  */
 export function parseFileWithSheetJS(data, isCSV, fileModifiedTime = null) {
     try {
@@ -328,7 +335,7 @@ export function parseFileWithSheetJS(data, isCSV, fileModifiedTime = null) {
         }
 
         if (rows.length < 2) {
-            return [];
+            return { students: [], referenceDate: null };
         }
 
         // Find header row
@@ -356,7 +363,7 @@ export function parseFileWithSheetJS(data, isCSV, fileModifiedTime = null) {
         }
 
         if (headerRowIndex === -1) {
-            return [];
+            return { students: [], referenceDate: null };
         }
 
         // Map column indices for all MASTER_LIST_COLUMNS using normalized field matching
@@ -377,7 +384,7 @@ export function parseFileWithSheetJS(data, isCSV, fileModifiedTime = null) {
 
         // Ensure we have at least a name column
         if (!columnMapping.name) {
-            return [];
+            return { students: [], referenceDate: null };
         }
 
         // Parse data rows
@@ -409,7 +416,13 @@ export function parseFileWithSheetJS(data, isCSV, fileModifiedTime = null) {
 
                     // Apply Excel date conversion to date fields
                     if (isDateField(col.field)) {
-                        value = convertExcelDate(value);
+                        // Handle Date objects (from XLSX cellDates: true)
+                        if (value instanceof Date) {
+                            value = formatDateToMMDDYY(value);
+                        } else {
+                            // Handle Excel serial numbers
+                            value = convertExcelDate(value);
+                        }
                     }
 
                     // Clean program version by removing year prefix
@@ -420,6 +433,11 @@ export function parseFileWithSheetJS(data, isCSV, fileModifiedTime = null) {
                     // Clean phone numbers by removing trailing spaces and text
                     if ((col.field === 'phone' || col.field === 'otherPhone') && value !== null && value !== undefined && value !== '') {
                         value = cleanPhoneNumber(value);
+                    }
+
+                    // Debug logging for LDA
+                    if (col.field === 'lda') {
+                        console.log(`[LDA Import Debug] Student: ${studentName}, Raw LDA value:`, row[colIndex], 'Type:', typeof row[colIndex], 'Converted value:', value);
                     }
 
                     // Use the field name from MASTER_LIST_COLUMNS definition
@@ -435,14 +453,24 @@ export function parseFileWithSheetJS(data, isCSV, fileModifiedTime = null) {
             if (entry.StudentNumber) entry.StudentNumber = String(entry.StudentNumber);
             if (entry.SyStudentId) entry.SyStudentId = String(entry.SyStudentId);
 
+            // Ensure LDA is stored as a string (handle Date objects that might slip through)
+            if (entry.lda instanceof Date) {
+                entry.lda = formatDateToMMDDYY(entry.lda);
+            }
+
             // Calculate daysOut based on LDA if available, otherwise use imported value
             const ldaValue = entry.lda;
+            console.log(`[LDA Storage Debug] Student: ${studentName}, entry.lda:`, entry.lda, 'Type:', typeof entry.lda, 'entry.daysOut before calc:', entry.daysOut);
             if (ldaValue && referenceDate) {
-                entry.daysout = calculateDaysSinceLastAttendance(ldaValue, referenceDate);
+                const calculatedDays = calculateDaysSinceLastAttendance(ldaValue, referenceDate);
+                console.log(`[Days Out Calculation] Student: ${studentName}, LDA: ${ldaValue}, Reference Date: ${referenceDate.toISOString()}, Calculated Days: ${calculatedDays}`);
+                entry.daysOut = calculatedDays;
             } else {
                 // Fall back to imported daysOut value if LDA is not available
-                entry.daysout = parseInt(entry.daysOut) || 0;
+                console.log(`[Days Out Fallback] Student: ${studentName}, No LDA or Reference Date. LDA:`, ldaValue, 'Ref Date:', referenceDate);
+                entry.daysOut = parseInt(entry.daysOut) || 0;
             }
+            console.log(`[LDA Storage Debug] Student: ${studentName}, FINAL entry.daysOut:`, entry.daysOut);
 
             // Initialize fields required by the extension
             entry.missingCount = 0;
@@ -452,7 +480,7 @@ export function parseFileWithSheetJS(data, isCSV, fileModifiedTime = null) {
             students.push(entry);
         }
 
-        return students;
+        return { students, referenceDate };
 
     } catch (error) {
         console.error('Error parsing file with SheetJS:', error);
@@ -496,10 +524,13 @@ export function handleFileImport(file, onSuccess) {
     reader.onload = function (e) {
         const content = e.target.result;
         let students = [];
+        let referenceDate = null;
 
         try {
             // Pass file last modified time for daysOut calculation
-            students = parseFileWithSheetJS(content, isCSV, file.lastModified);
+            const result = parseFileWithSheetJS(content, isCSV, file.lastModified);
+            students = result.students;
+            referenceDate = result.referenceDate;
 
             if (students.length === 0) {
                 throw new Error("No valid student data found (Check header row).");
@@ -515,7 +546,8 @@ export function handleFileImport(file, onSuccess) {
 
             chrome.storage.local.set({
                 [STORAGE_KEYS.MASTER_ENTRIES]: students,
-                [STORAGE_KEYS.LAST_UPDATED]: lastUpdated
+                [STORAGE_KEYS.LAST_UPDATED]: lastUpdated,
+                [STORAGE_KEYS.REFERENCE_DATE]: referenceDate ? referenceDate.toISOString() : null
             }, async () => {
                 const duration = ((Date.now() - startTime) / 1000).toFixed(1);
                 step1.className = 'queue-item completed';
@@ -658,12 +690,93 @@ function getFieldValue(obj, field, fallback) {
 }
 
 /**
- * Exports master list to Excel file with two sheets
+ * Applies conditional formatting to grade cells based on value
+ * GREEN >= 70, YELLOW 60-69, RED < 60
+ * @param {Object} worksheet - The worksheet object
+ * @param {number} colIndex - Column index for grades
+ * @param {number} startRow - Starting row (usually 2, after header)
+ * @param {number} endRow - Ending row
+ */
+function applyGradeConditionalFormatting(worksheet, colIndex, startRow, endRow) {
+    for (let row = startRow; row <= endRow; row++) {
+        const cellAddress = XLSX.utils.encode_cell({ r: row - 1, c: colIndex }); // -1 because XLSX is 0-indexed
+        const cell = worksheet[cellAddress];
+
+        if (cell && cell.v !== null && cell.v !== undefined && cell.v !== '') {
+            const grade = parseFloat(cell.v);
+            if (!isNaN(grade)) {
+                // Initialize cell style if not exists
+                if (!cell.s) cell.s = {};
+
+                if (grade >= 70) {
+                    // GREEN
+                    cell.s = {
+                        fill: { fgColor: { rgb: '92D050' } },
+                        font: { color: { rgb: '000000' } }
+                    };
+                } else if (grade >= 60) {
+                    // YELLOW
+                    cell.s = {
+                        fill: { fgColor: { rgb: 'FFFF00' } },
+                        font: { color: { rgb: '000000' } }
+                    };
+                } else {
+                    // RED
+                    cell.s = {
+                        fill: { fgColor: { rgb: 'FF0000' } },
+                        font: { color: { rgb: 'FFFFFF' } }
+                    };
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Calculates column widths based on custom width or auto-fit
+ * @param {Array} columns - Column configuration array (e.g., MASTER_LIST_COLUMNS)
+ * @param {Array} data - Data rows (including header row)
+ * @returns {Array} Array of column width objects { wch: number }
+ */
+function calculateColumnWidths(columns, data) {
+    const colWidths = [];
+
+    for (let i = 0; i < columns.length; i++) {
+        const col = columns[i];
+
+        // Use custom width if specified
+        if (col.width !== undefined && col.width !== null) {
+            colWidths.push({ wch: col.width });
+        } else {
+            // Auto-fit based on content
+            let maxWidth = col.header.length;
+            for (let j = 1; j < data.length; j++) {
+                const cellValue = data[j][i];
+                if (cellValue) {
+                    const cellLength = String(cellValue).length;
+                    maxWidth = Math.max(maxWidth, cellLength);
+                }
+            }
+            // Add some padding and cap at reasonable max
+            colWidths.push({ wch: Math.min(maxWidth + 2, 50) });
+        }
+    }
+
+    return colWidths;
+}
+
+/**
+ * Exports master list to Excel file with three sheets
  */
 export async function exportMasterListCSV() {
     try {
-        const result = await chrome.storage.local.get([STORAGE_KEYS.MASTER_ENTRIES]);
+        const result = await chrome.storage.local.get([
+            STORAGE_KEYS.MASTER_ENTRIES,
+            STORAGE_KEYS.REFERENCE_DATE
+        ]);
         const students = result[STORAGE_KEYS.MASTER_ENTRIES] || [];
+        const referenceDateStr = result[STORAGE_KEYS.REFERENCE_DATE];
+        const referenceDate = referenceDateStr ? new Date(referenceDateStr) : new Date();
 
         if (students.length === 0) {
             alert('No data to export. Please update the master list first.');
@@ -673,31 +786,43 @@ export async function exportMasterListCSV() {
         // --- SHEET 1: MASTER LIST ---
         const masterListHeaders = MASTER_LIST_COLUMNS.map(col => col.header);
         const masterListData = [masterListHeaders];
+        const masterListHyperlinkMetadata = []; // Store hyperlink info for each row
 
         students.forEach(student => {
-            const row = MASTER_LIST_COLUMNS.map(col => {
+            const rowMetadata = {}; // Store hyperlink info for this row
+            const row = MASTER_LIST_COLUMNS.map((col, colIndex) => {
                 let value = getFieldValue(student, col.field, col.fallback);
 
                 if (col.field === 'missingCount') {
                     value = value || 0;
-                } else if (col.field === 'daysout') {
+                } else if (col.field === 'daysOut') {
                     value = parseInt(value || 0);
-                } else if (col.field === 'lda' && value) {
-                    // Format LDA dates to MM-DD-YY format
-                    const dateObj = parseDate(value);
-                    if (dateObj) {
-                        value = formatDateToMMDDYY(dateObj);
+                } else if (col.field === 'lda') {
+                    console.log(`[LDA Export Debug] Student: ${student.name}, Retrieved LDA:`, value, 'student.lda:', student.lda);
+                    if (value) {
+                        // Format LDA dates to MM-DD-YY format
+                        const dateObj = parseDate(value);
+                        if (dateObj) {
+                            value = formatDateToMMDDYY(dateObj);
+                        }
                     }
+                }
+
+                // Store hyperlink metadata for this column
+                if (col.hyperlink && col.hyperlinkText && value) {
+                    rowMetadata[colIndex] = { url: value, text: col.hyperlinkText };
                 }
 
                 return value;
             });
             masterListData.push(row);
+            masterListHyperlinkMetadata.push(rowMetadata);
         });
 
         // --- SHEET 2: MISSING ASSIGNMENTS ---
         const missingAssignmentsHeaders = EXPORT_MISSING_ASSIGNMENTS_COLUMNS.map(col => col.header);
         const missingAssignmentsData = [missingAssignmentsHeaders];
+        const hyperlinkMetadata = []; // Store hyperlink info for each row
 
         students.forEach(student => {
             if (student.missingAssignments && student.missingAssignments.length > 0) {
@@ -716,17 +841,34 @@ export async function exportMasterListCSV() {
                         normalizedAssignment.assignmentLink = normalizedAssignment.submissionLink.replace(/\/submissions\/.*$/, '');
                     }
 
-                    const row = EXPORT_MISSING_ASSIGNMENTS_COLUMNS.map(col => {
+                    const rowMetadata = {}; // Store hyperlink info for this row
+                    const row = EXPORT_MISSING_ASSIGNMENTS_COLUMNS.map((col, colIndex) => {
+                        let value = '';
                         if (col.field.startsWith('student.')) {
                             const field = col.field.replace('student.', '');
-                            return getFieldValue(student, field, col.fallback?.replace('student.', ''));
+                            value = getFieldValue(student, field, col.fallback?.replace('student.', ''));
                         } else if (col.field.startsWith('assignment.')) {
                             const field = col.field.replace('assignment.', '');
-                            return getFieldValue(normalizedAssignment, field, col.fallback?.replace('assignment.', ''));
+                            value = getFieldValue(normalizedAssignment, field, col.fallback?.replace('assignment.', ''));
                         }
-                        return '';
+
+                        // Store hyperlink metadata for this column
+                        if (col.hyperlink) {
+                            if (col.hyperlinkField) {
+                                // Assignment column: use assignmentLink as URL and assignmentTitle as text
+                                const linkField = col.hyperlinkField.replace('assignment.', '');
+                                const url = getFieldValue(normalizedAssignment, linkField);
+                                rowMetadata[colIndex] = { url: url, text: value };
+                            } else if (col.hyperlinkText) {
+                                // Fixed text columns: Grade Book and Submission
+                                rowMetadata[colIndex] = { url: value, text: col.hyperlinkText };
+                            }
+                        }
+
+                        return value;
                     });
                     missingAssignmentsData.push(row);
+                    hyperlinkMetadata.push(rowMetadata);
                 });
             }
         });
@@ -736,15 +878,167 @@ export async function exportMasterListCSV() {
         const ws1 = XLSX.utils.aoa_to_sheet(masterListData);
         const ws2 = XLSX.utils.aoa_to_sheet(missingAssignmentsData);
 
+        // Add HYPERLINK formulas to Master List sheet
+        masterListHyperlinkMetadata.forEach((rowMeta, rowIndex) => {
+            Object.entries(rowMeta).forEach(([colIndex, linkData]) => {
+                const cellAddress = XLSX.utils.encode_cell({ r: rowIndex + 1, c: parseInt(colIndex) }); // +1 to skip header row
+                if (ws1[cellAddress] && linkData.url) {
+                    // Create HYPERLINK formula: =HYPERLINK("url", "text")
+                    const escapedUrl = linkData.url.replace(/"/g, '""'); // Escape quotes in URL
+                    const escapedText = String(linkData.text || 'Link').replace(/"/g, '""'); // Escape quotes in text
+                    ws1[cellAddress] = {
+                        t: 'f',
+                        f: `HYPERLINK("${escapedUrl}","${escapedText}")`,
+                        v: linkData.text || 'Link'
+                    };
+                }
+            });
+        });
+
+        // Add HYPERLINK formulas to Missing Assignments sheet
+        hyperlinkMetadata.forEach((rowMeta, rowIndex) => {
+            Object.entries(rowMeta).forEach(([colIndex, linkData]) => {
+                const cellAddress = XLSX.utils.encode_cell({ r: rowIndex + 1, c: parseInt(colIndex) }); // +1 to skip header row
+                if (ws2[cellAddress] && linkData.url) {
+                    // Create HYPERLINK formula: =HYPERLINK("url", "text")
+                    const escapedUrl = linkData.url.replace(/"/g, '""'); // Escape quotes in URL
+                    const escapedText = String(linkData.text || 'Link').replace(/"/g, '""'); // Escape quotes in text
+                    ws2[cellAddress] = {
+                        t: 'f',
+                        f: `HYPERLINK("${escapedUrl}","${escapedText}")`,
+                        v: linkData.text || 'Link'
+                    };
+                }
+            });
+        });
+
+        // Find Grade column index for conditional formatting in Master List
+        const gradeColIndex = MASTER_LIST_COLUMNS.findIndex(col => col.conditionalFormatting === 'grade');
+
+        // Apply conditional formatting to Grade column in Master List (GREEN >= 70, YELLOW 60-69, RED < 60)
+        if (gradeColIndex !== -1 && students.length > 0) {
+            applyGradeConditionalFormatting(ws1, gradeColIndex, 2, students.length + 1);
+        }
+
+        // Find Overall Grade column index for conditional formatting in Missing Assignments
+        const missingGradeColIndex = EXPORT_MISSING_ASSIGNMENTS_COLUMNS.findIndex(col => col.conditionalFormatting === 'grade');
+
+        // Apply conditional formatting to Overall Grade column in Missing Assignments (GREEN >= 70, YELLOW 60-69, RED < 60)
+        if (missingGradeColIndex !== -1 && missingAssignmentsData.length > 1) {
+            applyGradeConditionalFormatting(ws2, missingGradeColIndex, 2, missingAssignmentsData.length);
+        }
+
+        // Set column widths for Master List (custom or auto-fit)
+        ws1['!cols'] = calculateColumnWidths(MASTER_LIST_COLUMNS, masterListData);
+
+        // Set column widths for Missing Assignments (custom or auto-fit)
+        ws2['!cols'] = calculateColumnWidths(EXPORT_MISSING_ASSIGNMENTS_COLUMNS, missingAssignmentsData);
+
+        // --- SHEET 3: LDA (Filtered and Sorted Master List) ---
+        // Filter students by daysOut >= 5
+        const filteredStudents = students.filter(student => {
+            const daysOut = parseInt(student.daysOut || 0);
+            return daysOut >= 5;
+        });
+
+        // Sort by daysOut from highest to lowest
+        filteredStudents.sort((a, b) => {
+            const daysOutA = parseInt(a.daysOut || 0);
+            const daysOutB = parseInt(b.daysOut || 0);
+            return daysOutB - daysOutA; // Descending order
+        });
+
+        // Create LDA sheet data using the same structure as Master List
+        const ldaHeaders = MASTER_LIST_COLUMNS.map(col => col.header);
+        const ldaData = [ldaHeaders];
+        const ldaHyperlinkMetadata = []; // Store hyperlink info for each row
+
+        filteredStudents.forEach(student => {
+            const rowMetadata = {}; // Store hyperlink info for this row
+            const row = MASTER_LIST_COLUMNS.map((col, colIndex) => {
+                let value = getFieldValue(student, col.field, col.fallback);
+
+                if (col.field === 'missingCount') {
+                    value = value || 0;
+                } else if (col.field === 'daysOut') {
+                    value = parseInt(value || 0);
+                } else if (col.field === 'lda') {
+                    if (value) {
+                        // Format LDA dates to MM-DD-YY format
+                        const dateObj = parseDate(value);
+                        if (dateObj) {
+                            value = formatDateToMMDDYY(dateObj);
+                        }
+                    }
+                }
+
+                // Store hyperlink metadata for this column
+                if (col.hyperlink && col.hyperlinkText && value) {
+                    rowMetadata[colIndex] = { url: value, text: col.hyperlinkText };
+                }
+
+                return value;
+            });
+            ldaData.push(row);
+            ldaHyperlinkMetadata.push(rowMetadata);
+        });
+
+        // Create worksheet for LDA sheet
+        const ws3 = XLSX.utils.aoa_to_sheet(ldaData);
+
+        // Add HYPERLINK formulas to LDA sheet
+        ldaHyperlinkMetadata.forEach((rowMeta, rowIndex) => {
+            Object.entries(rowMeta).forEach(([colIndex, linkData]) => {
+                const cellAddress = XLSX.utils.encode_cell({ r: rowIndex + 1, c: parseInt(colIndex) }); // +1 to skip header row
+                if (ws3[cellAddress] && linkData.url) {
+                    // Create HYPERLINK formula: =HYPERLINK("url", "text")
+                    const escapedUrl = linkData.url.replace(/"/g, '""'); // Escape quotes in URL
+                    const escapedText = String(linkData.text || 'Link').replace(/"/g, '""'); // Escape quotes in text
+                    ws3[cellAddress] = {
+                        t: 'f',
+                        f: `HYPERLINK("${escapedUrl}","${escapedText}")`,
+                        v: linkData.text || 'Link'
+                    };
+                }
+            });
+        });
+
+        // Apply conditional formatting to Grade column in LDA sheet (GREEN >= 70, YELLOW 60-69, RED < 60)
+        if (gradeColIndex !== -1 && filteredStudents.length > 0) {
+            applyGradeConditionalFormatting(ws3, gradeColIndex, 2, filteredStudents.length + 1);
+        }
+
+        // Set column widths for LDA sheet (custom or auto-fit)
+        ws3['!cols'] = calculateColumnWidths(MASTER_LIST_COLUMNS, ldaData);
+
+        // Hide columns not in LDA_VISIBLE_COLUMNS whitelist (applied after width calculation)
+        MASTER_LIST_COLUMNS.forEach((col, i) => {
+            if (!LDA_VISIBLE_COLUMNS.includes(col.field)) {
+                if (!ws3['!cols'][i]) ws3['!cols'][i] = {};
+                ws3['!cols'][i].hidden = true;
+            }
+        });
+
+        // Create sheet name with reference date formatted as MM-DD-YYYY
+        const ldaMonth = String(referenceDate.getMonth() + 1).padStart(2, '0');
+        const ldaDay = String(referenceDate.getDate()).padStart(2, '0');
+        const ldaYear = String(referenceDate.getFullYear());
+        const ldaSheetName = `LDA ${ldaMonth}-${ldaDay}-${ldaYear}`;
+
         XLSX.utils.book_append_sheet(wb, ws1, 'Master List');
         XLSX.utils.book_append_sheet(wb, ws2, 'Missing Assignments');
+        XLSX.utils.book_append_sheet(wb, ws3, ldaSheetName);
 
         const timestamp = new Date().toISOString().split('T')[0];
         const filename = `student_report_${timestamp}.xlsx`;
 
-        XLSX.writeFile(wb, filename);
+        // Write file with cell styles enabled
+        XLSX.writeFile(wb, filename, { cellStyles: true });
 
         console.log(`✓ Exported ${students.length} students to Excel file: ${filename}`);
+        console.log(`  - Master List: ${students.length} students`);
+        console.log(`  - Missing Assignments: ${missingAssignmentsData.length - 1} assignments`);
+        console.log(`  - ${ldaSheetName}: ${filteredStudents.length} students (Days Out >= 5)`);
 
     } catch (error) {
         console.error('Error exporting to Excel:', error);
