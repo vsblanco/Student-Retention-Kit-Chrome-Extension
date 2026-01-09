@@ -4,6 +4,7 @@ import {
     FIELD_ALIASES,
     MASTER_LIST_COLUMNS,
     EXPORT_MISSING_ASSIGNMENTS_COLUMNS,
+    LDA_VISIBLE_COLUMNS,
     normalizeFieldName,
     convertExcelDate,
     isExcelDateNumber,
@@ -662,6 +663,49 @@ function getFieldValue(obj, field, fallback) {
 }
 
 /**
+ * Applies conditional formatting to grade cells based on value
+ * GREEN >= 70, YELLOW 60-69, RED < 60
+ * @param {Object} worksheet - The worksheet object
+ * @param {number} colIndex - Column index for grades
+ * @param {number} startRow - Starting row (usually 2, after header)
+ * @param {number} endRow - Ending row
+ */
+function applyGradeConditionalFormatting(worksheet, colIndex, startRow, endRow) {
+    for (let row = startRow; row <= endRow; row++) {
+        const cellAddress = XLSX.utils.encode_cell({ r: row - 1, c: colIndex }); // -1 because XLSX is 0-indexed
+        const cell = worksheet[cellAddress];
+
+        if (cell && cell.v !== null && cell.v !== undefined && cell.v !== '') {
+            const grade = parseFloat(cell.v);
+            if (!isNaN(grade)) {
+                // Initialize cell style if not exists
+                if (!cell.s) cell.s = {};
+
+                if (grade >= 70) {
+                    // GREEN
+                    cell.s = {
+                        fill: { fgColor: { rgb: '92D050' } },
+                        font: { color: { rgb: '000000' } }
+                    };
+                } else if (grade >= 60) {
+                    // YELLOW
+                    cell.s = {
+                        fill: { fgColor: { rgb: 'FFFF00' } },
+                        font: { color: { rgb: '000000' } }
+                    };
+                } else {
+                    // RED
+                    cell.s = {
+                        fill: { fgColor: { rgb: 'FF0000' } },
+                        font: { color: { rgb: 'FFFFFF' } }
+                    };
+                }
+            }
+        }
+    }
+}
+
+/**
  * Exports master list to Excel file with three sheets
  */
 export async function exportMasterListCSV() {
@@ -808,98 +852,17 @@ export async function exportMasterListCSV() {
         // Find Grade column index for conditional formatting in Master List
         const gradeColIndex = MASTER_LIST_COLUMNS.findIndex(col => col.conditionalFormatting === 'grade');
 
-        // Add conditional formatting to Grade column in Master List (GREEN >= 70, YELLOW 60-69, RED < 60)
+        // Apply conditional formatting to Grade column in Master List (GREEN >= 70, YELLOW 60-69, RED < 60)
         if (gradeColIndex !== -1 && students.length > 0) {
-            const gradeColLetter = XLSX.utils.encode_col(gradeColIndex);
-            const lastRow = students.length + 1; // +1 for header
-
-            // Initialize conditional formatting array if not exists
-            if (!ws1['!conditionalFormats']) {
-                ws1['!conditionalFormats'] = [];
-            }
-
-            // Add three conditional formatting rules for the Grade column
-            // Rule 1: GREEN for >= 70
-            ws1['!conditionalFormats'].push({
-                ref: `${gradeColLetter}2:${gradeColLetter}${lastRow}`,
-                rules: [
-                    {
-                        type: 'cellIs',
-                        operator: 'greaterThanOrEqual',
-                        formula: ['70'],
-                        style: {
-                            fill: { fgColor: { rgb: '92D050' } }, // Green
-                            font: { color: { rgb: '000000' } }
-                        }
-                    },
-                    {
-                        type: 'cellIs',
-                        operator: 'between',
-                        formula: ['60', '69'],
-                        style: {
-                            fill: { fgColor: { rgb: 'FFFF00' } }, // Yellow
-                            font: { color: { rgb: '000000' } }
-                        }
-                    },
-                    {
-                        type: 'cellIs',
-                        operator: 'lessThan',
-                        formula: ['60'],
-                        style: {
-                            fill: { fgColor: { rgb: 'FF0000' } }, // Red
-                            font: { color: { rgb: 'FFFFFF' } }
-                        }
-                    }
-                ]
-            });
+            applyGradeConditionalFormatting(ws1, gradeColIndex, 2, students.length + 1);
         }
 
         // Find Overall Grade column index for conditional formatting in Missing Assignments
         const missingGradeColIndex = EXPORT_MISSING_ASSIGNMENTS_COLUMNS.findIndex(col => col.conditionalFormatting === 'grade');
 
-        // Add conditional formatting to Overall Grade column in Missing Assignments (GREEN >= 70, YELLOW 60-69, RED < 60)
+        // Apply conditional formatting to Overall Grade column in Missing Assignments (GREEN >= 70, YELLOW 60-69, RED < 60)
         if (missingGradeColIndex !== -1 && missingAssignmentsData.length > 1) {
-            const gradeColLetter = XLSX.utils.encode_col(missingGradeColIndex);
-            const lastRow = missingAssignmentsData.length; // Already includes header
-
-            // Initialize conditional formatting array if not exists
-            if (!ws2['!conditionalFormats']) {
-                ws2['!conditionalFormats'] = [];
-            }
-
-            // Add three conditional formatting rules for the Overall Grade column
-            ws2['!conditionalFormats'].push({
-                ref: `${gradeColLetter}2:${gradeColLetter}${lastRow}`,
-                rules: [
-                    {
-                        type: 'cellIs',
-                        operator: 'greaterThanOrEqual',
-                        formula: ['70'],
-                        style: {
-                            fill: { fgColor: { rgb: '92D050' } }, // Green
-                            font: { color: { rgb: '000000' } }
-                        }
-                    },
-                    {
-                        type: 'cellIs',
-                        operator: 'between',
-                        formula: ['60', '69'],
-                        style: {
-                            fill: { fgColor: { rgb: 'FFFF00' } }, // Yellow
-                            font: { color: { rgb: '000000' } }
-                        }
-                    },
-                    {
-                        type: 'cellIs',
-                        operator: 'lessThan',
-                        formula: ['60'],
-                        style: {
-                            fill: { fgColor: { rgb: 'FF0000' } }, // Red
-                            font: { color: { rgb: 'FFFFFF' } }
-                        }
-                    }
-                ]
-            });
+            applyGradeConditionalFormatting(ws2, missingGradeColIndex, 2, missingAssignmentsData.length);
         }
 
         // Auto-fit columns for Master List
@@ -1001,49 +964,9 @@ export async function exportMasterListCSV() {
             });
         });
 
-        // Add conditional formatting to Grade column in LDA sheet
+        // Apply conditional formatting to Grade column in LDA sheet (GREEN >= 70, YELLOW 60-69, RED < 60)
         if (gradeColIndex !== -1 && filteredStudents.length > 0) {
-            const gradeColLetter = XLSX.utils.encode_col(gradeColIndex);
-            const lastRow = filteredStudents.length + 1; // +1 for header
-
-            // Initialize conditional formatting array if not exists
-            if (!ws3['!conditionalFormats']) {
-                ws3['!conditionalFormats'] = [];
-            }
-
-            // Add three conditional formatting rules for the Grade column
-            ws3['!conditionalFormats'].push({
-                ref: `${gradeColLetter}2:${gradeColLetter}${lastRow}`,
-                rules: [
-                    {
-                        type: 'cellIs',
-                        operator: 'greaterThanOrEqual',
-                        formula: ['70'],
-                        style: {
-                            fill: { fgColor: { rgb: '92D050' } }, // Green
-                            font: { color: { rgb: '000000' } }
-                        }
-                    },
-                    {
-                        type: 'cellIs',
-                        operator: 'between',
-                        formula: ['60', '69'],
-                        style: {
-                            fill: { fgColor: { rgb: 'FFFF00' } }, // Yellow
-                            font: { color: { rgb: '000000' } }
-                        }
-                    },
-                    {
-                        type: 'cellIs',
-                        operator: 'lessThan',
-                        formula: ['60'],
-                        style: {
-                            fill: { fgColor: { rgb: 'FF0000' } }, // Red
-                            font: { color: { rgb: 'FFFFFF' } }
-                        }
-                    }
-                ]
-            });
+            applyGradeConditionalFormatting(ws3, gradeColIndex, 2, filteredStudents.length + 1);
         }
 
         // Auto-fit columns for LDA sheet
@@ -1062,6 +985,14 @@ export async function exportMasterListCSV() {
         }
         ws3['!cols'] = ldaColWidths;
 
+        // Hide columns not in LDA_VISIBLE_COLUMNS whitelist (applied after auto-fit)
+        MASTER_LIST_COLUMNS.forEach((col, i) => {
+            if (!LDA_VISIBLE_COLUMNS.includes(col.field)) {
+                if (!ws3['!cols'][i]) ws3['!cols'][i] = {};
+                ws3['!cols'][i].hidden = true;
+            }
+        });
+
         // Create sheet name with reference date formatted as MM-DD-YYYY
         const ldaMonth = String(referenceDate.getMonth() + 1).padStart(2, '0');
         const ldaDay = String(referenceDate.getDate()).padStart(2, '0');
@@ -1075,7 +1006,8 @@ export async function exportMasterListCSV() {
         const timestamp = new Date().toISOString().split('T')[0];
         const filename = `student_report_${timestamp}.xlsx`;
 
-        XLSX.writeFile(wb, filename);
+        // Write file with cell styles enabled
+        XLSX.writeFile(wb, filename, { cellStyles: true });
 
         console.log(`✓ Exported ${students.length} students to Excel file: ${filename}`);
         console.log(`  - Master List: ${students.length} students`);

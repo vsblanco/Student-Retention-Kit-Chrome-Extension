@@ -434,3 +434,24 @@ export const EXPORT_MISSING_ASSIGNMENTS_COLUMNS = [
     { header: 'Score', field: 'assignment.score' },
     { header: 'Submission', field: 'assignment.submissionLink', hyperlink: true, hyperlinkText: 'Missing' }
 ];
+
+/**
+ * LDA Sheet visible columns whitelist
+ * Only columns listed here will be visible in the LDA sheet
+ * Columns are identified by their field name from MASTER_LIST_COLUMNS
+ */
+export const LDA_VISIBLE_COLUMNS = [
+    'name',
+    'StudentNumber',
+    'url',
+    'grade',
+    'missingCount',
+    'lda',
+    'daysOut',
+    'shift',
+    'programVersion',
+    'phone',
+    'otherPhone',
+    'studentEmail',
+    'personalEmail'
+];
