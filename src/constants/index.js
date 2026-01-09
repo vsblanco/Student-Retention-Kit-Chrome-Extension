@@ -427,6 +427,7 @@ export const MASTER_LIST_COLUMNS = [
 export const EXPORT_MISSING_ASSIGNMENTS_COLUMNS = [
     { header: 'Student', field: 'student.name' },
 	{ header: 'Grade Book', field: 'student.url', hyperlink: true, hyperlinkText: 'Grade Book' },
+	{ header: 'Overall Grade', field: 'student.currentGrade', fallback: 'student.grade', conditionalFormatting: 'grade' },
     { header: 'Assignment', field: 'assignment.assignmentTitle', hyperlinkField: 'assignment.assignmentLink', hyperlink: true },
     { header: 'Due Date', field: 'assignment.dueDate' },
     { header: 'Score', field: 'assignment.score' },

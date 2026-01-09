@@ -796,10 +796,10 @@ export async function exportMasterListCSV() {
             });
         });
 
-        // Find Grade column index for conditional formatting
+        // Find Grade column index for conditional formatting in Master List
         const gradeColIndex = MASTER_LIST_COLUMNS.findIndex(col => col.conditionalFormatting === 'grade');
 
-        // Add conditional formatting to Grade column (GREEN >= 70, YELLOW 60-69, RED < 60)
+        // Add conditional formatting to Grade column in Master List (GREEN >= 70, YELLOW 60-69, RED < 60)
         if (gradeColIndex !== -1 && students.length > 0) {
             const gradeColLetter = XLSX.utils.encode_col(gradeColIndex);
             const lastRow = students.length + 1; // +1 for header
@@ -812,6 +812,54 @@ export async function exportMasterListCSV() {
             // Add three conditional formatting rules for the Grade column
             // Rule 1: GREEN for >= 70
             ws1['!conditionalFormats'].push({
+                ref: `${gradeColLetter}2:${gradeColLetter}${lastRow}`,
+                rules: [
+                    {
+                        type: 'cellIs',
+                        operator: 'greaterThanOrEqual',
+                        formula: ['70'],
+                        style: {
+                            fill: { fgColor: { rgb: '92D050' } }, // Green
+                            font: { color: { rgb: '000000' } }
+                        }
+                    },
+                    {
+                        type: 'cellIs',
+                        operator: 'between',
+                        formula: ['60', '69'],
+                        style: {
+                            fill: { fgColor: { rgb: 'FFFF00' } }, // Yellow
+                            font: { color: { rgb: '000000' } }
+                        }
+                    },
+                    {
+                        type: 'cellIs',
+                        operator: 'lessThan',
+                        formula: ['60'],
+                        style: {
+                            fill: { fgColor: { rgb: 'FF0000' } }, // Red
+                            font: { color: { rgb: 'FFFFFF' } }
+                        }
+                    }
+                ]
+            });
+        }
+
+        // Find Overall Grade column index for conditional formatting in Missing Assignments
+        const missingGradeColIndex = EXPORT_MISSING_ASSIGNMENTS_COLUMNS.findIndex(col => col.conditionalFormatting === 'grade');
+
+        // Add conditional formatting to Overall Grade column in Missing Assignments (GREEN >= 70, YELLOW 60-69, RED < 60)
+        if (missingGradeColIndex !== -1 && missingAssignmentsData.length > 1) {
+            const gradeColLetter = XLSX.utils.encode_col(missingGradeColIndex);
+            const lastRow = missingAssignmentsData.length; // Already includes header
+
+            // Initialize conditional formatting array if not exists
+            if (!ws2['!conditionalFormats']) {
+                ws2['!conditionalFormats'] = [];
+            }
+
+            // Add three conditional formatting rules for the Overall Grade column
+            ws2['!conditionalFormats'].push({
                 ref: `${gradeColLetter}2:${gradeColLetter}${lastRow}`,
                 rules: [
                     {
