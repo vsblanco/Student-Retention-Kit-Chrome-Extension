@@ -101,6 +101,16 @@ function handleConnectorMessage(message) {
             lastConnectorHeartbeat = now;
             console.log('🏓 Received pong from Office Add-in');
             break;
+
+        case MESSAGE_TYPES.SRK_PONG:
+            lastOfficeAddinPing = now;
+            lastConnectorHeartbeat = now;
+            console.log('🏓 Received SRK_PONG from Office Add-in:', message);
+            if (message.timestamp && message.source) {
+                console.log(`   Timestamp: ${message.timestamp}`);
+                console.log(`   Source: ${message.source}`);
+            }
+            break;
     }
 
     // Trigger immediate status update
@@ -212,6 +222,33 @@ export async function pingExcelAddIn() {
 
     } catch (error) {
         console.error('🏓 Error sending ping to Excel Add-in:', error);
+    }
+}
+
+/**
+ * Sends a simple SRK_PING message to the Office add-in to test connection
+ * This is called when the side panel opens to instantly check connectivity
+ */
+export async function sendConnectionPing() {
+    try {
+        const hasExcelTab = await checkExcelTabOpen();
+
+        if (!hasExcelTab) {
+            console.log('🏓 No Excel tab open, skipping SRK_PING');
+            return;
+        }
+
+        console.log('🏓 Sending SRK_PING to Office Add-in...');
+
+        // Send ping message to background/content script which will relay to Office Add-in
+        chrome.runtime.sendMessage({
+            type: MESSAGE_TYPES.SRK_PING
+        }).catch((error) => {
+            console.log('🏓 SRK_PING failed (extension context may not be ready):', error.message);
+        });
+
+    } catch (error) {
+        console.error('🏓 Error sending SRK_PING to Office Add-in:', error);
     }
 }
 
