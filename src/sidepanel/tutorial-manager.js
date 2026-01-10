@@ -10,7 +10,7 @@
  */
 
 import { TUTORIAL_PAGES, TUTORIAL_SETTINGS } from '../constants/tutorial.js';
-import { STORAGE_KEYS, MESSAGE_TYPES } from '../constants/index.js';
+import { STORAGE_KEYS, MESSAGE_TYPES, SHEET_DEFINITIONS } from '../constants/index.js';
 import { checkExcelConnectionStatus } from './excel-integration.js';
 
 /**
@@ -226,6 +226,7 @@ class TutorialManager {
         // If we're on the Initial Setup page, update Excel connection status
         if (page.id === 'initial-setup') {
             this.updateExcelConnectionStatus();
+            this.setupSheetCreationButtons();
         }
     }
 
@@ -299,6 +300,66 @@ class TutorialManager {
             sheetItems.forEach(item => {
                 item.classList.add('disabled');
             });
+        }
+    }
+
+    /**
+     * Set up event listeners for sheet creation buttons
+     */
+    setupSheetCreationButtons() {
+        // Get all create buttons in the tutorial
+        const createButtons = document.querySelectorAll('.tutorial-create-btn');
+
+        createButtons.forEach(button => {
+            // Clone and replace to remove any existing event listeners
+            const newButton = button.cloneNode(true);
+            button.parentNode.replaceChild(newButton, button);
+
+            // Add click event listener
+            newButton.addEventListener('click', (e) => {
+                e.preventDefault();
+
+                // Determine which sheet to create based on parent item ID
+                const parentItem = newButton.closest('.sheet-item');
+                if (!parentItem) return;
+
+                let sheetDefinition = null;
+
+                if (parentItem.id === 'masterListItem') {
+                    sheetDefinition = SHEET_DEFINITIONS.MASTER_LIST;
+                } else if (parentItem.id === 'studentHistoryItem') {
+                    sheetDefinition = SHEET_DEFINITIONS.STUDENT_HISTORY;
+                } else if (parentItem.id === 'missingAssignmentsItem') {
+                    sheetDefinition = SHEET_DEFINITIONS.MISSING_ASSIGNMENTS;
+                }
+
+                if (sheetDefinition) {
+                    this.sendCreateSheetMessage(sheetDefinition);
+                }
+            });
+        });
+    }
+
+    /**
+     * Send SRK_CREATE_SHEET message to Excel add-in
+     * @param {Object} sheetDefinition - Sheet definition with name and headers
+     */
+    async sendCreateSheetMessage(sheetDefinition) {
+        try {
+            const message = {
+                type: MESSAGE_TYPES.SRK_CREATE_SHEET,
+                sheetName: sheetDefinition.name,
+                headers: sheetDefinition.headers
+            };
+
+            console.log(`📊 Creating sheet: ${sheetDefinition.name}`, sheetDefinition.headers);
+
+            // Send message to background script, which will relay to Excel
+            await chrome.runtime.sendMessage(message);
+
+            console.log(`✅ Sheet creation request sent: ${sheetDefinition.name}`);
+        } catch (error) {
+            console.error('Error sending create sheet message:', error);
         }
     }
 
