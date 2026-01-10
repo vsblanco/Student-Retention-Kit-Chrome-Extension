@@ -938,6 +938,12 @@ input:focus, textarea:focus, select:focus {
     min-width: 80px;
 }
 
+.tutorial-create-btn.sheet-created {
+    background: rgba(16, 185, 129, 0.2);
+    color: #10b981;
+    border-color: #10b981;
+}
+
 /* Excel Connection Item */
 .excel-connection-item {
     border-left: 3px solid #10b981;

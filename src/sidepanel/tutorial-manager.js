@@ -89,6 +89,14 @@ class TutorialManager {
                     this.updateExcelConnectionStatus();
                 }
             }
+
+            // Handle sheet list response
+            if (message.type === MESSAGE_TYPES.SRK_SHEET_LIST_RESPONSE) {
+                const currentPage = this.pages[this.currentPageIndex];
+                if (currentPage && currentPage.id === 'initial-setup') {
+                    this.updateSheetButtonsFromList(message.sheets);
+                }
+            }
         });
     }
 
@@ -227,6 +235,7 @@ class TutorialManager {
         if (page.id === 'initial-setup') {
             this.updateExcelConnectionStatus();
             this.setupSheetCreationButtons();
+            this.requestSheetList();
         }
     }
 
@@ -358,9 +367,79 @@ class TutorialManager {
             await chrome.runtime.sendMessage(message);
 
             console.log(`✅ Sheet creation request sent: ${sheetDefinition.name}`);
+
+            // Request updated sheet list after a short delay to allow Excel to create the sheet
+            setTimeout(() => {
+                this.requestSheetList();
+            }, 500);
         } catch (error) {
             console.error('Error sending create sheet message:', error);
         }
+    }
+
+    /**
+     * Request list of sheets from Excel workbook
+     */
+    async requestSheetList() {
+        try {
+            const message = {
+                type: MESSAGE_TYPES.SRK_REQUEST_SHEET_LIST
+            };
+
+            console.log('📊 Requesting sheet list from Excel workbook');
+
+            // Send message to background script, which will relay to Excel
+            await chrome.runtime.sendMessage(message);
+        } catch (error) {
+            console.error('Error requesting sheet list:', error);
+        }
+    }
+
+    /**
+     * Update sheet creation buttons based on existing sheets
+     * @param {Array<string>} sheets - Array of sheet names from Excel workbook
+     */
+    updateSheetButtonsFromList(sheets) {
+        if (!sheets || !Array.isArray(sheets)) {
+            console.warn('Invalid sheet list received:', sheets);
+            return;
+        }
+
+        console.log('📋 Received sheet list:', sheets);
+
+        // Check each sheet definition and update buttons
+        const sheetMappings = [
+            { itemId: 'masterListItem', sheetName: SHEET_DEFINITIONS.MASTER_LIST.name },
+            { itemId: 'studentHistoryItem', sheetName: SHEET_DEFINITIONS.STUDENT_HISTORY.name },
+            { itemId: 'missingAssignmentsItem', sheetName: SHEET_DEFINITIONS.MISSING_ASSIGNMENTS.name }
+        ];
+
+        sheetMappings.forEach(mapping => {
+            const item = document.getElementById(mapping.itemId);
+            if (!item) return;
+
+            const button = item.querySelector('.tutorial-create-btn');
+            if (!button) return;
+
+            // Check if sheet exists in the workbook
+            const sheetExists = sheets.includes(mapping.sheetName);
+
+            if (sheetExists) {
+                // Sheet exists - show "Created" and disable button
+                button.textContent = 'Created';
+                button.disabled = true;
+                button.style.opacity = '0.6';
+                button.style.cursor = 'not-allowed';
+                button.classList.add('sheet-created');
+            } else {
+                // Sheet doesn't exist - show "Create" and enable button
+                button.textContent = 'Create';
+                button.disabled = false;
+                button.style.opacity = '';
+                button.style.cursor = '';
+                button.classList.remove('sheet-created');
+            }
+        });
     }
 
     /**
