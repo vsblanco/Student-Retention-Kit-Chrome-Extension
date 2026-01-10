@@ -10,7 +10,8 @@
  */
 
 import { TUTORIAL_PAGES, TUTORIAL_SETTINGS } from '../constants/tutorial.js';
-import { STORAGE_KEYS } from '../constants/index.js';
+import { STORAGE_KEYS, MESSAGE_TYPES } from '../constants/index.js';
+import { checkExcelConnectionStatus } from './excel-integration.js';
 
 /**
  * Tutorial Manager Class
@@ -72,6 +73,23 @@ class TutorialManager {
         this.elements.tutorialSkipBtn?.addEventListener('click', () => this.skipTutorial());
         this.elements.tutorialPrevBtn?.addEventListener('click', () => this.previousPage());
         this.elements.tutorialNextBtn?.addEventListener('click', () => this.nextPage());
+
+        // Listen for Excel connection messages to update status in real-time
+        chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+            if (!this.isActive) return;
+
+            // Check for Excel connection related messages
+            if (message.type === MESSAGE_TYPES.SRK_OFFICE_ADDIN_CONNECTED ||
+                message.type === MESSAGE_TYPES.SRK_CONNECTOR_HEARTBEAT ||
+                message.type === MESSAGE_TYPES.SRK_TASKPANE_PONG) {
+
+                // If we're on the Initial Setup page, update the connection status
+                const currentPage = this.pages[this.currentPageIndex];
+                if (currentPage && currentPage.id === 'initial-setup') {
+                    this.updateExcelConnectionStatus();
+                }
+            }
+        });
     }
 
     /**
@@ -204,6 +222,11 @@ class TutorialManager {
 
         // Update button visibility
         this.updateButtonVisibility(page);
+
+        // If we're on the Initial Setup page, update Excel connection status
+        if (page.id === 'initial-setup') {
+            this.updateExcelConnectionStatus();
+        }
     }
 
     /**
@@ -234,6 +257,48 @@ class TutorialManager {
             } else {
                 this.elements.tutorialNextBtn.innerHTML = `${label} <i class="fas fa-arrow-right"></i>`;
             }
+        }
+    }
+
+    /**
+     * Update Excel connection status on the Initial Setup page
+     */
+    async updateExcelConnectionStatus() {
+        const statusElement = document.getElementById('tutorialExcelStatus');
+        const sheetItems = document.querySelectorAll('.sheet-item');
+
+        if (!statusElement) return;
+
+        try {
+            const status = await checkExcelConnectionStatus();
+
+            // Update status text and styling
+            if (status === 'connected') {
+                statusElement.textContent = 'Connected';
+                statusElement.className = 'connection-status connected';
+
+                // Enable sheet items
+                sheetItems.forEach(item => {
+                    item.classList.remove('disabled');
+                });
+            } else {
+                statusElement.textContent = 'Waiting...';
+                statusElement.className = 'connection-status waiting';
+
+                // Disable sheet items
+                sheetItems.forEach(item => {
+                    item.classList.add('disabled');
+                });
+            }
+        } catch (error) {
+            console.error('Error updating Excel connection status:', error);
+            statusElement.textContent = 'Waiting...';
+            statusElement.className = 'connection-status waiting';
+
+            // Disable sheet items on error
+            sheetItems.forEach(item => {
+                item.classList.add('disabled');
+            });
         }
     }
 

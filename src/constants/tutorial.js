@@ -61,21 +61,25 @@ export const TUTORIAL_PAGES = [
                 <p style="margin-bottom: 20px;">Before we continue further, let's make sure your workbook is set up correctly.</p>
                 <h3 style="margin: 20px 0 15px 0; color: var(--primary-color);">Checklist:</h3>
                 <div class="tutorial-checklist">
-                    <div class="checklist-item">
+                    <div class="checklist-item excel-connection-item">
+                        <span>Excel Workbook</span>
+                        <span class="connection-status" id="tutorialExcelStatus">Waiting...</span>
+                    </div>
+                    <div class="checklist-item sheet-item" id="masterListItem">
                         <span>Master List Sheet</span>
                         <button class="btn-secondary tutorial-create-btn" style="padding: 5px 15px; font-size: 0.9em;">Create</button>
                     </div>
-                    <div class="checklist-item">
+                    <div class="checklist-item sheet-item" id="studentHistoryItem">
                         <span>Student History Sheet</span>
                         <button class="btn-secondary tutorial-create-btn" style="padding: 5px 15px; font-size: 0.9em;">Create</button>
                     </div>
-                    <div class="checklist-item">
+                    <div class="checklist-item sheet-item" id="missingAssignmentsItem">
                         <span>Missing Assignments Sheet</span>
                         <button class="btn-secondary tutorial-create-btn" style="padding: 5px 15px; font-size: 0.9em;">Create</button>
                     </div>
                 </div>
                 <p style="margin-top: 20px; font-size: 0.9em; color: var(--text-secondary);">
-                    <em>Note: These buttons will create the required sheets in your Excel workbook when the Excel Add-in is connected.</em>
+                    <em>Note: Open your Excel workbook with the Student Retention Kit Add-in to connect.</em>
                 </p>
             </div>
         `,

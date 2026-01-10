@@ -938,6 +938,45 @@ input:focus, textarea:focus, select:focus {
     min-width: 80px;
 }
 
+/* Excel Connection Item */
+.excel-connection-item {
+    border-left: 3px solid #10b981;
+    background: rgba(16, 185, 129, 0.05);
+}
+
+/* Connection Status */
+.connection-status {
+    padding: 4px 12px;
+    border-radius: 4px;
+    font-size: 0.9em;
+    font-weight: 600;
+    background: rgba(255, 193, 7, 0.2);
+    color: #f59e0b;
+}
+
+.connection-status.connected {
+    background: rgba(16, 185, 129, 0.2);
+    color: #10b981;
+}
+
+.connection-status.waiting {
+    background: rgba(255, 193, 7, 0.2);
+    color: #f59e0b;
+}
+
+/* Greyed Out Sheet Items */
+.sheet-item.disabled {
+    opacity: 0.4;
+    pointer-events: none;
+    background: rgba(0, 0, 0, 0.02);
+    border-left: 3px solid rgba(0, 90, 156, 0.3);
+}
+
+.sheet-item.disabled .tutorial-create-btn {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
 /* Tutorial Navigation */
 .tutorial-navigation {
     display: flex;
