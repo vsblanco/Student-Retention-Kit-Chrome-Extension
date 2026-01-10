@@ -256,6 +256,32 @@ chrome.runtime.onMessage.addListener(async (msg, sender, sendResponse) => {
       });
   }
 
+  // --- OPEN LINKS FROM OFFICE ADD-IN ---
+  else if (msg.type === MESSAGE_TYPES.SRK_LINKS) {
+      console.log('%c [Background] SRK_LINKS received - Opening tabs', 'background: #2196F3; color: white; font-weight: bold; padding: 2px 4px;');
+      console.log('   Links:', msg.links);
+
+      // Validate that links is an array
+      if (!Array.isArray(msg.links)) {
+          console.error('[Background] SRK_LINKS error: links is not an array');
+          return;
+      }
+
+      // Open each link in a new tab
+      for (const url of msg.links) {
+          try {
+              if (typeof url === 'string' && url.trim()) {
+                  await chrome.tabs.create({ url: url.trim(), active: false });
+                  console.log(`[Background] Opened tab: ${url}`);
+              } else {
+                  console.warn('[Background] Skipping invalid URL:', url);
+              }
+          } catch (err) {
+              console.error(`[Background] Failed to open tab for ${url}:`, err);
+          }
+      }
+  }
+
   // --- IMPORT MASTER LIST TO EXCEL ---
   else if (msg.type === 'SRK_SEND_IMPORT_MASTER_LIST') {
       console.log('%c [Background] Forwarding Master List Import to Excel', 'background: #4CAF50; color: white; font-weight: bold; padding: 2px 4px;');

@@ -236,6 +236,20 @@ if (window.hasSRKConnectorRun) {
           });
       }
 
+      // Handle SRK_LINKS from Office Add-in - forward to extension to open tabs
+      else if (event.data.type === "SRK_LINKS") {
+          console.log("%c SRK Connector: SRK_LINKS received from Office Add-in", "color: blue; font-weight: bold");
+          console.log("   Links to open:", event.data.links);
+
+          // Forward SRK_LINKS to extension (background script will open the tabs)
+          chrome.runtime.sendMessage({
+              type: "SRK_LINKS",
+              links: event.data.links
+          }).catch(() => {
+              // Extension might not be ready, that's ok
+          });
+      }
+
       // Handle Master List Request
       else if (event.data.type === "SRK_REQUEST_MASTER_LIST") {
           console.log("%c SRK Connector: Master List Request Received", "color: blue; font-weight: bold");
