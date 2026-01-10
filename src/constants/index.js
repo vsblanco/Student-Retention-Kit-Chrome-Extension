@@ -108,7 +108,9 @@ export const STORAGE_KEYS = {
     // Office User Info
     OFFICE_USER_INFO: 'officeUserInfo',
     // Auto-Sideload Manifest Settings
-    AUTO_SIDELOAD_MANIFEST: 'autoSideloadManifest'
+    AUTO_SIDELOAD_MANIFEST: 'autoSideloadManifest',
+    // Tutorial Settings
+    TUTORIAL_COMPLETED: 'tutorialCompleted'
 };
 
 /**

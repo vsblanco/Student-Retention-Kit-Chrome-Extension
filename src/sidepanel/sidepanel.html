@@ -210,6 +210,38 @@
       </div>
     </div>
 
+    <!-- Tutorial Tab (Hidden - Not in main navigation) -->
+    <div id="tutorial" class="tab-content">
+      <div class="tutorial-container">
+        <div class="tutorial-progress">
+          <div class="tutorial-progress-bar">
+            <div class="tutorial-progress-fill" id="tutorialProgress"></div>
+          </div>
+          <div class="tutorial-progress-text" id="tutorialProgressText">Page 1 of 1</div>
+        </div>
+
+        <div class="tutorial-page" id="tutorialPage">
+          <h1 class="tutorial-header" id="tutorialHeader">Loading...</h1>
+          <div class="tutorial-body" id="tutorialBody">
+            <!-- Tutorial content will be rendered here -->
+          </div>
+        </div>
+
+        <div class="tutorial-navigation">
+          <button class="btn-secondary" id="tutorialSkipBtn" style="display: none;">
+            Skip Tutorial
+          </button>
+          <div style="flex: 1;"></div>
+          <button class="btn-secondary" id="tutorialPrevBtn" style="display: none;">
+            <i class="fas fa-arrow-left"></i> Previous
+          </button>
+          <button class="btn-primary" id="tutorialNextBtn" style="display: none;">
+            Next <i class="fas fa-arrow-right"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+
     <div id="about" class="tab-content">
       <div class="section" id="aboutContent" style="padding-right:10px;">
         <!-- Markdown content will be rendered here -->
