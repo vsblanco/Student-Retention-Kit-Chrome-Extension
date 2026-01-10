@@ -905,6 +905,39 @@ input:focus, textarea:focus, select:focus {
     padding: 10px 20px;
 }
 
+.tutorial-content h3 {
+    font-size: 1.2em;
+    font-weight: 600;
+    color: var(--primary-color);
+}
+
+/* Tutorial Checklist */
+.tutorial-checklist {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin: 15px 0;
+}
+
+.checklist-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 15px;
+    background: rgba(0, 90, 156, 0.05);
+    border-radius: 8px;
+    border-left: 3px solid var(--primary-color);
+}
+
+.checklist-item span {
+    font-weight: 500;
+    font-size: 1.05em;
+}
+
+.tutorial-create-btn {
+    min-width: 80px;
+}
+
 /* Tutorial Navigation */
 .tutorial-navigation {
     display: flex;
@@ -915,6 +948,12 @@ input:focus, textarea:focus, select:focus {
     border-top: 1px solid rgba(0, 0, 0, 0.1);
 }
 
+.tutorial-nav-right {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
 .tutorial-navigation button {
     display: flex;
     align-items: center;
@@ -922,6 +961,7 @@ input:focus, textarea:focus, select:focus {
     gap: 8px;
     white-space: nowrap;
     padding: 10px 20px;
+    height: 40px;
 }
 
 #tutorialNextBtn,

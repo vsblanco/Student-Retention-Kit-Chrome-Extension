@@ -18,35 +18,86 @@
  */
 export const TUTORIAL_PAGES = [
     {
-        id: 'welcome',
-        header: 'Welcome to Student Retention Kit',
+        id: 'what-is-srk',
+        header: 'What is Student Retention Kit?',
         body: `
-            <div class="tutorial-welcome">
-                <h2>👋 Hello!</h2>
-                <p>Welcome to the Student Retention Kit Chrome Extension. This powerful tool helps you track student submissions, manage outreach, and improve student retention.</p>
-                <p>This quick tutorial will walk you through the main features and get you started.</p>
-                <p><strong>Ready to begin?</strong></p>
+            <div class="tutorial-content" style="text-align: center;">
+                <p style="font-size: 1.1em; line-height: 1.8; margin: 20px 0;">
+                    The Student Retention Kit is a tool designed to help educators identify and support at-risk students.
+                    Its goal is to make your workflow as efficiently as possible, so that you can focus on what's most important.
+                </p>
             </div>
         `,
         showSkip: true,
         showPrevious: false,
         showNext: true,
-        nextLabel: 'Get Started'
+        nextLabel: 'Next'
     },
     {
-        id: 'getting-started',
-        header: 'Getting Started',
+        id: 'what-can-i-do',
+        header: 'What can I do with this?',
         body: `
             <div class="tutorial-content">
-                <h2>How to Use This Extension</h2>
-                <p>The Student Retention Kit has three main tabs:</p>
-                <ul style="line-height: 1.8; margin-left: 20px;">
-                    <li><strong>Checker</strong> - Scan for student submissions in Canvas</li>
-                    <li><strong>Call</strong> - Make outreach calls to students</li>
-                    <li><strong>Data</strong> - Manage your student master list</li>
+                <p style="margin-bottom: 20px;">There's a variety of features bundled in this kit. They include:</p>
+                <ul style="line-height: 2; margin-left: 20px; font-size: 1.05em;">
+                    <li>Importing external reports onto your sheets</li>
+                    <li>Automatic LDA creation</li>
+                    <li>Sending personalized emails to students</li>
+                    <li>Real-time student submission feedback</li>
+                    <li>Student communication tracking</li>
                 </ul>
-                <p style="margin-top: 20px;">You can customize this tutorial by editing the <code>src/constants/tutorial.js</code> file.</p>
-                <p><strong>Click "Finish" to start using the extension!</strong></p>
+            </div>
+        `,
+        showSkip: true,
+        showPrevious: true,
+        showNext: true,
+        nextLabel: 'Next'
+    },
+    {
+        id: 'initial-setup',
+        header: 'Initial Setup',
+        body: `
+            <div class="tutorial-content">
+                <p style="margin-bottom: 20px;">Before we continue further, let's make sure your workbook is set up correctly.</p>
+                <h3 style="margin: 20px 0 15px 0; color: var(--primary-color);">Checklist:</h3>
+                <div class="tutorial-checklist">
+                    <div class="checklist-item">
+                        <span>Master List Sheet</span>
+                        <button class="btn-secondary tutorial-create-btn" style="padding: 5px 15px; font-size: 0.9em;">Create</button>
+                    </div>
+                    <div class="checklist-item">
+                        <span>Student History Sheet</span>
+                        <button class="btn-secondary tutorial-create-btn" style="padding: 5px 15px; font-size: 0.9em;">Create</button>
+                    </div>
+                    <div class="checklist-item">
+                        <span>Missing Assignments Sheet</span>
+                        <button class="btn-secondary tutorial-create-btn" style="padding: 5px 15px; font-size: 0.9em;">Create</button>
+                    </div>
+                </div>
+                <p style="margin-top: 20px; font-size: 0.9em; color: var(--text-secondary);">
+                    <em>Note: These buttons will create the required sheets in your Excel workbook when the Excel Add-in is connected.</em>
+                </p>
+            </div>
+        `,
+        showSkip: true,
+        showPrevious: true,
+        showNext: true,
+        nextLabel: 'Next'
+    },
+    {
+        id: 'master-list',
+        header: 'Master List',
+        body: `
+            <div class="tutorial-content">
+                <p style="line-height: 1.8; font-size: 1.05em;">
+                    This sheet contains the complete student population of your campus. It serves as the target for your imports and the source for your LDA.
+                </p>
+                <p style="margin-top: 20px; line-height: 1.8;">
+                    You can update your Master List by clicking the <strong>"Update Master List"</strong> button in the Data tab.
+                </p>
+                <p style="margin-top: 30px; text-align: center;">
+                    <strong>You're all set! Click "Finish" to start using the extension.</strong>
+                </p>
             </div>
         `,
         showSkip: false,
