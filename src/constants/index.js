@@ -51,7 +51,10 @@ export const MESSAGE_TYPES = {
     SRK_TASKPANE_PONG: 'SRK_TASKPANE_PONG',
     SRK_PING: 'SRK_PING',
     SRK_PONG: 'SRK_PONG',
-    SRK_MANIFEST_INJECTED: 'SRK_MANIFEST_INJECTED'
+    SRK_MANIFEST_INJECTED: 'SRK_MANIFEST_INJECTED',
+    SRK_CREATE_SHEET: 'SRK_CREATE_SHEET',
+    SRK_REQUEST_SHEET_LIST: 'SRK_REQUEST_SHEET_LIST',
+    SRK_SHEET_LIST_RESPONSE: 'SRK_SHEET_LIST_RESPONSE'
 };
 
 /**
@@ -459,3 +462,64 @@ export const LDA_VISIBLE_COLUMNS = [
     'phone',
     'otherPhone'
 ];
+
+/**
+ * Sheet Definitions for Tutorial Setup
+ * Each sheet has a name and an array of column headers
+ * Used when creating sheets via the tutorial's Initial Setup page
+ */
+export const SHEET_DEFINITIONS = {
+    MASTER_LIST: {
+        name: 'Master List',
+        headers: [
+            'Assigned',
+            'Student Name',
+            'Student Number',
+            'Gradebook',
+            'Grade',
+            'Missing Assignments',
+            'LDA',
+            'Days Out',
+            'Gender',
+            'Shift',
+            'Outreach',
+            'ProgramVersion',
+            'SyStudentId',
+            'Phone',
+            'Other Phone',
+            'WorkPhone',
+            'MobileNumber',
+            'StudentEmail',
+            'PersonalEmail',
+            'ExpStartDate',
+            'AmRep',
+            'Hold',
+            'Photo',
+            'AdSAPStatus'
+        ]
+    },
+    STUDENT_HISTORY: {
+        name: 'Student History',
+        headers: [
+            'CommentID',
+            'Student',
+            'SyStudentId',
+            'Created By',
+            'Tag',
+            'Timestamp',
+            'Comment'
+        ]
+    },
+    MISSING_ASSIGNMENTS: {
+        name: 'Missing Assignments',
+        headers: [
+            'Student',
+            'Grade',
+            'Grade Book',
+            'Assignment',
+            'Due Date',
+            'Score',
+            'Submission'
+        ]
+    }
+};

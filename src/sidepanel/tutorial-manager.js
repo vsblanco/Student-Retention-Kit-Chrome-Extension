@@ -10,7 +10,8 @@
  */
 
 import { TUTORIAL_PAGES, TUTORIAL_SETTINGS } from '../constants/tutorial.js';
-import { STORAGE_KEYS } from '../constants/index.js';
+import { STORAGE_KEYS, MESSAGE_TYPES, SHEET_DEFINITIONS } from '../constants/index.js';
+import { checkExcelConnectionStatus } from './excel-integration.js';
 
 /**
  * Tutorial Manager Class
@@ -31,7 +32,9 @@ class TutorialManager {
             tutorialSkipBtn: null,
             tutorialPrevBtn: null,
             tutorialNextBtn: null,
-            tabButtons: []
+            tabButtons: [],
+            settingsBtn: null,
+            versionText: null
         };
     }
 
@@ -49,6 +52,8 @@ class TutorialManager {
         this.elements.tutorialPrevBtn = document.getElementById('tutorialPrevBtn');
         this.elements.tutorialNextBtn = document.getElementById('tutorialNextBtn');
         this.elements.tabButtons = Array.from(document.querySelectorAll('.tab-button'));
+        this.elements.settingsBtn = document.getElementById('headerSettingsBtn');
+        this.elements.versionText = document.getElementById('versionText');
 
         // Set up event listeners
         this.setupEventListeners();
@@ -68,6 +73,31 @@ class TutorialManager {
         this.elements.tutorialSkipBtn?.addEventListener('click', () => this.skipTutorial());
         this.elements.tutorialPrevBtn?.addEventListener('click', () => this.previousPage());
         this.elements.tutorialNextBtn?.addEventListener('click', () => this.nextPage());
+
+        // Listen for Excel connection messages to update status in real-time
+        chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+            if (!this.isActive) return;
+
+            // Check for Excel connection related messages
+            if (message.type === MESSAGE_TYPES.SRK_OFFICE_ADDIN_CONNECTED ||
+                message.type === MESSAGE_TYPES.SRK_CONNECTOR_HEARTBEAT ||
+                message.type === MESSAGE_TYPES.SRK_TASKPANE_PONG) {
+
+                // If we're on the Initial Setup page, update the connection status
+                const currentPage = this.pages[this.currentPageIndex];
+                if (currentPage && currentPage.id === 'initial-setup') {
+                    this.updateExcelConnectionStatus();
+                }
+            }
+
+            // Handle sheet list response
+            if (message.type === MESSAGE_TYPES.SRK_SHEET_LIST_RESPONSE) {
+                const currentPage = this.pages[this.currentPageIndex];
+                if (currentPage && currentPage.id === 'initial-setup') {
+                    this.updateSheetButtonsFromList(message.sheets);
+                }
+            }
+        });
     }
 
     /**
@@ -119,21 +149,49 @@ class TutorialManager {
     }
 
     /**
-     * Grey out all tab buttons except tutorial
+     * Grey out all tab buttons, settings, and version buttons during tutorial
      */
     greyOutTabs() {
         this.elements.tabButtons.forEach(button => {
             button.classList.add('greyed-out');
         });
+
+        // Disable settings button
+        if (this.elements.settingsBtn) {
+            this.elements.settingsBtn.classList.add('greyed-out');
+            this.elements.settingsBtn.style.pointerEvents = 'none';
+            this.elements.settingsBtn.style.opacity = '0.3';
+        }
+
+        // Disable version text
+        if (this.elements.versionText) {
+            this.elements.versionText.classList.add('greyed-out');
+            this.elements.versionText.style.pointerEvents = 'none';
+            this.elements.versionText.style.opacity = '0.3';
+        }
     }
 
     /**
-     * Un-grey all tab buttons
+     * Un-grey all tab buttons and restore settings/version buttons
      */
     unGreyTabs() {
         this.elements.tabButtons.forEach(button => {
             button.classList.remove('greyed-out');
         });
+
+        // Re-enable settings button
+        if (this.elements.settingsBtn) {
+            this.elements.settingsBtn.classList.remove('greyed-out');
+            this.elements.settingsBtn.style.pointerEvents = '';
+            this.elements.settingsBtn.style.opacity = '';
+        }
+
+        // Re-enable version text
+        if (this.elements.versionText) {
+            this.elements.versionText.classList.remove('greyed-out');
+            this.elements.versionText.style.pointerEvents = '';
+            this.elements.versionText.style.opacity = '';
+        }
     }
 
     /**
@@ -172,6 +230,13 @@ class TutorialManager {
 
         // Update button visibility
         this.updateButtonVisibility(page);
+
+        // If we're on the Initial Setup page, update Excel connection status
+        if (page.id === 'initial-setup') {
+            this.updateExcelConnectionStatus();
+            this.setupSheetCreationButtons();
+            this.requestSheetList();
+        }
     }
 
     /**
@@ -203,6 +268,178 @@ class TutorialManager {
                 this.elements.tutorialNextBtn.innerHTML = `${label} <i class="fas fa-arrow-right"></i>`;
             }
         }
+    }
+
+    /**
+     * Update Excel connection status on the Initial Setup page
+     */
+    async updateExcelConnectionStatus() {
+        const statusElement = document.getElementById('tutorialExcelStatus');
+        const sheetItems = document.querySelectorAll('.sheet-item');
+
+        if (!statusElement) return;
+
+        try {
+            const status = await checkExcelConnectionStatus();
+
+            // Update status text and styling
+            if (status === 'connected') {
+                statusElement.textContent = 'Connected';
+                statusElement.className = 'connection-status connected';
+
+                // Enable sheet items
+                sheetItems.forEach(item => {
+                    item.classList.remove('disabled');
+                });
+            } else {
+                statusElement.textContent = 'Waiting...';
+                statusElement.className = 'connection-status waiting';
+
+                // Disable sheet items
+                sheetItems.forEach(item => {
+                    item.classList.add('disabled');
+                });
+            }
+        } catch (error) {
+            console.error('Error updating Excel connection status:', error);
+            statusElement.textContent = 'Waiting...';
+            statusElement.className = 'connection-status waiting';
+
+            // Disable sheet items on error
+            sheetItems.forEach(item => {
+                item.classList.add('disabled');
+            });
+        }
+    }
+
+    /**
+     * Set up event listeners for sheet creation buttons
+     */
+    setupSheetCreationButtons() {
+        // Get all create buttons in the tutorial
+        const createButtons = document.querySelectorAll('.tutorial-create-btn');
+
+        createButtons.forEach(button => {
+            // Clone and replace to remove any existing event listeners
+            const newButton = button.cloneNode(true);
+            button.parentNode.replaceChild(newButton, button);
+
+            // Add click event listener
+            newButton.addEventListener('click', (e) => {
+                e.preventDefault();
+
+                // Determine which sheet to create based on parent item ID
+                const parentItem = newButton.closest('.sheet-item');
+                if (!parentItem) return;
+
+                let sheetDefinition = null;
+
+                if (parentItem.id === 'masterListItem') {
+                    sheetDefinition = SHEET_DEFINITIONS.MASTER_LIST;
+                } else if (parentItem.id === 'studentHistoryItem') {
+                    sheetDefinition = SHEET_DEFINITIONS.STUDENT_HISTORY;
+                } else if (parentItem.id === 'missingAssignmentsItem') {
+                    sheetDefinition = SHEET_DEFINITIONS.MISSING_ASSIGNMENTS;
+                }
+
+                if (sheetDefinition) {
+                    this.sendCreateSheetMessage(sheetDefinition);
+                }
+            });
+        });
+    }
+
+    /**
+     * Send SRK_CREATE_SHEET message to Excel add-in
+     * @param {Object} sheetDefinition - Sheet definition with name and headers
+     */
+    async sendCreateSheetMessage(sheetDefinition) {
+        try {
+            const message = {
+                type: MESSAGE_TYPES.SRK_CREATE_SHEET,
+                sheetName: sheetDefinition.name,
+                headers: sheetDefinition.headers
+            };
+
+            console.log(`📊 Creating sheet: ${sheetDefinition.name}`, sheetDefinition.headers);
+
+            // Send message to background script, which will relay to Excel
+            await chrome.runtime.sendMessage(message);
+
+            console.log(`✅ Sheet creation request sent: ${sheetDefinition.name}`);
+
+            // Request updated sheet list after a short delay to allow Excel to create the sheet
+            setTimeout(() => {
+                this.requestSheetList();
+            }, 500);
+        } catch (error) {
+            console.error('Error sending create sheet message:', error);
+        }
+    }
+
+    /**
+     * Request list of sheets from Excel workbook
+     */
+    async requestSheetList() {
+        try {
+            const message = {
+                type: MESSAGE_TYPES.SRK_REQUEST_SHEET_LIST
+            };
+
+            console.log('📊 Requesting sheet list from Excel workbook');
+
+            // Send message to background script, which will relay to Excel
+            await chrome.runtime.sendMessage(message);
+        } catch (error) {
+            console.error('Error requesting sheet list:', error);
+        }
+    }
+
+    /**
+     * Update sheet creation buttons based on existing sheets
+     * @param {Array<string>} sheets - Array of sheet names from Excel workbook
+     */
+    updateSheetButtonsFromList(sheets) {
+        if (!sheets || !Array.isArray(sheets)) {
+            console.warn('Invalid sheet list received:', sheets);
+            return;
+        }
+
+        console.log('📋 Received sheet list:', sheets);
+
+        // Check each sheet definition and update buttons
+        const sheetMappings = [
+            { itemId: 'masterListItem', sheetName: SHEET_DEFINITIONS.MASTER_LIST.name },
+            { itemId: 'studentHistoryItem', sheetName: SHEET_DEFINITIONS.STUDENT_HISTORY.name },
+            { itemId: 'missingAssignmentsItem', sheetName: SHEET_DEFINITIONS.MISSING_ASSIGNMENTS.name }
+        ];
+
+        sheetMappings.forEach(mapping => {
+            const item = document.getElementById(mapping.itemId);
+            if (!item) return;
+
+            const button = item.querySelector('.tutorial-create-btn');
+            if (!button) return;
+
+            // Check if sheet exists in the workbook
+            const sheetExists = sheets.includes(mapping.sheetName);
+
+            if (sheetExists) {
+                // Sheet exists - show "Created" and disable button
+                button.textContent = 'Created';
+                button.disabled = true;
+                button.style.opacity = '0.6';
+                button.style.cursor = 'not-allowed';
+                button.classList.add('sheet-created');
+            } else {
+                // Sheet doesn't exist - show "Create" and enable button
+                button.textContent = 'Create';
+                button.disabled = false;
+                button.style.opacity = '';
+                button.style.cursor = '';
+                button.classList.remove('sheet-created');
+            }
+        });
     }
 
     /**
