@@ -11,7 +11,7 @@
 
 import { TUTORIAL_PAGES, TUTORIAL_SETTINGS } from '../constants/tutorial.js';
 import { STORAGE_KEYS, MESSAGE_TYPES, SHEET_DEFINITIONS } from '../constants/index.js';
-import { checkExcelConnectionStatus } from './excel-integration.js';
+import { checkExcelConnectionStatus, sendConnectionPing } from './excel-integration.js';
 
 /**
  * Tutorial Manager Class
@@ -235,7 +235,14 @@ class TutorialManager {
         if (page.id === 'initial-setup') {
             this.updateExcelConnectionStatus();
             this.setupSheetCreationButtons();
-            this.requestSheetList();
+
+            // Send ping to ensure connection is active before requesting sheet list
+            await sendConnectionPing();
+
+            // Request sheet list after a brief delay to allow ping to establish connection
+            setTimeout(() => {
+                this.requestSheetList();
+            }, 100);
         }
     }
 
