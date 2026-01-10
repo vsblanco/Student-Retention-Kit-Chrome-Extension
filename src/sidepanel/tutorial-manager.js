@@ -355,7 +355,7 @@ class TutorialManager {
      */
     async sendCreateSheetMessage(sheetDefinition) {
         try {
-            const message = {
+            const payload = {
                 type: MESSAGE_TYPES.SRK_CREATE_SHEET,
                 sheetName: sheetDefinition.name,
                 headers: sheetDefinition.headers
@@ -364,7 +364,10 @@ class TutorialManager {
             console.log(`📊 Creating sheet: ${sheetDefinition.name}`, sheetDefinition.headers);
 
             // Send message to background script, which will relay to Excel
-            await chrome.runtime.sendMessage(message);
+            await chrome.runtime.sendMessage({
+                type: MESSAGE_TYPES.SRK_CREATE_SHEET,
+                payload: payload
+            });
 
             console.log(`✅ Sheet creation request sent: ${sheetDefinition.name}`);
 
@@ -382,14 +385,17 @@ class TutorialManager {
      */
     async requestSheetList() {
         try {
-            const message = {
+            const payload = {
                 type: MESSAGE_TYPES.SRK_REQUEST_SHEET_LIST
             };
 
             console.log('📊 Requesting sheet list from Excel workbook');
 
             // Send message to background script, which will relay to Excel
-            await chrome.runtime.sendMessage(message);
+            await chrome.runtime.sendMessage({
+                type: MESSAGE_TYPES.SRK_REQUEST_SHEET_LIST,
+                payload: payload
+            });
         } catch (error) {
             console.error('Error requesting sheet list:', error);
         }
