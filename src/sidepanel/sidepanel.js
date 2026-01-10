@@ -4,6 +4,7 @@ import { hasDispositionCode } from '../constants/dispositions.js';
 import { getCacheStats, clearAllCache } from '../utils/canvasCache.js';
 import { loadAndRenderMarkdown } from '../utils/markdownRenderer.js';
 import CallManager from './callManager.js';
+import { tutorialManager } from './tutorial-manager.js';
 
 // Import all module functions
 import {
@@ -144,10 +145,15 @@ async function initializeApp() {
     // Send simple SRK_PING to instantly test connection when side panel opens
     await sendConnectionPing();
 
-    // Check if daily update modal should be shown
-    const showModal = await shouldShowDailyUpdateModal();
-    if (showModal) {
-        openDailyUpdateModal();
+    // Initialize tutorial manager (must be done before daily update modal)
+    await tutorialManager.init();
+
+    // Check if daily update modal should be shown (only if tutorial is not active)
+    if (!tutorialManager.isActiveTutorial()) {
+        const showModal = await shouldShowDailyUpdateModal();
+        if (showModal) {
+            openDailyUpdateModal();
+        }
     }
 }
 
