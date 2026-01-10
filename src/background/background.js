@@ -281,6 +281,56 @@ chrome.runtime.onMessage.addListener(async (msg, sender, sendResponse) => {
       })();
   }
 
+  // --- CREATE SHEET IN EXCEL ---
+  else if (msg.type === MESSAGE_TYPES.SRK_CREATE_SHEET) {
+      console.log('%c [Background] Forwarding Create Sheet Request to Excel', 'background: #4CAF50; color: white; font-weight: bold; padding: 2px 4px;');
+
+      // Forward the payload to all Excel tabs
+      (async () => {
+          try {
+              const tabs = await chrome.tabs.query({ url: TARGET_URL_PATTERNS });
+              for (const tab of tabs) {
+                  try {
+                      await chrome.tabs.sendMessage(tab.id, {
+                          action: 'postToPage',
+                          message: msg.payload
+                      });
+                      console.log(`[SRK] Sent create sheet request to tab ${tab.id}`);
+                  } catch (err) {
+                      console.warn(`[SRK] Failed to send create sheet request to tab ${tab.id}:`, err.message);
+                  }
+              }
+          } catch (err) {
+              console.error('[SRK] Failed to query Excel tabs:', err);
+          }
+      })();
+  }
+
+  // --- REQUEST SHEET LIST FROM EXCEL ---
+  else if (msg.type === MESSAGE_TYPES.SRK_REQUEST_SHEET_LIST) {
+      console.log('%c [Background] Forwarding Sheet List Request to Excel', 'background: #4CAF50; color: white; font-weight: bold; padding: 2px 4px;');
+
+      // Forward the payload to all Excel tabs
+      (async () => {
+          try {
+              const tabs = await chrome.tabs.query({ url: TARGET_URL_PATTERNS });
+              for (const tab of tabs) {
+                  try {
+                      await chrome.tabs.sendMessage(tab.id, {
+                          action: 'postToPage',
+                          message: msg.payload
+                      });
+                      console.log(`[SRK] Sent sheet list request to tab ${tab.id}`);
+                  } catch (err) {
+                      console.warn(`[SRK] Failed to send sheet list request to tab ${tab.id}:`, err.message);
+                  }
+              }
+          } catch (err) {
+              console.error('[SRK] Failed to query Excel tabs:', err);
+          }
+      })();
+  }
+
   // --- FIVE9 INTEGRATION ---
   else if (msg.type === 'triggerFive9Call') {
       (async () => {

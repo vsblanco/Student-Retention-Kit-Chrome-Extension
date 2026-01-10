@@ -11,7 +11,7 @@
 
 import { TUTORIAL_PAGES, TUTORIAL_SETTINGS } from '../constants/tutorial.js';
 import { STORAGE_KEYS, MESSAGE_TYPES, SHEET_DEFINITIONS } from '../constants/index.js';
-import { checkExcelConnectionStatus } from './excel-integration.js';
+import { checkExcelConnectionStatus, sendConnectionPing } from './excel-integration.js';
 
 /**
  * Tutorial Manager Class
@@ -235,7 +235,14 @@ class TutorialManager {
         if (page.id === 'initial-setup') {
             this.updateExcelConnectionStatus();
             this.setupSheetCreationButtons();
-            this.requestSheetList();
+
+            // Send ping to ensure connection is active before requesting sheet list
+            await sendConnectionPing();
+
+            // Request sheet list after a brief delay to allow ping to establish connection
+            setTimeout(() => {
+                this.requestSheetList();
+            }, 100);
         }
     }
 
@@ -355,7 +362,7 @@ class TutorialManager {
      */
     async sendCreateSheetMessage(sheetDefinition) {
         try {
-            const message = {
+            const payload = {
                 type: MESSAGE_TYPES.SRK_CREATE_SHEET,
                 sheetName: sheetDefinition.name,
                 headers: sheetDefinition.headers
@@ -364,7 +371,10 @@ class TutorialManager {
             console.log(`📊 Creating sheet: ${sheetDefinition.name}`, sheetDefinition.headers);
 
             // Send message to background script, which will relay to Excel
-            await chrome.runtime.sendMessage(message);
+            await chrome.runtime.sendMessage({
+                type: MESSAGE_TYPES.SRK_CREATE_SHEET,
+                payload: payload
+            });
 
             console.log(`✅ Sheet creation request sent: ${sheetDefinition.name}`);
 
@@ -382,14 +392,17 @@ class TutorialManager {
      */
     async requestSheetList() {
         try {
-            const message = {
+            const payload = {
                 type: MESSAGE_TYPES.SRK_REQUEST_SHEET_LIST
             };
 
             console.log('📊 Requesting sheet list from Excel workbook');
 
             // Send message to background script, which will relay to Excel
-            await chrome.runtime.sendMessage(message);
+            await chrome.runtime.sendMessage({
+                type: MESSAGE_TYPES.SRK_REQUEST_SHEET_LIST,
+                payload: payload
+            });
         } catch (error) {
             console.error('Error requesting sheet list:', error);
         }
