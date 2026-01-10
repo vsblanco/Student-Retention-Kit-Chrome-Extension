@@ -874,6 +874,23 @@ input:focus, textarea:focus, select:focus {
     color: var(--primary-color);
 }
 
+.tutorial-body ul {
+    list-style-type: disc;
+    padding-left: 20px;
+}
+
+.tutorial-body li {
+    margin: 8px 0;
+}
+
+.tutorial-body code {
+    background: rgba(0, 0, 0, 0.05);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: 'Courier New', monospace;
+    font-size: 0.9em;
+}
+
 .tutorial-welcome {
     text-align: center;
     padding: 20px;
@@ -882,6 +899,10 @@ input:focus, textarea:focus, select:focus {
 .tutorial-welcome h2 {
     font-size: 2em;
     margin: 10px 0;
+}
+
+.tutorial-content {
+    padding: 10px 20px;
 }
 
 /* Tutorial Navigation */
@@ -897,7 +918,17 @@ input:focus, textarea:focus, select:focus {
 .tutorial-navigation button {
     display: flex;
     align-items: center;
+    justify-content: center;
     gap: 8px;
+    white-space: nowrap;
+    padding: 10px 20px;
+}
+
+#tutorialNextBtn,
+#tutorialPrevBtn,
+#tutorialSkipBtn {
+    min-width: auto;
+    width: auto;
 }
 
 /* Greyed Out Tabs (During Tutorial) */

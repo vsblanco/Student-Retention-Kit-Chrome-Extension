@@ -32,22 +32,29 @@ export const TUTORIAL_PAGES = [
         showPrevious: false,
         showNext: true,
         nextLabel: 'Get Started'
+    },
+    {
+        id: 'getting-started',
+        header: 'Getting Started',
+        body: `
+            <div class="tutorial-content">
+                <h2>How to Use This Extension</h2>
+                <p>The Student Retention Kit has three main tabs:</p>
+                <ul style="line-height: 1.8; margin-left: 20px;">
+                    <li><strong>Checker</strong> - Scan for student submissions in Canvas</li>
+                    <li><strong>Call</strong> - Make outreach calls to students</li>
+                    <li><strong>Data</strong> - Manage your student master list</li>
+                </ul>
+                <p style="margin-top: 20px;">You can customize this tutorial by editing the <code>src/constants/tutorial.js</code> file.</p>
+                <p><strong>Click "Finish" to start using the extension!</strong></p>
+            </div>
+        `,
+        showSkip: false,
+        showPrevious: true,
+        showNext: true,
+        nextLabel: 'Finish'
     }
     // Add more tutorial pages here as needed
-    // Example:
-    // {
-    //     id: 'checker-overview',
-    //     header: 'Checker Tab',
-    //     body: `
-    //         <div class="tutorial-content">
-    //             <p>The Checker tab allows you to scan for student submissions...</p>
-    //         </div>
-    //     `,
-    //     showSkip: false,
-    //     showPrevious: true,
-    //     showNext: true,
-    //     nextLabel: 'Next'
-    // }
 ];
 
 /**

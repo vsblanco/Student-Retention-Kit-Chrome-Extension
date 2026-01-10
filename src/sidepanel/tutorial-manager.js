@@ -31,7 +31,9 @@ class TutorialManager {
             tutorialSkipBtn: null,
             tutorialPrevBtn: null,
             tutorialNextBtn: null,
-            tabButtons: []
+            tabButtons: [],
+            settingsBtn: null,
+            versionText: null
         };
     }
 
@@ -49,6 +51,8 @@ class TutorialManager {
         this.elements.tutorialPrevBtn = document.getElementById('tutorialPrevBtn');
         this.elements.tutorialNextBtn = document.getElementById('tutorialNextBtn');
         this.elements.tabButtons = Array.from(document.querySelectorAll('.tab-button'));
+        this.elements.settingsBtn = document.getElementById('headerSettingsBtn');
+        this.elements.versionText = document.getElementById('versionText');
 
         // Set up event listeners
         this.setupEventListeners();
@@ -119,21 +123,49 @@ class TutorialManager {
     }
 
     /**
-     * Grey out all tab buttons except tutorial
+     * Grey out all tab buttons, settings, and version buttons during tutorial
      */
     greyOutTabs() {
         this.elements.tabButtons.forEach(button => {
             button.classList.add('greyed-out');
         });
+
+        // Disable settings button
+        if (this.elements.settingsBtn) {
+            this.elements.settingsBtn.classList.add('greyed-out');
+            this.elements.settingsBtn.style.pointerEvents = 'none';
+            this.elements.settingsBtn.style.opacity = '0.3';
+        }
+
+        // Disable version text
+        if (this.elements.versionText) {
+            this.elements.versionText.classList.add('greyed-out');
+            this.elements.versionText.style.pointerEvents = 'none';
+            this.elements.versionText.style.opacity = '0.3';
+        }
     }
 
     /**
-     * Un-grey all tab buttons
+     * Un-grey all tab buttons and restore settings/version buttons
      */
     unGreyTabs() {
         this.elements.tabButtons.forEach(button => {
             button.classList.remove('greyed-out');
         });
+
+        // Re-enable settings button
+        if (this.elements.settingsBtn) {
+            this.elements.settingsBtn.classList.remove('greyed-out');
+            this.elements.settingsBtn.style.pointerEvents = '';
+            this.elements.settingsBtn.style.opacity = '';
+        }
+
+        // Re-enable version text
+        if (this.elements.versionText) {
+            this.elements.versionText.classList.remove('greyed-out');
+            this.elements.versionText.style.pointerEvents = '';
+            this.elements.versionText.style.opacity = '';
+        }
     }
 
     /**
