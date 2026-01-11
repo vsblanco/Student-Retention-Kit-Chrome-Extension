@@ -6,11 +6,46 @@
  */
 
 /**
+ * Helper function to get the next Saturday from today
+ * @returns {Object} Object containing date string and relative text
+ */
+function getNextSaturday() {
+    const today = new Date();
+    const dayOfWeek = today.getDay(); // 0 = Sunday, 6 = Saturday
+
+    // Calculate days until next Saturday
+    let daysUntilSaturday;
+    if (dayOfWeek === 6) {
+        // Today is Saturday, get next Saturday
+        daysUntilSaturday = 7;
+    } else {
+        // Get upcoming Saturday
+        daysUntilSaturday = (6 - dayOfWeek + 7) % 7;
+        if (daysUntilSaturday === 0) daysUntilSaturday = 7;
+    }
+
+    // Calculate the next Saturday date
+    const nextSaturday = new Date(today);
+    nextSaturday.setDate(today.getDate() + daysUntilSaturday);
+
+    // Format as MM-DD-YY
+    const month = String(nextSaturday.getMonth() + 1).padStart(2, '0');
+    const day = String(nextSaturday.getDate()).padStart(2, '0');
+    const year = String(nextSaturday.getFullYear()).slice(-2);
+    const dateString = `${month}-${day}-${year}`;
+
+    // Determine relative text
+    const relativeText = daysUntilSaturday <= 7 ? 'this Saturday' : 'next Saturday';
+
+    return { dateString, relativeText };
+}
+
+/**
  * Tutorial Pages
  * Each page contains:
  * - id: Unique identifier for the page
  * - header: Title shown at the top of the tutorial page
- * - body: HTML content for the tutorial page (supports basic HTML tags)
+ * - body: HTML content for the tutorial page (supports basic HTML tags) or a function that returns HTML
  * - showSkip: Whether to show the skip button on this page
  * - showPrevious: Whether to show the previous button on this page
  * - showNext: Whether to show the next button on this page
@@ -99,6 +134,300 @@ export const TUTORIAL_PAGES = [
                 </p>
                 <p style="margin-top: 20px; line-height: 1.8;">
                     You can update your Master List by clicking the <strong>Update Master List</strong> button in the Data tab. Then simply upload your student population report.
+                </p>
+            </div>
+        `,
+        showSkip: true,
+        showPrevious: true,
+        showNext: true,
+        nextLabel: 'Next'
+    },
+    {
+        id: 'student-view',
+        header: 'Student View',
+        body: `
+            <div class="tutorial-content">
+                <p style="line-height: 1.8; font-size: 1.05em;">
+                    Student View is an interactive panel that displays information on your Excel sheet in an organized manner.
+                </p>
+                <p style="margin-top: 20px; line-height: 1.8;">
+                    It's also the place where you can submit comments to store in the Student History.
+                </p>
+            </div>
+        `,
+        showSkip: true,
+        showPrevious: true,
+        showNext: true,
+        nextLabel: 'Next'
+    },
+    {
+        id: 'student-history',
+        header: 'Student History',
+        body: `
+            <div class="tutorial-content">
+                <p style="line-height: 1.8; font-size: 1.05em;">
+                    This sheet maintains a record of student interactions and communications. New entries can be added through the Student View panel.
+                </p>
+                <p style="margin-top: 20px; line-height: 1.8;">
+                    There are two methods for making a comment:
+                </p>
+                <ul style="line-height: 2; margin-left: 20px; margin-top: 10px; font-size: 1.05em;">
+                    <li>Manually create a comment from the Student View panel</li>
+                    <li>Type in the Outreach Column, which will automatically generate one</li>
+                </ul>
+                <p style="margin-top: 20px; line-height: 1.8;">
+                    <strong>Comments are automatically timestamped</strong> and can be organized using tags. This step helps organize the history sheet. Some tags serve more special purposes.
+                </p>
+            </div>
+        `,
+        showSkip: true,
+        showPrevious: true,
+        showNext: true,
+        nextLabel: 'Next'
+    },
+    {
+        id: 'tags',
+        header: 'Tags',
+        body: `
+            <div class="tutorial-content">
+                <p style="line-height: 1.8; font-size: 1.05em; margin-bottom: 20px;">
+                    Tags help you categorize and organize student interactions. Here are the available tags:
+                </p>
+                <div style="line-height: 2.5; font-size: 1.05em;">
+                    <div style="margin-bottom: 15px;">
+                        <span style="display: inline-block; padding: 0.5px 6px; font-weight: 600; border-radius: 9999px; background-color: #fee2e2; color: #991b1b; margin-right: 10px;">Urgent</span>
+                        <span>Reserved for urgent attention</span>
+                    </div>
+                    <div style="margin-bottom: 15px;">
+                        <span style="display: inline-block; padding: 0.5px 6px; font-weight: 600; border-radius: 9999px; background-color: #374151; color: #e5e7eb; margin-right: 10px;">Note</span>
+                        <span>A pinned note for general information</span>
+                    </div>
+                    <div style="margin-bottom: 15px;">
+                        <span style="display: inline-block; padding: 0.5px 6px; font-weight: 600; border-radius: 9999px; background-color: #e5e7eb; color: #1f2937; margin-right: 10px;">Outreach</span>
+                        <span>Sourced from the Outreach Column</span>
+                    </div>
+                    <div style="margin-bottom: 15px;">
+                        <span style="display: inline-block; padding: 0.5px 6px; font-weight: 600; border-radius: 9999px; background-color: #eff6ff; color: #1e40af; margin-right: 10px;">Quote</span>
+                        <span>Contains quoted text</span>
+                    </div>
+                </div>
+                <p style="line-height: 1.8; margin-top: 25px; font-size: 1.05em;">
+                    Three tags have special functionality: <span style="display: inline-block; padding: 0.5px 6px; font-weight: 600; border-radius: 9999px; background-color: #fed7aa; color: #9a3412;">LDA</span>, <span style="display: inline-block; padding: 0.5px 6px; font-weight: 600; border-radius: 9999px; background-color: #fecaca; color: #000000;">DNC</span>, and <span style="display: inline-block; padding: 0.5px 6px; font-weight: 600; border-radius: 9999px; background-color: #fef08a; color: #854d0e;">Contacted</span>. These tags trigger specific automations and visual indicators in the system.
+                </p>
+            </div>
+        `,
+        showSkip: true,
+        showPrevious: true,
+        showNext: true,
+        nextLabel: 'Next'
+    },
+    {
+        id: 'special-tags',
+        header: 'Special Tags',
+        body: () => {
+            const { dateString, relativeText } = getNextSaturday();
+            return `
+                <div class="tutorial-content">
+                    <div style="margin-bottom: 25px;">
+                        <h3 style="margin: 0 0 10px 0; color: var(--primary-color); font-size: 1.1em;">
+                            <span style="display: inline-block; padding: 0.5px 6px; font-weight: 600; border-radius: 9999px; background-color: #fed7aa; color: #9a3412; margin-right: 8px;">LDA</span>
+                        </h3>
+                        <p style="line-height: 1.8; font-size: 1.05em;">
+                            Used as a follow-up tag. If a student says they will submit on the weekend, you can add an <span style="display: inline-block; padding: 0.5px 6px; font-weight: 600; border-radius: 9999px; background-color: #fed7aa; color: #9a3412;">LDA ${dateString}</span> for Saturday. When the LDA sheet for that day is created, you'll see a <strong>special indication highlighting their planned submission date</strong>. This helps you better keep track of when students are submitting.
+                        </p>
+                        <p style="line-height: 1.8; font-size: 0.95em; margin-top: 10px; font-style: italic; color: var(--text-secondary);">
+                            Example: "Student plans to submit ${relativeText}"
+                        </p>
+                    </div>
+                    <div style="margin-bottom: 25px;">
+                        <h3 style="margin: 0 0 10px 0; color: var(--primary-color); font-size: 1.1em;">
+                            <span style="display: inline-block; padding: 0.5px 6px; font-weight: 600; border-radius: 9999px; background-color: #fecaca; color: #000000; margin-right: 8px;">DNC</span>
+                            (Do Not Contact)
+                        </h3>
+                        <p style="line-height: 1.8; font-size: 1.05em;">
+                            If a student wishes to stop communication, insert this tag. The student will be <strong>crossed out on the LDA sheet</strong> and filtered out when sending emails. Subtags include <span style="display: inline-block; padding: 0.5px 6px; font-weight: 600; border-radius: 9999px; background-color: #fecaca; color: #000000; font-size: 0.9em;">DNC - Phone</span>, <span style="display: inline-block; padding: 0.5px 6px; font-weight: 600; border-radius: 9999px; background-color: #fecaca; color: #000000; font-size: 0.9em;">DNC - Other Phone</span>, and <span style="display: inline-block; padding: 0.5px 6px; font-weight: 600; border-radius: 9999px; background-color: #fecaca; color: #000000; font-size: 0.9em;">DNC - Email</span> for specific contact preferences.
+                        </p>
+                    </div>
+                    <div>
+                        <h3 style="margin: 0 0 10px 0; color: var(--primary-color); font-size: 1.1em;">
+                            <span style="display: inline-block; padding: 0.5px 6px; font-weight: 600; border-radius: 9999px; background-color: #fef08a; color: #854d0e; margin-right: 8px;">Contacted</span>
+                        </h3>
+                        <p style="line-height: 1.8; font-size: 1.05em;">
+                            Shows if the student has been contacted that day. Special keywords in the Outreach column (like "will engage," "answered," "will submit," "come to class") will trigger this tag and <strong>auto-highlight the row in yellow</strong> to indicate contact was made.
+                        </p>
+                    </div>
+                </div>
+            `;
+        },
+        showSkip: true,
+        showPrevious: true,
+        showNext: true,
+        nextLabel: 'Next'
+    },
+    {
+        id: 'personalized-emails',
+        header: 'Sending Personalized Emails',
+        body: `
+            <div class="tutorial-content">
+                <p style="line-height: 1.8; font-size: 1.05em;">
+                    You can automatically send personalized emails to each student by granting consent to send emails on your behalf.
+                </p>
+                <p style="margin-top: 20px; line-height: 1.8;">
+                    You will see what parameters you can choose from to help personalize your emails. You can also create your own parameters for further customization.
+                </p>
+                <h3 style="margin: 25px 0 15px 0; color: var(--primary-color); font-size: 1.1em;">Example Email Template:</h3>
+                <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                    <button id="previewBtn1" class="email-preview-btn" data-active="false" data-preview="preview1" style="flex: 1; padding: 8px 12px; background: rgba(0,0,0,0.06); color: inherit; border: none; border-radius: 0.5rem; cursor: pointer; font-size: 0.9em; font-weight: 500;">Preview 1</button>
+                    <button id="previewBtn2" class="email-preview-btn" data-active="false" data-preview="preview2" style="flex: 1; padding: 8px 12px; background: rgba(0,0,0,0.06); color: inherit; border: none; border-radius: 0.5rem; cursor: pointer; font-size: 0.9em; font-weight: 500;">Preview 2</button>
+                </div>
+                <div id="emailTemplateBox" style="background: rgba(255, 255, 255, 0.4); border: 1px solid rgba(0, 0, 0, 0.05); border-radius: 0.75rem; padding: 15px; font-size: 0.95em; line-height: 1.8; font-family: monospace; color: #374151;">
+                    <p style="margin: 0 0 10px 0;">Hi <span style="background-color: #fef3c7; padding: 2px 4px; border-radius: 3px; font-weight: 500;">{First}</span>,</p>
+                    <p style="margin: 0 0 10px 0;">I hope your week is going well!</p>
+                    <p style="margin: 0 0 10px 0;">I was looking over your Canvas course today and noticed it has been <span style="background-color: #fef3c7; padding: 2px 4px; border-radius: 3px; font-weight: 500;">{DaysOut}</span> days since you last engaged. You currently have a <span style="background-color: #fef3c7; padding: 2px 4px; border-radius: 3px; font-weight: 500;">{Grade}</span> in the class, and I want to make sure we keep that momentum going so you can successfully complete the course on time.</p>
+                    <p style="margin: 0 0 10px 0;">I saw that the last assignment you submitted was <span style="background-color: #fef3c7; padding: 2px 4px; border-radius: 3px; font-weight: 500;">{LastAssignment}</span>. Would you be open to a quick call today? I'd love to discuss a game plan to help you tackle the upcoming workload and ensure you feel supported. Reminder that your next assignment is due on <span style="background-color: #fef3c7; padding: 2px 4px; border-radius: 3px; font-weight: 500;">{NextAssignmentDue}</span>.</p>
+                    <p style="margin: 0 0 10px 0;">Best regards,</p>
+                    <p style="margin: 0;"><span style="background-color: #fef3c7; padding: 2px 4px; border-radius: 3px; font-weight: 500;">{AssignedName}</span></p>
+                </div>
+            </div>
+        `,
+        showSkip: true,
+        showPrevious: true,
+        showNext: true,
+        nextLabel: 'Next'
+    },
+    {
+        id: 'missing-assignments',
+        header: 'Missing Assignments',
+        body: `
+            <div class="tutorial-content">
+                <p style="line-height: 1.8; font-size: 1.05em;">
+                    This sheet contains a list of students' missing assignments.
+                </p>
+                <p style="margin-top: 20px; line-height: 1.8;">
+                    The report is generated using the <strong>Student Retention Kit—Chrome Extension</strong>.
+                </p>
+                <p style="margin-top: 20px; line-height: 1.8;">
+                    You can use the <strong>Special Parameter: Missing Assignments List</strong> in sending personalized emails to students. This creates clickable hyperlinks that lead you straight to the assignments.
+                </p>
+                <h3 style="margin: 25px 0 15px 0; color: var(--primary-color); font-size: 1.1em;">Example Email:</h3>
+                <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                    <button id="missingPreviewBtn1" class="missing-preview-btn" data-active="false" data-preview="preview1" style="flex: 1; padding: 8px 12px; background: rgba(0,0,0,0.06); color: inherit; border: none; border-radius: 0.5rem; cursor: pointer; font-size: 0.9em; font-weight: 500;">Preview 1</button>
+                    <button id="missingPreviewBtn2" class="missing-preview-btn" data-active="false" data-preview="preview2" style="flex: 1; padding: 8px 12px; background: rgba(0,0,0,0.06); color: inherit; border: none; border-radius: 0.5rem; cursor: pointer; font-size: 0.9em; font-weight: 500;">Preview 2</button>
+                </div>
+                <div id="missingTemplateBox" style="background: rgba(255, 255, 255, 0.4); border: 1px solid rgba(0, 0, 0, 0.05); border-radius: 0.75rem; padding: 15px; margin-bottom: 20px; font-size: 0.95em; line-height: 1.8; font-family: monospace; color: #374151;">
+                    <p style="margin: 0 0 10px 0;">Hello <span style="background-color: #fef3c7; padding: 2px 4px; border-radius: 3px; font-weight: 500;">{First}</span>,</p>
+                    <p style="margin: 0 0 10px 0;">I hope you are having a great day. I noticed it's been <span style="background-color: #fef3c7; padding: 2px 4px; border-radius: 3px; font-weight: 500;">{DaysOut}</span> days since you last engaged with your course.</p>
+                    <p style="margin: 0 0 5px 0;">You are currently missing:</p>
+                    <div style="background-color: #fef3c7; padding: 2px 4px; border-radius: 3px; font-weight: 500; display: inline-block;">{MissingAssignmentsList}</div>
+                </div>
+            </div>
+        `,
+        showSkip: true,
+        showPrevious: true,
+        showNext: true,
+        nextLabel: 'Next'
+    },
+    {
+        id: 'submission-checker',
+        header: 'Submission Checker',
+        body: `
+            <div class="tutorial-content">
+                <p style="line-height: 1.8; font-size: 1.05em; margin-bottom: 20px;">
+                    This tool automatically communicates with the Canvas API to track when a student submits an assignment. You will see their name, timestamp, and assignment title with a link to quickly view their submission when you click on their name.
+                </p>
+                <h3 style="margin: 20px 0 15px 0; color: var(--primary-color); font-size: 1.1em;">Example Submission:</h3>
+                <div style="background: rgba(255, 255, 255, 0.4); border: 1px solid rgba(0, 0, 0, 0.05); border-radius: 0.75rem; padding: 12px; margin-bottom: 20px;">
+                    <div style="display: flex; align-items: center; width:100%;">
+                        <div style="width: 6px; height: 32px; border-radius: 4px; margin-right: 12px; background-color: #10b981;"></div>
+                        <div style="flex-grow:1; display:flex; justify-content:space-between; align-items:center;">
+                            <div style="display:flex; flex-direction:column;">
+                                <span style="font-weight:500; color:var(--primary-color); cursor:pointer;">Doe, John</span>
+                                <span style="font-size:0.8em; color:var(--text-secondary);">Discussion Post 2.0</span>
+                            </div>
+                            <span style="font-size: 0.8em; padding: 4px 10px; border-radius: 12px; background-color: rgba(0, 0, 0, 0.06); color: var(--text-secondary);">2:45 PM</span>
+                        </div>
+                    </div>
+                </div>
+                <p style="line-height: 1.8; font-size: 1.05em; margin-bottom: 15px;">
+                    If you have your Excel workbook open, it will automatically look for the student to highlight in green, indicating they submitted. It will also input in the outreach column: <strong>'Submitted {Assignment Title}'</strong>
+                </p>
+                <p style="line-height: 1.8; font-size: 1.05em;">
+                    You can filter which students you want to check based on their days out and grades.
+                </p>
+            </div>
+        `,
+        showSkip: true,
+        showPrevious: true,
+        showNext: true,
+        nextLabel: 'Next'
+    },
+    {
+        id: 'importing-data',
+        header: 'Importing Data',
+        body: `
+            <div class="tutorial-content">
+                <p style="line-height: 1.8; font-size: 1.05em;">
+                    Importing Data is handled through the <strong>Student Retention Kit—Chrome Extension</strong>.
+                </p>
+                <p style="margin-top: 20px; line-height: 1.8;">
+                    All it needs is a student population report with either a <strong>SyStudentId</strong> or <strong>Student SIS</strong> column in it.
+                </p>
+                <p style="margin-top: 20px; line-height: 1.8;">
+                    It will automatically organize the data and create a canvas for their grade book information. The system will automatically import the data into the Master List sheet for your viewing pleasure.
+                </p>
+            </div>
+        `,
+        showSkip: true,
+        showPrevious: true,
+        showNext: true,
+        nextLabel: 'Next'
+    },
+    {
+        id: 'creating-lda',
+        header: 'Creating the LDA Sheet',
+        body: `
+            <div class="tutorial-content">
+                <p style="line-height: 1.8; font-size: 1.05em; margin-bottom: 20px;">
+                    You can create the LDA sheet by clicking on the <strong>Create LDA</strong> button on the ribbon.
+                </p>
+                <h3 style="margin: 20px 0 15px 0; color: var(--primary-color); font-size: 1.1em;">Customizable Settings:</h3>
+                <div style="line-height: 2; font-size: 1.05em;">
+                    <div style="margin-bottom: 12px;">
+                        <strong>Days Out Filter</strong> - Choose how many days out to include students who haven't submitted
+                    </div>
+                    <div style="margin-bottom: 12px;">
+                        <strong>Include Failing List</strong> - Optionally add students who are currently failing to the LDA sheet
+                    </div>
+                    <div style="margin-bottom: 12px;">
+                        <strong>Include LDA Tag Indicators</strong> - Display <span style="display: inline-block; padding: 0.5px 6px; font-weight: 600; border-radius: 9999px; background-color: #fed7aa; color: #9a3412; font-size: 0.95em;">LDA</span> tag markers showing students' planned submission dates
+                    </div>
+                    <div style="margin-bottom: 12px;">
+                        <strong>Include DNC Tag Indicators</strong> - Show <span style="display: inline-block; padding: 0.5px 6px; font-weight: 600; border-radius: 9999px; background-color: #fecaca; color: #000000; font-size: 0.95em;">DNC</span> tag markers to identify students who requested no contact
+                    </div>
+                </div>
+            </div>
+        `,
+        showSkip: true,
+        showPrevious: true,
+        showNext: true,
+        nextLabel: 'Next'
+    },
+    {
+        id: 'calling-via-five9',
+        header: 'Calling via Five9',
+        body: `
+            <div class="tutorial-content">
+                <p style="line-height: 1.8; font-size: 1.05em;">
+                    When you have a Five9 tab open and a student selected, you can call from the Student Retention Kit Side Panel.
+                </p>
+                <p style="margin-top: 20px; line-height: 1.8;">
+                    This feature acts as an assistant, allowing you to contact students more quickly without the need to copy and paste their phone numbers manually.
+                </p>
+                <p style="margin-top: 20px; line-height: 1.8;">
+                    Additionally, you can run a <strong>call sequence automation</strong> by selecting multiple students. When you initiate this automation, each time you finish a call, the system will automatically dial the next student in line.
+                </p>
+                <p style="margin-top: 20px; line-height: 1.8;">
+                    This process helps you efficiently reach out to all your students in a timely manner.
                 </p>
                 <p style="margin-top: 30px; text-align: center;">
                     <strong>You're all set! Click "Finish" to start using the extension.</strong>
