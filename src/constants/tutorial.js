@@ -6,11 +6,46 @@
  */
 
 /**
+ * Helper function to get the next Saturday from today
+ * @returns {Object} Object containing date string and relative text
+ */
+function getNextSaturday() {
+    const today = new Date();
+    const dayOfWeek = today.getDay(); // 0 = Sunday, 6 = Saturday
+
+    // Calculate days until next Saturday
+    let daysUntilSaturday;
+    if (dayOfWeek === 6) {
+        // Today is Saturday, get next Saturday
+        daysUntilSaturday = 7;
+    } else {
+        // Get upcoming Saturday
+        daysUntilSaturday = (6 - dayOfWeek + 7) % 7;
+        if (daysUntilSaturday === 0) daysUntilSaturday = 7;
+    }
+
+    // Calculate the next Saturday date
+    const nextSaturday = new Date(today);
+    nextSaturday.setDate(today.getDate() + daysUntilSaturday);
+
+    // Format as MM-DD-YY
+    const month = String(nextSaturday.getMonth() + 1).padStart(2, '0');
+    const day = String(nextSaturday.getDate()).padStart(2, '0');
+    const year = String(nextSaturday.getFullYear()).slice(-2);
+    const dateString = `${month}-${day}-${year}`;
+
+    // Determine relative text
+    const relativeText = daysUntilSaturday <= 7 ? 'this Saturday' : 'next Saturday';
+
+    return { dateString, relativeText };
+}
+
+/**
  * Tutorial Pages
  * Each page contains:
  * - id: Unique identifier for the page
  * - header: Title shown at the top of the tutorial page
- * - body: HTML content for the tutorial page (supports basic HTML tags)
+ * - body: HTML content for the tutorial page (supports basic HTML tags) or a function that returns HTML
  * - showSkip: Whether to show the skip button on this page
  * - showPrevious: Whether to show the previous button on this page
  * - showNext: Whether to show the next button on this page
@@ -189,38 +224,41 @@ export const TUTORIAL_PAGES = [
     {
         id: 'special-tags',
         header: 'Special Tags',
-        body: `
-            <div class="tutorial-content">
-                <div style="margin-bottom: 25px;">
-                    <h3 style="margin: 0 0 10px 0; color: var(--primary-color); font-size: 1.1em;">
-                        <span style="display: inline-block; padding: 0.5px 6px; font-weight: 600; border-radius: 9999px; background-color: #fed7aa; color: #9a3412; margin-right: 8px;">LDA</span>
-                    </h3>
-                    <p style="line-height: 1.8; font-size: 1.05em;">
-                        Used as a follow-up tag. If a student says they will submit on the weekend, you can add an <span style="display: inline-block; padding: 0.5px 6px; font-weight: 600; border-radius: 9999px; background-color: #fed7aa; color: #9a3412;">LDA 01-17-26</span> for Saturday. When the LDA sheet for that day is created, you'll see a <strong>special indication highlighting their planned submission date</strong>. This helps you better keep track of when students are submitting.
-                    </p>
-                    <p style="line-height: 1.8; font-size: 0.95em; margin-top: 10px; font-style: italic; color: var(--text-secondary);">
-                        Example: "Student plans to submit this Saturday"
-                    </p>
+        body: () => {
+            const { dateString, relativeText } = getNextSaturday();
+            return `
+                <div class="tutorial-content">
+                    <div style="margin-bottom: 25px;">
+                        <h3 style="margin: 0 0 10px 0; color: var(--primary-color); font-size: 1.1em;">
+                            <span style="display: inline-block; padding: 0.5px 6px; font-weight: 600; border-radius: 9999px; background-color: #fed7aa; color: #9a3412; margin-right: 8px;">LDA</span>
+                        </h3>
+                        <p style="line-height: 1.8; font-size: 1.05em;">
+                            Used as a follow-up tag. If a student says they will submit on the weekend, you can add an <span style="display: inline-block; padding: 0.5px 6px; font-weight: 600; border-radius: 9999px; background-color: #fed7aa; color: #9a3412;">LDA ${dateString}</span> for Saturday. When the LDA sheet for that day is created, you'll see a <strong>special indication highlighting their planned submission date</strong>. This helps you better keep track of when students are submitting.
+                        </p>
+                        <p style="line-height: 1.8; font-size: 0.95em; margin-top: 10px; font-style: italic; color: var(--text-secondary);">
+                            Example: "Student plans to submit ${relativeText}"
+                        </p>
+                    </div>
+                    <div style="margin-bottom: 25px;">
+                        <h3 style="margin: 0 0 10px 0; color: var(--primary-color); font-size: 1.1em;">
+                            <span style="display: inline-block; padding: 0.5px 6px; font-weight: 600; border-radius: 9999px; background-color: #fecaca; color: #000000; margin-right: 8px;">DNC</span>
+                            (Do Not Contact)
+                        </h3>
+                        <p style="line-height: 1.8; font-size: 1.05em;">
+                            If a student wishes to stop communication, insert this tag. The student will be <strong>crossed out on the LDA sheet</strong> and filtered out when sending emails. Subtags include <span style="display: inline-block; padding: 0.5px 6px; font-weight: 600; border-radius: 9999px; background-color: #fecaca; color: #000000; font-size: 0.9em;">DNC - Phone</span>, <span style="display: inline-block; padding: 0.5px 6px; font-weight: 600; border-radius: 9999px; background-color: #fecaca; color: #000000; font-size: 0.9em;">DNC - Other Phone</span>, and <span style="display: inline-block; padding: 0.5px 6px; font-weight: 600; border-radius: 9999px; background-color: #fecaca; color: #000000; font-size: 0.9em;">DNC - Email</span> for specific contact preferences.
+                        </p>
+                    </div>
+                    <div>
+                        <h3 style="margin: 0 0 10px 0; color: var(--primary-color); font-size: 1.1em;">
+                            <span style="display: inline-block; padding: 0.5px 6px; font-weight: 600; border-radius: 9999px; background-color: #fef08a; color: #854d0e; margin-right: 8px;">Contacted</span>
+                        </h3>
+                        <p style="line-height: 1.8; font-size: 1.05em;">
+                            Shows if the student has been contacted that day. Special keywords in the Outreach column (like "will engage," "answered," "will submit," "come to class") will trigger this tag and <strong>auto-highlight the row in yellow</strong> to indicate contact was made.
+                        </p>
+                    </div>
                 </div>
-                <div style="margin-bottom: 25px;">
-                    <h3 style="margin: 0 0 10px 0; color: var(--primary-color); font-size: 1.1em;">
-                        <span style="display: inline-block; padding: 0.5px 6px; font-weight: 600; border-radius: 9999px; background-color: #fecaca; color: #000000; margin-right: 8px;">DNC</span>
-                        (Do Not Contact)
-                    </h3>
-                    <p style="line-height: 1.8; font-size: 1.05em;">
-                        If a student wishes to stop communication, insert this tag. The student will be <strong>crossed out on the LDA sheet</strong> and filtered out when sending emails. Subtags include <span style="display: inline-block; padding: 0.5px 6px; font-weight: 600; border-radius: 9999px; background-color: #fecaca; color: #000000; font-size: 0.9em;">DNC - Phone</span>, <span style="display: inline-block; padding: 0.5px 6px; font-weight: 600; border-radius: 9999px; background-color: #fecaca; color: #000000; font-size: 0.9em;">DNC - Other Phone</span>, and <span style="display: inline-block; padding: 0.5px 6px; font-weight: 600; border-radius: 9999px; background-color: #fecaca; color: #000000; font-size: 0.9em;">DNC - Email</span> for specific contact preferences.
-                    </p>
-                </div>
-                <div>
-                    <h3 style="margin: 0 0 10px 0; color: var(--primary-color); font-size: 1.1em;">
-                        <span style="display: inline-block; padding: 0.5px 6px; font-weight: 600; border-radius: 9999px; background-color: #fef08a; color: #854d0e; margin-right: 8px;">Contacted</span>
-                    </h3>
-                    <p style="line-height: 1.8; font-size: 1.05em;">
-                        Shows if the student has been contacted that day. Special keywords in the Outreach column (like "will engage," "answered," "will submit," "come to class") will trigger this tag and <strong>auto-highlight the row in yellow</strong> to indicate contact was made.
-                    </p>
-                </div>
-            </div>
-        `,
+            `;
+        },
         showSkip: true,
         showPrevious: true,
         showNext: true,

@@ -220,9 +220,9 @@ class TutorialManager {
             this.elements.tutorialHeader.textContent = page.header;
         }
 
-        // Update body
+        // Update body (support both string and function)
         if (this.elements.tutorialBody) {
-            this.elements.tutorialBody.innerHTML = page.body;
+            this.elements.tutorialBody.innerHTML = typeof page.body === 'function' ? page.body() : page.body;
         }
 
         // Update progress bar
