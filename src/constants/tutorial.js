@@ -196,7 +196,10 @@ export const TUTORIAL_PAGES = [
                         <span style="display: inline-block; padding: 0.5px 6px; font-weight: 600; border-radius: 9999px; background-color: #fed7aa; color: #9a3412; margin-right: 8px;">LDA</span>
                     </h3>
                     <p style="line-height: 1.8; font-size: 1.05em;">
-                        Used as a follow-up tag. If a student says they will submit on the weekend, you can add an LDA tag for Saturday. When the LDA sheet for that day is created, you'll see a <strong>special indication highlighting their planned submission date</strong>. This helps you better keep track of when students are submitting.
+                        Used as a follow-up tag. If a student says they will submit on the weekend, you can add an <span style="display: inline-block; padding: 0.5px 6px; font-weight: 600; border-radius: 9999px; background-color: #fed7aa; color: #9a3412;">LDA 01-17-26</span> for Saturday. When the LDA sheet for that day is created, you'll see a <strong>special indication highlighting their planned submission date</strong>. This helps you better keep track of when students are submitting.
+                    </p>
+                    <p style="line-height: 1.8; font-size: 0.95em; margin-top: 10px; font-style: italic; color: var(--text-secondary);">
+                        Example: "Student plans to submit this Saturday"
                     </p>
                 </div>
                 <div style="margin-bottom: 25px;">
