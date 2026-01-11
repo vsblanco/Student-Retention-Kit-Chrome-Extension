@@ -356,6 +356,20 @@ chrome.runtime.onMessage.addListener(async (msg, sender, sendResponse) => {
       })();
   }
 
+  // --- SHEET LIST RESPONSE FROM EXCEL ---
+  else if (msg.type === MESSAGE_TYPES.SRK_SHEET_LIST_RESPONSE) {
+      console.log('%c [Background] Sheet List Response Received from Excel', 'background: #9C27B0; color: white; font-weight: bold; padding: 2px 4px;');
+      console.log('   Sheets:', msg.sheets);
+
+      // Forward to sidepanel
+      chrome.runtime.sendMessage({
+          type: MESSAGE_TYPES.SRK_SHEET_LIST_RESPONSE,
+          sheets: msg.sheets
+      }).catch(() => {
+          // Sidepanel might not be open, that's ok
+      });
+  }
+
   // --- FIVE9 INTEGRATION ---
   else if (msg.type === 'triggerFive9Call') {
       (async () => {
