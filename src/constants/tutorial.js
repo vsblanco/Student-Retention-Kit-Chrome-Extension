@@ -56,7 +56,7 @@ export const TUTORIAL_PAGES = [
         id: 'what-is-srk',
         header: 'What is Student Retention Kit?',
         body: `
-            <div class="tutorial-content" style="text-align: center;">
+            <div class="tutorial-content">
                 <p style="font-size: 1.1em; line-height: 1.8; margin: 20px 0;">
                     The Student Retention Kit is a tool designed to help educators identify and support at-risk students.
                     Its goal is to make your workflow as efficiently as possible, so that you can focus on what's most important.
@@ -120,6 +120,7 @@ export const TUTORIAL_PAGES = [
                     </p>
                     <p style="margin-bottom: 15px;">
                         <strong>Five9:</strong> Only works if you have the Five9 tab opened. Think of this as an assistant that clicks the call button for you—nothing more.
+                        <br><a href="https://documentation.five9.com/" target="_blank" style="color: var(--primary-color); text-decoration: underline;">Five9 Documentation</a>
                     </p>
                     <p style="margin-bottom: 15px;">
                         <strong>Excel Add-in (SSO):</strong> Automatic SSO documentation is from Microsoft themselves. The add-in can only view basic information such as your name and work email.
@@ -484,7 +485,7 @@ export const TUTORIAL_PAGES = [
         id: 'thats-it',
         header: 'That\'s it!',
         body: `
-            <div class="tutorial-content" style="text-align: center;">
+            <div class="tutorial-content">
                 <p style="font-size: 1.1em; line-height: 1.8; margin: 20px 0;">
                     Now you have a better grasp of how the Student Retention Kit works. Keep in mind this is a proof of concept and should not be considered full production. Expect tons of bugs. However, this application aims to drastically improve the efficiency of your work.
                 </p>
