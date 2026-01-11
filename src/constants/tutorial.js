@@ -275,6 +275,20 @@ export const TUTORIAL_PAGES = [
                 <p style="margin-top: 20px; line-height: 1.8;">
                     The report is generated using the <strong>Student Retention Kit—Chrome Extension</strong>.
                 </p>
+                <p style="margin-top: 20px; line-height: 1.8;">
+                    You can use the <strong>Special Parameter: Missing Assignments List</strong> in sending personalized emails to students. This creates clickable hyperlinks that lead you straight to the assignments.
+                </p>
+                <h3 style="margin: 25px 0 15px 0; color: var(--primary-color); font-size: 1.1em;">Example Email:</h3>
+                <div style="background: rgba(255, 255, 255, 0.4); border: 1px solid rgba(0, 0, 0, 0.05); border-radius: 0.75rem; padding: 15px; margin-bottom: 20px; font-size: 0.95em; line-height: 1.8;">
+                    <p style="margin: 0 0 10px 0;">Hello Jane,</p>
+                    <p style="margin: 0 0 10px 0;">I hope you are having a great day. I noticed it's been 5 days since you last engaged with your course.</p>
+                    <p style="margin: 0 0 5px 0;">You are currently missing:</p>
+                    <ul style="margin: 5px 0 10px 20px; padding: 0;">
+                        <li style="margin-bottom: 5px;"><span style="color: var(--primary-color); text-decoration: underline; cursor: pointer;">Discussion Post 2.0</span></li>
+                        <li style="margin-bottom: 5px;"><span style="color: var(--primary-color); text-decoration: underline; cursor: pointer;">Mid Term</span></li>
+                        <li style="margin-bottom: 5px;"><span style="color: var(--primary-color); text-decoration: underline; cursor: pointer;">Mind Tap 2.2 - Human Anatomy</span></li>
+                    </ul>
+                </div>
             </div>
         `,
         showSkip: true,
@@ -297,7 +311,7 @@ export const TUTORIAL_PAGES = [
                         <div style="flex-grow:1; display:flex; justify-content:space-between; align-items:center;">
                             <div style="display:flex; flex-direction:column;">
                                 <span style="font-weight:500; color:var(--primary-color); cursor:pointer;">Doe, John</span>
-                                <span style="font-size:0.8em; color:var(--text-secondary);">Week 5 Assignment</span>
+                                <span style="font-size:0.8em; color:var(--text-secondary);">Discussion Post 2.0</span>
                             </div>
                             <span style="font-size: 0.8em; padding: 4px 10px; border-radius: 12px; background-color: rgba(0, 0, 0, 0.06); color: var(--text-secondary);">2:45 PM</span>
                         </div>
