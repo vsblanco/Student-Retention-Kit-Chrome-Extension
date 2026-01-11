@@ -433,14 +433,17 @@ function analyzeMissingAssignments(submissions, userObject, studentName, courseI
  * @param {Date} referenceDate - The date to use for checking if assignments are past due
  */
 async function fetchMissingAssignments(student, referenceDate = new Date()) {
-    if (!student.url) {
+    // Support both 'url' field and legacy 'Gradebook' field
+    const gradebookUrl = student.url || student.Gradebook;
+
+    if (!gradebookUrl) {
         console.log(`[Step 3] ${student.name}: No gradebook URL, skipping`);
         return { ...student, missingCount: 0, missingAssignments: [] };
     }
 
-    const parsed = parseGradebookUrl(student.url);
+    const parsed = parseGradebookUrl(gradebookUrl);
     if (!parsed) {
-        console.warn(`[Step 3] ${student.name}: Failed to parse gradebook URL: ${student.url}`);
+        console.warn(`[Step 3] ${student.name}: Failed to parse gradebook URL: ${gradebookUrl}`);
         return { ...student, missingCount: 0, missingAssignments: [] };
     }
 
