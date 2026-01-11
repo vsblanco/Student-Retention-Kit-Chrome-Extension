@@ -991,16 +991,17 @@ input:focus, textarea:focus, select:focus {
 /* Tutorial Navigation */
 .tutorial-navigation {
     display: flex;
-    gap: 10px;
+    gap: 12px;
     align-items: center;
     justify-content: space-between;
-    padding-top: 15px;
-    border-top: 1px solid rgba(0, 0, 0, 0.1);
+    padding-top: 20px;
+    margin-top: 20px;
+    border-top: 1px solid rgba(0, 0, 0, 0.08);
 }
 
 .tutorial-nav-right {
     display: flex;
-    gap: 10px;
+    gap: 12px;
     align-items: center;
 }
 
@@ -1010,15 +1011,73 @@ input:focus, textarea:focus, select:focus {
     justify-content: center;
     gap: 8px;
     white-space: nowrap;
-    padding: 10px 20px;
-    height: 40px;
+    font-weight: 500;
+    font-size: 0.95em;
+    transition: all 0.2s ease;
+    border: none;
+    cursor: pointer;
 }
 
-#tutorialNextBtn,
-#tutorialPrevBtn,
+/* Skip Button - Subtle text button */
 #tutorialSkipBtn {
+    background: transparent;
+    color: var(--text-secondary);
+    padding: 10px 16px;
+    border-radius: 0.5rem;
+    font-weight: 500;
     min-width: auto;
     width: auto;
+}
+
+#tutorialSkipBtn:hover {
+    background: rgba(0, 0, 0, 0.05);
+    color: var(--text-main);
+}
+
+/* Previous Button - Outlined style */
+#tutorialPrevBtn {
+    background: white;
+    color: var(--text-main);
+    padding: 10px 20px;
+    border-radius: 0.75rem;
+    border: 1.5px solid rgba(0, 0, 0, 0.15);
+    min-width: auto;
+    width: auto;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+#tutorialPrevBtn:hover {
+    background: rgba(0, 0, 0, 0.02);
+    border-color: rgba(0, 0, 0, 0.25);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+    transform: translateY(-1px);
+}
+
+#tutorialPrevBtn:active {
+    transform: translateY(0);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+/* Next Button - Primary solid style */
+#tutorialNextBtn {
+    background: var(--primary-color);
+    color: white;
+    padding: 10px 24px;
+    border-radius: 0.75rem;
+    min-width: auto;
+    width: auto;
+    box-shadow: 0 2px 8px rgba(0, 90, 156, 0.2);
+}
+
+#tutorialNextBtn:hover {
+    background: var(--primary-hover);
+    box-shadow: 0 4px 12px rgba(0, 90, 156, 0.3);
+    transform: translateY(-1px);
+}
+
+#tutorialNextBtn:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 6px rgba(0, 90, 156, 0.2);
 }
 
 /* Greyed Out Tabs (During Tutorial) */
