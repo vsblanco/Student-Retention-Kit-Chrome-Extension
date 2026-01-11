@@ -403,9 +403,33 @@ if (window.hasSRKConnectorRun) {
               const gradeValue = getFieldWithAlias(student, 'grade');
               transformedStudent.grade = gradeValue !== undefined && gradeValue !== null ? String(gradeValue) : null;
 
-              // Days Out - trust the value from Excel master list
+              // Days Out - trust the value from Excel master list (use camelCase for consistency)
               const daysOutValue = getFieldWithAlias(student, 'daysOut');
-              transformedStudent.daysout = parseInt(daysOutValue) || 0;
+              transformedStudent.daysOut = parseInt(daysOutValue) || 0;
+
+              // URL/Gradebook - use aliases to find it
+              const url = getFieldWithAlias(student, 'url');
+              if (url !== null && url !== undefined) {
+                  transformedStudent.url = url;
+              }
+
+              // Student Email - use aliases to find it
+              const studentEmail = getFieldWithAlias(student, 'studentEmail');
+              if (studentEmail !== null && studentEmail !== undefined) {
+                  transformedStudent.studentEmail = studentEmail;
+              }
+
+              // Personal Email - use aliases to find it
+              const personalEmail = getFieldWithAlias(student, 'personalEmail');
+              if (personalEmail !== null && personalEmail !== undefined) {
+                  transformedStudent.personalEmail = personalEmail;
+              }
+
+              // LDA (Last Day of Attendance) - use aliases to find it
+              const lda = getFieldWithAlias(student, 'lda');
+              if (lda !== null && lda !== undefined) {
+                  transformedStudent.lda = lda;
+              }
 
               // Assignments - initialize if not present
               if (!('assignments' in transformedStudent)) {
@@ -513,7 +537,7 @@ if (window.hasSRKConnectorRun) {
                   // Set defaults for fields not provided by the Office add-in
                   grade: null,
                   StudentNumber: null,
-                  daysout: 0,
+                  daysOut: 0,
                   missingCount: 0,
                   url: null,
                   assignments: []

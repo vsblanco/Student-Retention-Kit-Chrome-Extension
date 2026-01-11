@@ -392,17 +392,17 @@ async function performLoop() {
             filteredList = masterEntries.filter(entry => {
                 const operator = match[1];
                 const value = parseInt(match[2], 10);
-                const daysout = entry.daysout;
+                const daysOut = entry.daysOut;
 
                 // Check if student meets days out criteria
                 let meetsDaysOutCriteria = false;
-                if (daysout != null) {
+                if (daysOut != null) {
                     switch (operator) {
-                        case '>':  meetsDaysOutCriteria = daysout > value; break;
-                        case '<':  meetsDaysOutCriteria = daysout < value; break;
-                        case '>=': meetsDaysOutCriteria = daysout >= value; break;
-                        case '<=': meetsDaysOutCriteria = daysout <= value; break;
-                        case '=':  meetsDaysOutCriteria = daysout === value; break;
+                        case '>':  meetsDaysOutCriteria = daysOut > value; break;
+                        case '<':  meetsDaysOutCriteria = daysOut < value; break;
+                        case '>=': meetsDaysOutCriteria = daysOut >= value; break;
+                        case '<=': meetsDaysOutCriteria = daysOut <= value; break;
+                        case '=':  meetsDaysOutCriteria = daysOut === value; break;
                         default:   meetsDaysOutCriteria = false;
                     }
                 }

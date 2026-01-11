@@ -67,16 +67,16 @@ export async function updateScanFilterCount() {
     let filteredCount = 0;
 
     masterEntries.forEach(entry => {
-        const daysout = entry.daysout;
+        const daysOut = entry.daysOut;
 
         let meetsDaysOutCriteria = false;
-        if (daysout != null) {
+        if (daysOut != null) {
             switch (operator) {
-                case '>': meetsDaysOutCriteria = daysout > value; break;
-                case '<': meetsDaysOutCriteria = daysout < value; break;
-                case '>=': meetsDaysOutCriteria = daysout >= value; break;
-                case '<=': meetsDaysOutCriteria = daysout <= value; break;
-                case '=': meetsDaysOutCriteria = daysout === value; break;
+                case '>': meetsDaysOutCriteria = daysOut > value; break;
+                case '<': meetsDaysOutCriteria = daysOut < value; break;
+                case '>=': meetsDaysOutCriteria = daysOut >= value; break;
+                case '<=': meetsDaysOutCriteria = daysOut <= value; break;
+                case '=': meetsDaysOutCriteria = daysOut === value; break;
                 default: meetsDaysOutCriteria = false;
             }
         }
