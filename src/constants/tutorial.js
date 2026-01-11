@@ -108,6 +108,24 @@ export const TUTORIAL_PAGES = [
         nextLabel: 'Next'
     },
     {
+        id: 'student-view',
+        header: 'Student View',
+        body: `
+            <div class="tutorial-content">
+                <p style="line-height: 1.8; font-size: 1.05em;">
+                    Student View is an interactive panel that displays information on your Excel sheet in an organized manner.
+                </p>
+                <p style="margin-top: 20px; line-height: 1.8;">
+                    It's also the place where you can submit comments to store in the Student History.
+                </p>
+            </div>
+        `,
+        showSkip: true,
+        showPrevious: true,
+        showNext: true,
+        nextLabel: 'Next'
+    },
+    {
         id: 'student-history',
         header: 'Student History',
         body: `
@@ -122,6 +140,59 @@ export const TUTORIAL_PAGES = [
                     <li>Manually create a comment from the Student View panel</li>
                     <li>Type in the Outreach Column, which will automatically generate one</li>
                 </ul>
+                <p style="margin-top: 20px; line-height: 1.8;">
+                    <strong>Comments are automatically timestamped</strong> and can be organized using tags. This step helps organize the history sheet. Some tags serve more special purposes.
+                </p>
+            </div>
+        `,
+        showSkip: true,
+        showPrevious: true,
+        showNext: true,
+        nextLabel: 'Next'
+    },
+    {
+        id: 'tags-part1',
+        header: 'Tags (Part 1)',
+        body: `
+            <div class="tutorial-content">
+                <p style="line-height: 1.8; font-size: 1.05em;">
+                    Tags help you categorize and organize student interactions. Here are the available tags:
+                </p>
+                <h3 style="margin: 20px 0 10px 0; color: var(--primary-color); font-size: 1.1em;">General Tags:</h3>
+                <ul style="line-height: 2; margin-left: 20px; font-size: 1.05em;">
+                    <li><strong>Urgent</strong> - Reserved for urgent attention</li>
+                    <li><strong>Note</strong> - A pinned note for general information</li>
+                    <li><strong>Outreach</strong> - Sourced from the Outreach Column</li>
+                    <li><strong>Quote</strong> - Contains quoted text</li>
+                </ul>
+                <h3 style="margin: 20px 0 10px 0; color: var(--primary-color); font-size: 1.1em;">Special Tags:</h3>
+                <p style="line-height: 1.8; margin-top: 10px;">
+                    Three tags have special functionality: <strong>LDA</strong>, <strong>DNC</strong>, and <strong>Contacted</strong>. These tags trigger specific automations and visual indicators in the system.
+                </p>
+            </div>
+        `,
+        showSkip: true,
+        showPrevious: true,
+        showNext: true,
+        nextLabel: 'Next'
+    },
+    {
+        id: 'tags-part2',
+        header: 'Tags (Part 2): Special Tags',
+        body: `
+            <div class="tutorial-content">
+                <h3 style="margin: 0 0 15px 0; color: var(--primary-color); font-size: 1.1em;">LDA Tag</h3>
+                <p style="line-height: 1.8; font-size: 1.05em;">
+                    Used as a follow-up tag. If a student says they will submit on the weekend, you can add an LDA tag for Saturday. When the LDA sheet for that day is created, you'll see a <strong>special indication highlighting their planned submission date</strong>. This helps you better keep track of when students are submitting.
+                </p>
+                <h3 style="margin: 20px 0 15px 0; color: var(--primary-color); font-size: 1.1em;">DNC (Do Not Contact)</h3>
+                <p style="line-height: 1.8; font-size: 1.05em;">
+                    If a student wishes to stop communication, insert this tag. The student will be <strong>crossed out on the LDA sheet</strong> and filtered out when sending emails. Subtags include DNC - Phone, DNC - Other Phone, and DNC - Email for specific contact preferences.
+                </p>
+                <h3 style="margin: 20px 0 15px 0; color: var(--primary-color); font-size: 1.1em;">Contacted</h3>
+                <p style="line-height: 1.8; font-size: 1.05em;">
+                    Shows if the student has been contacted that day. Special keywords in the Outreach column (like "will engage," "answered," "will submit," "come to class") will trigger this tag and <strong>auto-highlight the row in yellow</strong> to indicate contact was made.
+                </p>
             </div>
         `,
         showSkip: true,
