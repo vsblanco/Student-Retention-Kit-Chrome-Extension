@@ -553,6 +553,11 @@ input:focus, textarea:focus, select:focus {
     align-items: center;
 }
 
+#clearMasterListBtn:hover {
+    background: rgba(239, 68, 68, 0.15);
+    transition: background 0.2s ease;
+}
+
 .modal-overlay {
     position: absolute;
     top: 0; left: 0; right: 0; bottom: 0;
