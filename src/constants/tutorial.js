@@ -151,23 +151,33 @@ export const TUTORIAL_PAGES = [
         nextLabel: 'Next'
     },
     {
-        id: 'tags-part1',
-        header: 'Tags (Part 1)',
+        id: 'tags',
+        header: 'Tags',
         body: `
             <div class="tutorial-content">
-                <p style="line-height: 1.8; font-size: 1.05em;">
+                <p style="line-height: 1.8; font-size: 1.05em; margin-bottom: 20px;">
                     Tags help you categorize and organize student interactions. Here are the available tags:
                 </p>
-                <h3 style="margin: 20px 0 10px 0; color: var(--primary-color); font-size: 1.1em;">General Tags:</h3>
-                <ul style="line-height: 2; margin-left: 20px; font-size: 1.05em;">
-                    <li><strong>Urgent</strong> - Reserved for urgent attention</li>
-                    <li><strong>Note</strong> - A pinned note for general information</li>
-                    <li><strong>Outreach</strong> - Sourced from the Outreach Column</li>
-                    <li><strong>Quote</strong> - Contains quoted text</li>
-                </ul>
-                <h3 style="margin: 20px 0 10px 0; color: var(--primary-color); font-size: 1.1em;">Special Tags:</h3>
-                <p style="line-height: 1.8; margin-top: 10px;">
-                    Three tags have special functionality: <strong>LDA</strong>, <strong>DNC</strong>, and <strong>Contacted</strong>. These tags trigger specific automations and visual indicators in the system.
+                <div style="line-height: 2.5; font-size: 1.05em;">
+                    <div style="margin-bottom: 15px;">
+                        <span style="display: inline-block; padding: 4px 12px; font-weight: 600; border-radius: 9999px; background-color: #fee2e2; color: #991b1b; margin-right: 10px;">Urgent</span>
+                        <span>Reserved for urgent attention</span>
+                    </div>
+                    <div style="margin-bottom: 15px;">
+                        <span style="display: inline-block; padding: 4px 12px; font-weight: 600; border-radius: 9999px; background-color: #374151; color: #e5e7eb; margin-right: 10px;">Note</span>
+                        <span>A pinned note for general information</span>
+                    </div>
+                    <div style="margin-bottom: 15px;">
+                        <span style="display: inline-block; padding: 4px 12px; font-weight: 600; border-radius: 9999px; background-color: #e5e7eb; color: #1f2937; margin-right: 10px;">Outreach</span>
+                        <span>Sourced from the Outreach Column</span>
+                    </div>
+                    <div style="margin-bottom: 15px;">
+                        <span style="display: inline-block; padding: 4px 12px; font-weight: 600; border-radius: 9999px; background-color: #eff6ff; color: #1e40af; margin-right: 10px;">Quote</span>
+                        <span>Contains quoted text</span>
+                    </div>
+                </div>
+                <p style="line-height: 1.8; margin-top: 25px; font-size: 1.05em;">
+                    Three tags have special functionality: <span style="display: inline-block; padding: 4px 12px; font-weight: 600; border-radius: 9999px; background-color: #fed7aa; color: #9a3412;">LDA</span>, <span style="display: inline-block; padding: 4px 12px; font-weight: 600; border-radius: 9999px; background-color: #fecaca; color: #000000;">DNC</span>, and <span style="display: inline-block; padding: 4px 12px; font-weight: 600; border-radius: 9999px; background-color: #fef08a; color: #854d0e;">Contacted</span>. These tags trigger specific automations and visual indicators in the system.
                 </p>
             </div>
         `,
@@ -177,22 +187,35 @@ export const TUTORIAL_PAGES = [
         nextLabel: 'Next'
     },
     {
-        id: 'tags-part2',
-        header: 'Tags (Part 2): Special Tags',
+        id: 'special-tags',
+        header: 'Special Tags',
         body: `
             <div class="tutorial-content">
-                <h3 style="margin: 0 0 15px 0; color: var(--primary-color); font-size: 1.1em;">LDA Tag</h3>
-                <p style="line-height: 1.8; font-size: 1.05em;">
-                    Used as a follow-up tag. If a student says they will submit on the weekend, you can add an LDA tag for Saturday. When the LDA sheet for that day is created, you'll see a <strong>special indication highlighting their planned submission date</strong>. This helps you better keep track of when students are submitting.
-                </p>
-                <h3 style="margin: 20px 0 15px 0; color: var(--primary-color); font-size: 1.1em;">DNC (Do Not Contact)</h3>
-                <p style="line-height: 1.8; font-size: 1.05em;">
-                    If a student wishes to stop communication, insert this tag. The student will be <strong>crossed out on the LDA sheet</strong> and filtered out when sending emails. Subtags include DNC - Phone, DNC - Other Phone, and DNC - Email for specific contact preferences.
-                </p>
-                <h3 style="margin: 20px 0 15px 0; color: var(--primary-color); font-size: 1.1em;">Contacted</h3>
-                <p style="line-height: 1.8; font-size: 1.05em;">
-                    Shows if the student has been contacted that day. Special keywords in the Outreach column (like "will engage," "answered," "will submit," "come to class") will trigger this tag and <strong>auto-highlight the row in yellow</strong> to indicate contact was made.
-                </p>
+                <div style="margin-bottom: 25px;">
+                    <h3 style="margin: 0 0 10px 0; color: var(--primary-color); font-size: 1.1em;">
+                        <span style="display: inline-block; padding: 4px 12px; font-weight: 600; border-radius: 9999px; background-color: #fed7aa; color: #9a3412; margin-right: 8px;">LDA</span>
+                    </h3>
+                    <p style="line-height: 1.8; font-size: 1.05em;">
+                        Used as a follow-up tag. If a student says they will submit on the weekend, you can add an LDA tag for Saturday. When the LDA sheet for that day is created, you'll see a <strong>special indication highlighting their planned submission date</strong>. This helps you better keep track of when students are submitting.
+                    </p>
+                </div>
+                <div style="margin-bottom: 25px;">
+                    <h3 style="margin: 0 0 10px 0; color: var(--primary-color); font-size: 1.1em;">
+                        <span style="display: inline-block; padding: 4px 12px; font-weight: 600; border-radius: 9999px; background-color: #fecaca; color: #000000; margin-right: 8px;">DNC</span>
+                        (Do Not Contact)
+                    </h3>
+                    <p style="line-height: 1.8; font-size: 1.05em;">
+                        If a student wishes to stop communication, insert this tag. The student will be <strong>crossed out on the LDA sheet</strong> and filtered out when sending emails. Subtags include <span style="display: inline-block; padding: 2px 8px; font-weight: 600; border-radius: 9999px; background-color: #fecaca; color: #000000; font-size: 0.9em;">DNC - Phone</span>, <span style="display: inline-block; padding: 2px 8px; font-weight: 600; border-radius: 9999px; background-color: #fecaca; color: #000000; font-size: 0.9em;">DNC - Other Phone</span>, and <span style="display: inline-block; padding: 2px 8px; font-weight: 600; border-radius: 9999px; background-color: #fecaca; color: #000000; font-size: 0.9em;">DNC - Email</span> for specific contact preferences.
+                    </p>
+                </div>
+                <div>
+                    <h3 style="margin: 0 0 10px 0; color: var(--primary-color); font-size: 1.1em;">
+                        <span style="display: inline-block; padding: 4px 12px; font-weight: 600; border-radius: 9999px; background-color: #fef08a; color: #854d0e; margin-right: 8px;">Contacted</span>
+                    </h3>
+                    <p style="line-height: 1.8; font-size: 1.05em;">
+                        Shows if the student has been contacted that day. Special keywords in the Outreach column (like "will engage," "answered," "will submit," "come to class") will trigger this tag and <strong>auto-highlight the row in yellow</strong> to indicate contact was made.
+                    </p>
+                </div>
             </div>
         `,
         showSkip: true,
