@@ -262,6 +262,20 @@ if (window.hasSRKConnectorRun) {
           console.log("%c SRK Connector: Office User Info Received!", "color: cyan; font-weight: bold");
           handleOfficeUserInfo(event.data.data);
       }
+
+      // Handle Sheet List Response from Excel Add-in
+      else if (event.data.type === "SRK_SHEET_LIST_RESPONSE") {
+          console.log("%c SRK Connector: Sheet List Response Received!", "color: green; font-weight: bold");
+          console.log("   Sheets:", event.data.sheets);
+
+          // Forward sheet list to extension
+          chrome.runtime.sendMessage({
+              type: "SRK_SHEET_LIST_RESPONSE",
+              sheets: event.data.sheets
+          }).catch(() => {
+              // Extension might not be ready, that's ok
+          });
+      }
   });
 
   /**

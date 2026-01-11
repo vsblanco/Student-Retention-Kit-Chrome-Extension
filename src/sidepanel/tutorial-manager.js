@@ -237,7 +237,7 @@ class TutorialManager {
             this.setupSheetCreationButtons();
 
             // Send ping to ensure connection is active before requesting sheet list
-            await sendConnectionPing();
+            sendConnectionPing();
 
             // Request sheet list after a brief delay to allow ping to establish connection
             setTimeout(() => {

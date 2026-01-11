@@ -281,6 +281,31 @@ chrome.runtime.onMessage.addListener(async (msg, sender, sendResponse) => {
       })();
   }
 
+  // --- PING EXCEL ADD-IN ---
+  else if (msg.type === MESSAGE_TYPES.SRK_PING) {
+      console.log('%c [Background] Forwarding SRK_PING to Excel', 'background: #FF9800; color: white; font-weight: bold; padding: 2px 4px;');
+
+      // Forward the payload to all Excel tabs
+      (async () => {
+          try {
+              const tabs = await chrome.tabs.query({ url: TARGET_URL_PATTERNS });
+              for (const tab of tabs) {
+                  try {
+                      await chrome.tabs.sendMessage(tab.id, {
+                          action: 'postToPage',
+                          message: msg.payload
+                      });
+                      console.log(`[SRK] Sent SRK_PING to tab ${tab.id}`);
+                  } catch (err) {
+                      console.warn(`[SRK] Failed to send SRK_PING to tab ${tab.id}:`, err.message);
+                  }
+              }
+          } catch (err) {
+              console.error('[SRK] Failed to query Excel tabs:', err);
+          }
+      })();
+  }
+
   // --- CREATE SHEET IN EXCEL ---
   else if (msg.type === MESSAGE_TYPES.SRK_CREATE_SHEET) {
       console.log('%c [Background] Forwarding Create Sheet Request to Excel', 'background: #4CAF50; color: white; font-weight: bold; padding: 2px 4px;');
@@ -329,6 +354,20 @@ chrome.runtime.onMessage.addListener(async (msg, sender, sendResponse) => {
               console.error('[SRK] Failed to query Excel tabs:', err);
           }
       })();
+  }
+
+  // --- SHEET LIST RESPONSE FROM EXCEL ---
+  else if (msg.type === MESSAGE_TYPES.SRK_SHEET_LIST_RESPONSE) {
+      console.log('%c [Background] Sheet List Response Received from Excel', 'background: #9C27B0; color: white; font-weight: bold; padding: 2px 4px;');
+      console.log('   Sheets:', msg.sheets);
+
+      // Forward to sidepanel
+      chrome.runtime.sendMessage({
+          type: MESSAGE_TYPES.SRK_SHEET_LIST_RESPONSE,
+          sheets: msg.sheets
+      }).catch(() => {
+          // Sidepanel might not be open, that's ok
+      });
   }
 
   // --- FIVE9 INTEGRATION ---
