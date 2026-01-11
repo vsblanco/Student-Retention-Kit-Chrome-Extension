@@ -308,9 +308,24 @@ export const TUTORIAL_PAGES = [
         header: 'Creating the LDA Sheet',
         body: `
             <div class="tutorial-content">
-                <p style="line-height: 1.8; font-size: 1.05em;">
+                <p style="line-height: 1.8; font-size: 1.05em; margin-bottom: 20px;">
                     You can create the LDA sheet by clicking on the <strong>Create LDA</strong> button on the ribbon.
                 </p>
+                <h3 style="margin: 20px 0 15px 0; color: var(--primary-color); font-size: 1.1em;">Customizable Settings:</h3>
+                <div style="line-height: 2; font-size: 1.05em;">
+                    <div style="margin-bottom: 12px;">
+                        <strong>Days Out Filter</strong> - Choose how many days out to include students who haven't submitted
+                    </div>
+                    <div style="margin-bottom: 12px;">
+                        <strong>Include Failing List</strong> - Optionally add students who are currently failing to the LDA sheet
+                    </div>
+                    <div style="margin-bottom: 12px;">
+                        <strong>Include LDA Tag Indicators</strong> - Display <span style="display: inline-block; padding: 0.5px 6px; font-weight: 600; border-radius: 9999px; background-color: #fed7aa; color: #9a3412; font-size: 0.95em;">LDA</span> tag markers showing students' planned submission dates
+                    </div>
+                    <div style="margin-bottom: 12px;">
+                        <strong>Include DNC Tag Indicators</strong> - Show <span style="display: inline-block; padding: 0.5px 6px; font-weight: 600; border-radius: 9999px; background-color: #fecaca; color: #000000; font-size: 0.95em;">DNC</span> tag markers to identify students who requested no contact
+                    </div>
+                </div>
             </div>
         `,
         showSkip: true,
