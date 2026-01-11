@@ -270,30 +270,27 @@ class TutorialManager {
      * @param {Object} page - The current page object
      */
     updateButtonVisibility(page) {
-        // Skip button
-        if (this.elements.tutorialSkipBtn) {
-            this.elements.tutorialSkipBtn.style.display = page.showSkip ? 'block' : 'none';
-        }
+        // All buttons are always visible
 
-        // Previous button
+        // Previous button - disable on first page, enable otherwise
         if (this.elements.tutorialPrevBtn) {
-            this.elements.tutorialPrevBtn.style.display = page.showPrevious ? 'flex' : 'none';
+            const isFirstPage = this.currentPageIndex === 0;
+            this.elements.tutorialPrevBtn.disabled = isFirstPage;
         }
 
-        // Next button
+        // Next button - update label based on whether it's the last page
         if (this.elements.tutorialNextBtn) {
-            this.elements.tutorialNextBtn.style.display = page.showNext ? 'flex' : 'none';
-
-            // Update next button label
-            const label = page.nextLabel || 'Next';
             const isLastPage = this.currentPageIndex === this.pages.length - 1;
 
             if (isLastPage) {
                 this.elements.tutorialNextBtn.innerHTML = `Finish <i class="fas fa-check"></i>`;
             } else {
+                const label = page.nextLabel || 'Next';
                 this.elements.tutorialNextBtn.innerHTML = `${label} <i class="fas fa-arrow-right"></i>`;
             }
         }
+
+        // Skip button is always visible and enabled
     }
 
     /**

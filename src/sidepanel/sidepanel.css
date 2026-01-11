@@ -993,15 +993,9 @@ input:focus, textarea:focus, select:focus {
     display: flex;
     gap: 10px;
     align-items: center;
-    justify-content: space-between;
+    justify-content: center;
     padding-top: 15px;
     border-top: 1px solid rgba(0, 0, 0, 0.1);
-}
-
-.tutorial-nav-right {
-    display: flex;
-    gap: 10px;
-    align-items: center;
 }
 
 .tutorial-navigation button {
@@ -1012,6 +1006,8 @@ input:focus, textarea:focus, select:focus {
     white-space: nowrap;
     padding: 10px 20px;
     height: 40px;
+    flex: 1;
+    max-width: 180px;
 }
 
 #tutorialNextBtn,
@@ -1019,6 +1015,13 @@ input:focus, textarea:focus, select:focus {
 #tutorialSkipBtn {
     min-width: auto;
     width: auto;
+}
+
+/* Disabled state for Previous button */
+#tutorialPrevBtn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    pointer-events: none;
 }
 
 /* Greyed Out Tabs (During Tutorial) */
