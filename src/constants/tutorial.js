@@ -275,93 +275,10 @@ export const TUTORIAL_PAGES = [
                 <p style="margin-top: 20px; line-height: 1.8;">
                     You will see what parameters you can choose from to help personalize your emails. You can also create your own parameters for further customization.
                 </p>
-                <p style="margin-top: 20px; line-height: 1.8;">
-                    Alternatively, if you have a <strong>Power Automate Premium</strong> license, you can configure an HTTP request to create more advanced automations.
-                </p>
                 <h3 style="margin: 25px 0 15px 0; color: var(--primary-color); font-size: 1.1em;">Example Email Template:</h3>
                 <div style="display: flex; gap: 10px; margin-bottom: 15px;">
-                    <button id="previewBtn1" onclick="
-                        const templateBox = this.parentElement.nextElementSibling;
-                        const btn1 = this;
-                        const btn2 = this.nextElementSibling;
-                        const isActive = btn1.dataset.active === 'true';
-
-                        if (isActive) {
-                            // Show template
-                            templateBox.innerHTML = \`
-                                <p style='margin: 0 0 10px 0;'>Hi <span style='background-color: #fef3c7; padding: 2px 4px; border-radius: 3px; font-weight: 500;'>{First}</span>,</p>
-                                <p style='margin: 0 0 10px 0;'>I hope your week is going well!</p>
-                                <p style='margin: 0 0 10px 0;'>I was looking over your Canvas course today and noticed it has been <span style='background-color: #fef3c7; padding: 2px 4px; border-radius: 3px; font-weight: 500;'>{DaysOut}</span> days since you last engaged. You currently have a <span style='background-color: #fef3c7; padding: 2px 4px; border-radius: 3px; font-weight: 500;'>{Grade}</span> in the class, and I want to make sure we keep that momentum going so you can successfully complete the course on time.</p>
-                                <p style='margin: 0 0 10px 0;'>I saw that the last assignment you submitted was <span style='background-color: #fef3c7; padding: 2px 4px; border-radius: 3px; font-weight: 500;'>{LastAssignment}</span>. Would you be open to a quick call today? I'd love to discuss a game plan to help you tackle the upcoming workload and ensure you feel supported. Reminder that your next assignment is due on <span style='background-color: #fef3c7; padding: 2px 4px; border-radius: 3px; font-weight: 500;'>{NextAssignmentDue}</span>.</p>
-                                <p style='margin: 0 0 10px 0;'>Best regards,</p>
-                                <p style='margin: 0;'><span style='background-color: #fef3c7; padding: 2px 4px; border-radius: 3px; font-weight: 500;'>{AssignedName}</span></p>
-                            \`;
-                            templateBox.style.fontFamily = 'monospace';
-                            templateBox.style.color = '#374151';
-                            btn1.style.background = 'rgba(0,0,0,0.06)';
-                            btn1.style.color = 'inherit';
-                            btn1.dataset.active = 'false';
-                        } else {
-                            // Show preview 1
-                            templateBox.innerHTML = \`
-                                <p style='margin: 0 0 10px 0;'>Hi <strong>Sarah</strong>,</p>
-                                <p style='margin: 0 0 10px 0;'>I hope your week is going well!</p>
-                                <p style='margin: 0 0 10px 0;'>I was looking over your Canvas course today and noticed it has been <strong>7</strong> days since you last engaged. You currently have a <strong>78%</strong> in the class, and I want to make sure we keep that momentum going so you can successfully complete the course on time.</p>
-                                <p style='margin: 0 0 10px 0;'>I saw that the last assignment you submitted was <strong>Discussion Post 1.0</strong>. Would you be open to a quick call today? I'd love to discuss a game plan to help you tackle the upcoming workload and ensure you feel supported. Reminder that your next assignment is due on <strong>January 18, 2026</strong>.</p>
-                                <p style='margin: 0 0 10px 0;'>Best regards,</p>
-                                <p style='margin: 0;'><strong>Advisor 1</strong></p>
-                            \`;
-                            templateBox.style.fontFamily = 'inherit';
-                            templateBox.style.color = 'inherit';
-                            btn1.style.background = 'var(--primary-color)';
-                            btn1.style.color = 'white';
-                            btn1.dataset.active = 'true';
-                            btn2.style.background = 'rgba(0,0,0,0.06)';
-                            btn2.style.color = 'inherit';
-                            btn2.dataset.active = 'false';
-                        }
-                    " data-active="false" style="flex: 1; padding: 8px 12px; background: rgba(0,0,0,0.06); color: inherit; border: none; border-radius: 0.5rem; cursor: pointer; font-size: 0.9em; font-weight: 500;">Preview 1</button>
-                    <button id="previewBtn2" onclick="
-                        const templateBox = this.parentElement.nextElementSibling;
-                        const btn2 = this;
-                        const btn1 = this.previousElementSibling;
-                        const isActive = btn2.dataset.active === 'true';
-
-                        if (isActive) {
-                            // Show template
-                            templateBox.innerHTML = \`
-                                <p style='margin: 0 0 10px 0;'>Hi <span style='background-color: #fef3c7; padding: 2px 4px; border-radius: 3px; font-weight: 500;'>{First}</span>,</p>
-                                <p style='margin: 0 0 10px 0;'>I hope your week is going well!</p>
-                                <p style='margin: 0 0 10px 0;'>I was looking over your Canvas course today and noticed it has been <span style='background-color: #fef3c7; padding: 2px 4px; border-radius: 3px; font-weight: 500;'>{DaysOut}</span> days since you last engaged. You currently have a <span style='background-color: #fef3c7; padding: 2px 4px; border-radius: 3px; font-weight: 500;'>{Grade}</span> in the class, and I want to make sure we keep that momentum going so you can successfully complete the course on time.</p>
-                                <p style='margin: 0 0 10px 0;'>I saw that the last assignment you submitted was <span style='background-color: #fef3c7; padding: 2px 4px; border-radius: 3px; font-weight: 500;'>{LastAssignment}</span>. Would you be open to a quick call today? I'd love to discuss a game plan to help you tackle the upcoming workload and ensure you feel supported. Reminder that your next assignment is due on <span style='background-color: #fef3c7; padding: 2px 4px; border-radius: 3px; font-weight: 500;'>{NextAssignmentDue}</span>.</p>
-                                <p style='margin: 0 0 10px 0;'>Best regards,</p>
-                                <p style='margin: 0;'><span style='background-color: #fef3c7; padding: 2px 4px; border-radius: 3px; font-weight: 500;'>{AssignedName}</span></p>
-                            \`;
-                            templateBox.style.fontFamily = 'monospace';
-                            templateBox.style.color = '#374151';
-                            btn2.style.background = 'rgba(0,0,0,0.06)';
-                            btn2.style.color = 'inherit';
-                            btn2.dataset.active = 'false';
-                        } else {
-                            // Show preview 2
-                            templateBox.innerHTML = \`
-                                <p style='margin: 0 0 10px 0;'>Hi <strong>Marcus</strong>,</p>
-                                <p style='margin: 0 0 10px 0;'>I hope your week is going well!</p>
-                                <p style='margin: 0 0 10px 0;'>I was looking over your Canvas course today and noticed it has been <strong>12</strong> days since you last engaged. You currently have a <strong>62%</strong> in the class, and I want to make sure we keep that momentum going so you can successfully complete the course on time.</p>
-                                <p style='margin: 0 0 10px 0;'>I saw that the last assignment you submitted was <strong>Week 3 Quiz</strong>. Would you be open to a quick call today? I'd love to discuss a game plan to help you tackle the upcoming workload and ensure you feel supported. Reminder that your next assignment is due on <strong>January 15, 2026</strong>.</p>
-                                <p style='margin: 0 0 10px 0;'>Best regards,</p>
-                                <p style='margin: 0;'><strong>Advisor 2</strong></p>
-                            \`;
-                            templateBox.style.fontFamily = 'inherit';
-                            templateBox.style.color = 'inherit';
-                            btn2.style.background = 'var(--primary-color)';
-                            btn2.style.color = 'white';
-                            btn2.dataset.active = 'true';
-                            btn1.style.background = 'rgba(0,0,0,0.06)';
-                            btn1.style.color = 'inherit';
-                            btn1.dataset.active = 'false';
-                        }
-                    " data-active="false" style="flex: 1; padding: 8px 12px; background: rgba(0,0,0,0.06); color: inherit; border: none; border-radius: 0.5rem; cursor: pointer; font-size: 0.9em; font-weight: 500;">Preview 2</button>
+                    <button id="previewBtn1" onclick="(function(btn){var box=btn.parentElement.nextElementSibling;var btn2=btn.nextElementSibling;var active=btn.getAttribute('data-active')==='true';if(active){box.innerHTML='<p style=&quot;margin:0 0 10px 0&quot;>Hi <span style=&quot;background-color:#fef3c7;padding:2px 4px;border-radius:3px;font-weight:500&quot;>{First}</span>,</p><p style=&quot;margin:0 0 10px 0&quot;>I hope your week is going well!</p><p style=&quot;margin:0 0 10px 0&quot;>I was looking over your Canvas course today and noticed it has been <span style=&quot;background-color:#fef3c7;padding:2px 4px;border-radius:3px;font-weight:500&quot;>{DaysOut}</span> days since you last engaged. You currently have a <span style=&quot;background-color:#fef3c7;padding:2px 4px;border-radius:3px;font-weight:500&quot;>{Grade}</span> in the class, and I want to make sure we keep that momentum going so you can successfully complete the course on time.</p><p style=&quot;margin:0 0 10px 0&quot;>I saw that the last assignment you submitted was <span style=&quot;background-color:#fef3c7;padding:2px 4px;border-radius:3px;font-weight:500&quot;>{LastAssignment}</span>. Would you be open to a quick call today? I\\'d love to discuss a game plan to help you tackle the upcoming workload and ensure you feel supported. Reminder that your next assignment is due on <span style=&quot;background-color:#fef3c7;padding:2px 4px;border-radius:3px;font-weight:500&quot;>{NextAssignmentDue}</span>.</p><p style=&quot;margin:0 0 10px 0&quot;>Best regards,</p><p style=&quot;margin:0&quot;><span style=&quot;background-color:#fef3c7;padding:2px 4px;border-radius:3px;font-weight:500&quot;>{AssignedName}</span></p>';box.style.fontFamily='monospace';box.style.color='#374151';btn.style.background='rgba(0,0,0,0.06)';btn.style.color='inherit';btn.setAttribute('data-active','false')}else{box.innerHTML='<p style=&quot;margin:0 0 10px 0&quot;>Hi <strong>Sarah</strong>,</p><p style=&quot;margin:0 0 10px 0&quot;>I hope your week is going well!</p><p style=&quot;margin:0 0 10px 0&quot;>I was looking over your Canvas course today and noticed it has been <strong>7</strong> days since you last engaged. You currently have a <strong>78%</strong> in the class, and I want to make sure we keep that momentum going so you can successfully complete the course on time.</p><p style=&quot;margin:0 0 10px 0&quot;>I saw that the last assignment you submitted was <strong>Discussion Post 1.0</strong>. Would you be open to a quick call today? I\\'d love to discuss a game plan to help you tackle the upcoming workload and ensure you feel supported. Reminder that your next assignment is due on <strong>January 18, 2026</strong>.</p><p style=&quot;margin:0 0 10px 0&quot;>Best regards,</p><p style=&quot;margin:0&quot;><strong>Advisor 1</strong></p>';box.style.fontFamily='inherit';box.style.color='inherit';btn.style.background='var(--primary-color)';btn.style.color='white';btn.setAttribute('data-active','true');btn2.style.background='rgba(0,0,0,0.06)';btn2.style.color='inherit';btn2.setAttribute('data-active','false')}})(this)" data-active="false" style="flex: 1; padding: 8px 12px; background: rgba(0,0,0,0.06); color: inherit; border: none; border-radius: 0.5rem; cursor: pointer; font-size: 0.9em; font-weight: 500;">Preview 1</button>
+                    <button id="previewBtn2" onclick="(function(btn){var box=btn.parentElement.nextElementSibling;var btn1=btn.previousElementSibling;var active=btn.getAttribute('data-active')==='true';if(active){box.innerHTML='<p style=&quot;margin:0 0 10px 0&quot;>Hi <span style=&quot;background-color:#fef3c7;padding:2px 4px;border-radius:3px;font-weight:500&quot;>{First}</span>,</p><p style=&quot;margin:0 0 10px 0&quot;>I hope your week is going well!</p><p style=&quot;margin:0 0 10px 0&quot;>I was looking over your Canvas course today and noticed it has been <span style=&quot;background-color:#fef3c7;padding:2px 4px;border-radius:3px;font-weight:500&quot;>{DaysOut}</span> days since you last engaged. You currently have a <span style=&quot;background-color:#fef3c7;padding:2px 4px;border-radius:3px;font-weight:500&quot;>{Grade}</span> in the class, and I want to make sure we keep that momentum going so you can successfully complete the course on time.</p><p style=&quot;margin:0 0 10px 0&quot;>I saw that the last assignment you submitted was <span style=&quot;background-color:#fef3c7;padding:2px 4px;border-radius:3px;font-weight:500&quot;>{LastAssignment}</span>. Would you be open to a quick call today? I\\'d love to discuss a game plan to help you tackle the upcoming workload and ensure you feel supported. Reminder that your next assignment is due on <span style=&quot;background-color:#fef3c7;padding:2px 4px;border-radius:3px;font-weight:500&quot;>{NextAssignmentDue}</span>.</p><p style=&quot;margin:0 0 10px 0&quot;>Best regards,</p><p style=&quot;margin:0&quot;><span style=&quot;background-color:#fef3c7;padding:2px 4px;border-radius:3px;font-weight:500&quot;>{AssignedName}</span></p>';box.style.fontFamily='monospace';box.style.color='#374151';btn.style.background='rgba(0,0,0,0.06)';btn.style.color='inherit';btn.setAttribute('data-active','false')}else{box.innerHTML='<p style=&quot;margin:0 0 10px 0&quot;>Hi <strong>Marcus</strong>,</p><p style=&quot;margin:0 0 10px 0&quot;>I hope your week is going well!</p><p style=&quot;margin:0 0 10px 0&quot;>I was looking over your Canvas course today and noticed it has been <strong>12</strong> days since you last engaged. You currently have a <strong>62%</strong> in the class, and I want to make sure we keep that momentum going so you can successfully complete the course on time.</p><p style=&quot;margin:0 0 10px 0&quot;>I saw that the last assignment you submitted was <strong>Week 3 Quiz</strong>. Would you be open to a quick call today? I\\'d love to discuss a game plan to help you tackle the upcoming workload and ensure you feel supported. Reminder that your next assignment is due on <strong>January 15, 2026</strong>.</p><p style=&quot;margin:0 0 10px 0&quot;>Best regards,</p><p style=&quot;margin:0&quot;><strong>Advisor 2</strong></p>';box.style.fontFamily='inherit';box.style.color='inherit';btn.style.background='var(--primary-color)';btn.style.color='white';btn.setAttribute('data-active','true');btn1.style.background='rgba(0,0,0,0.06)';btn1.style.color='inherit';btn1.setAttribute('data-active','false')}})(this)" data-active="false" style="flex: 1; padding: 8px 12px; background: rgba(0,0,0,0.06); color: inherit; border: none; border-radius: 0.5rem; cursor: pointer; font-size: 0.9em; font-weight: 500;">Preview 2</button>
                 </div>
                 <div id="emailTemplateBox" style="background: rgba(255, 255, 255, 0.4); border: 1px solid rgba(0, 0, 0, 0.05); border-radius: 0.75rem; padding: 15px; font-size: 0.95em; line-height: 1.8; font-family: monospace; color: #374151;">
                     <p style="margin: 0 0 10px 0;">Hi <span style="background-color: #fef3c7; padding: 2px 4px; border-radius: 3px; font-weight: 500;">{First}</span>,</p>
