@@ -429,8 +429,23 @@ export const TUTORIAL_PAGES = [
                 <p style="margin-top: 20px; line-height: 1.8;">
                     This process helps you efficiently reach out to all your students in a timely manner.
                 </p>
-                <p style="margin-top: 30px; text-align: center;">
-                    <strong>You're all set! Click "Finish" to start using the extension.</strong>
+            </div>
+        `,
+        showSkip: false,
+        showPrevious: true,
+        showNext: true,
+        nextLabel: 'Next'
+    },
+    {
+        id: 'thats-it',
+        header: 'That\'s it!',
+        body: `
+            <div class="tutorial-content" style="text-align: center;">
+                <p style="font-size: 1.1em; line-height: 1.8; margin: 20px 0;">
+                    Now you have a better grasp of how the Student Retention Kit works. Keep in mind this is a proof of concept and should not be considered full production. Expect tons of bugs. However, this application aims to drastically improve the efficiency of your work.
+                </p>
+                <p style="font-size: 1.2em; font-weight: 500; margin-top: 40px; color: var(--primary-color);">
+                    Enjoy!
                 </p>
             </div>
         `,
