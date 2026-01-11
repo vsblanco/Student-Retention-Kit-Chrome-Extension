@@ -100,6 +100,127 @@ export const TUTORIAL_PAGES = [
                 <p style="margin-top: 20px; line-height: 1.8;">
                     You can update your Master List by clicking the <strong>Update Master List</strong> button in the Data tab. Then simply upload your student population report.
                 </p>
+            </div>
+        `,
+        showSkip: true,
+        showPrevious: true,
+        showNext: true,
+        nextLabel: 'Next'
+    },
+    {
+        id: 'student-history',
+        header: 'Student History',
+        body: `
+            <div class="tutorial-content">
+                <p style="line-height: 1.8; font-size: 1.05em;">
+                    This sheet maintains a record of student interactions and communications. New entries can be added through the Student View panel.
+                </p>
+                <p style="margin-top: 20px; line-height: 1.8;">
+                    There are two methods for making a comment:
+                </p>
+                <ul style="line-height: 2; margin-left: 20px; margin-top: 10px; font-size: 1.05em;">
+                    <li>Manually create a comment from the Student View panel</li>
+                    <li>Type in the Outreach Column, which will automatically generate one</li>
+                </ul>
+            </div>
+        `,
+        showSkip: true,
+        showPrevious: true,
+        showNext: true,
+        nextLabel: 'Next'
+    },
+    {
+        id: 'missing-assignments',
+        header: 'Missing Assignments',
+        body: `
+            <div class="tutorial-content">
+                <p style="line-height: 1.8; font-size: 1.05em;">
+                    This sheet contains a list of students' missing assignments.
+                </p>
+                <p style="margin-top: 20px; line-height: 1.8;">
+                    The report is generated using the <strong>Student Retention Kit—Chrome Extension</strong>.
+                </p>
+            </div>
+        `,
+        showSkip: true,
+        showPrevious: true,
+        showNext: true,
+        nextLabel: 'Next'
+    },
+    {
+        id: 'importing-data',
+        header: 'Importing Data',
+        body: `
+            <div class="tutorial-content">
+                <p style="line-height: 1.8; font-size: 1.05em;">
+                    Importing Data is handled through the <strong>Student Retention Kit—Chrome Extension</strong>.
+                </p>
+                <p style="margin-top: 20px; line-height: 1.8;">
+                    All it needs is a student population report with either a <strong>SyStudentId</strong> or <strong>Student SIS</strong> column in it.
+                </p>
+                <p style="margin-top: 20px; line-height: 1.8;">
+                    It will automatically organize the data and create a canvas for their grade book information. The system will automatically import the data into the Master List sheet for your viewing pleasure.
+                </p>
+            </div>
+        `,
+        showSkip: true,
+        showPrevious: true,
+        showNext: true,
+        nextLabel: 'Next'
+    },
+    {
+        id: 'creating-lda',
+        header: 'Creating the LDA Sheet',
+        body: `
+            <div class="tutorial-content">
+                <p style="line-height: 1.8; font-size: 1.05em;">
+                    You can create the LDA sheet by clicking on the <strong>Create LDA</strong> button on the ribbon.
+                </p>
+            </div>
+        `,
+        showSkip: true,
+        showPrevious: true,
+        showNext: true,
+        nextLabel: 'Next'
+    },
+    {
+        id: 'personalized-emails',
+        header: 'Sending Personalized Emails',
+        body: `
+            <div class="tutorial-content">
+                <p style="line-height: 1.8; font-size: 1.05em;">
+                    You can automatically send personalized emails to each student by granting consent to send emails on your behalf.
+                </p>
+                <p style="margin-top: 20px; line-height: 1.8;">
+                    You will see what parameters you can choose from to help personalize your emails. You can also create your own parameters for further customization.
+                </p>
+                <p style="margin-top: 20px; line-height: 1.8;">
+                    Alternatively, if you have a <strong>Power Automate Premium</strong> license, you can configure an HTTP request to create more advanced automations.
+                </p>
+            </div>
+        `,
+        showSkip: true,
+        showPrevious: true,
+        showNext: true,
+        nextLabel: 'Next'
+    },
+    {
+        id: 'calling-via-five9',
+        header: 'Calling via Five9',
+        body: `
+            <div class="tutorial-content">
+                <p style="line-height: 1.8; font-size: 1.05em;">
+                    When you have a Five9 tab open and a student selected, you can call from the Student Retention Kit Side Panel.
+                </p>
+                <p style="margin-top: 20px; line-height: 1.8;">
+                    This feature acts as an assistant, allowing you to contact students more quickly without the need to copy and paste their phone numbers manually.
+                </p>
+                <p style="margin-top: 20px; line-height: 1.8;">
+                    Additionally, you can run a <strong>call sequence automation</strong> by selecting multiple students. When you initiate this automation, each time you finish a call, the system will automatically dial the next student in line.
+                </p>
+                <p style="margin-top: 20px; line-height: 1.8;">
+                    This process helps you efficiently reach out to all your students in a timely manner.
+                </p>
                 <p style="margin-top: 30px; text-align: center;">
                     <strong>You're all set! Click "Finish" to start using the extension.</strong>
                 </p>
