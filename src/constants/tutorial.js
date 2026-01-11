@@ -283,6 +283,40 @@ export const TUTORIAL_PAGES = [
         nextLabel: 'Next'
     },
     {
+        id: 'submission-checker',
+        header: 'Submission Checker',
+        body: `
+            <div class="tutorial-content">
+                <p style="line-height: 1.8; font-size: 1.05em; margin-bottom: 20px;">
+                    This tool automatically communicates with the Canvas API to track when a student submits an assignment. You will see their name, timestamp, and assignment title with a link to quickly view their submission when you click on their name.
+                </p>
+                <h3 style="margin: 20px 0 15px 0; color: var(--primary-color); font-size: 1.1em;">Example Submission:</h3>
+                <div style="background: rgba(255, 255, 255, 0.4); border: 1px solid rgba(0, 0, 0, 0.05); border-radius: 0.75rem; padding: 12px; margin-bottom: 20px;">
+                    <div style="display: flex; align-items: center; width:100%;">
+                        <div style="width: 6px; height: 32px; border-radius: 4px; margin-right: 12px; background-color: #10b981;"></div>
+                        <div style="flex-grow:1; display:flex; justify-content:space-between; align-items:center;">
+                            <div style="display:flex; flex-direction:column;">
+                                <span style="font-weight:500; color:var(--primary-color); cursor:pointer;">Doe, John</span>
+                                <span style="font-size:0.8em; color:var(--text-secondary);">Week 5 Assignment</span>
+                            </div>
+                            <span style="font-size: 0.8em; padding: 4px 10px; border-radius: 12px; background-color: rgba(0, 0, 0, 0.06); color: var(--text-secondary);">2:45 PM</span>
+                        </div>
+                    </div>
+                </div>
+                <p style="line-height: 1.8; font-size: 1.05em; margin-bottom: 15px;">
+                    If you have your Excel workbook open, it will automatically look for the student to highlight in green, indicating they submitted. It will also input in the outreach column: <strong>'Submitted {Assignment Title}'</strong>
+                </p>
+                <p style="line-height: 1.8; font-size: 1.05em;">
+                    You can filter which students you want to check based on their days out and grades.
+                </p>
+            </div>
+        `,
+        showSkip: true,
+        showPrevious: true,
+        showNext: true,
+        nextLabel: 'Next'
+    },
+    {
         id: 'importing-data',
         header: 'Importing Data',
         body: `
