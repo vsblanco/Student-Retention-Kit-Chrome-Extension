@@ -253,6 +253,11 @@ class TutorialManager {
                 this.requestSheetList();
             }, 100);
         }
+
+        // If we're on the Personalized Emails page, setup preview buttons
+        if (page.id === 'personalized-emails') {
+            this.setupEmailPreviewButtons();
+        }
     }
 
     /**
@@ -360,6 +365,87 @@ class TutorialManager {
 
                 if (sheetDefinition) {
                     this.sendCreateSheetMessage(sheetDefinition);
+                }
+            });
+        });
+    }
+
+    /**
+     * Set up event listeners for email preview buttons
+     */
+    setupEmailPreviewButtons() {
+        const previewButtons = document.querySelectorAll('.email-preview-btn');
+        const emailTemplateBox = document.getElementById('emailTemplateBox');
+
+        if (!emailTemplateBox) return;
+
+        // Template HTML with parameters
+        const templateHTML = `
+            <p style="margin: 0 0 10px 0;">Hi <span style="background-color: #fef3c7; padding: 2px 4px; border-radius: 3px; font-weight: 500;">{First}</span>,</p>
+            <p style="margin: 0 0 10px 0;">I hope your week is going well!</p>
+            <p style="margin: 0 0 10px 0;">I was looking over your Canvas course today and noticed it has been <span style="background-color: #fef3c7; padding: 2px 4px; border-radius: 3px; font-weight: 500;">{DaysOut}</span> days since you last engaged. You currently have a <span style="background-color: #fef3c7; padding: 2px 4px; border-radius: 3px; font-weight: 500;">{Grade}</span> in the class, and I want to make sure we keep that momentum going so you can successfully complete the course on time.</p>
+            <p style="margin: 0 0 10px 0;">I saw that the last assignment you submitted was <span style="background-color: #fef3c7; padding: 2px 4px; border-radius: 3px; font-weight: 500;">{LastAssignment}</span>. Would you be open to a quick call today? I'd love to discuss a game plan to help you tackle the upcoming workload and ensure you feel supported. Reminder that your next assignment is due on <span style="background-color: #fef3c7; padding: 2px 4px; border-radius: 3px; font-weight: 500;">{NextAssignmentDue}</span>.</p>
+            <p style="margin: 0 0 10px 0;">Best regards,</p>
+            <p style="margin: 0;"><span style="background-color: #fef3c7; padding: 2px 4px; border-radius: 3px; font-weight: 500;">{AssignedName}</span></p>
+        `;
+
+        // Preview data
+        const previews = {
+            preview1: `
+                <p style="margin: 0 0 10px 0;">Hi <strong>Sarah</strong>,</p>
+                <p style="margin: 0 0 10px 0;">I hope your week is going well!</p>
+                <p style="margin: 0 0 10px 0;">I was looking over your Canvas course today and noticed it has been <strong>7</strong> days since you last engaged. You currently have a <strong>78%</strong> in the class, and I want to make sure we keep that momentum going so you can successfully complete the course on time.</p>
+                <p style="margin: 0 0 10px 0;">I saw that the last assignment you submitted was <strong>Discussion Post 1.0</strong>. Would you be open to a quick call today? I'd love to discuss a game plan to help you tackle the upcoming workload and ensure you feel supported. Reminder that your next assignment is due on <strong>January 18, 2026</strong>.</p>
+                <p style="margin: 0 0 10px 0;">Best regards,</p>
+                <p style="margin: 0;"><strong>Advisor 1</strong></p>
+            `,
+            preview2: `
+                <p style="margin: 0 0 10px 0;">Hi <strong>Marcus</strong>,</p>
+                <p style="margin: 0 0 10px 0;">I hope your week is going well!</p>
+                <p style="margin: 0 0 10px 0;">I was looking over your Canvas course today and noticed it has been <strong>12</strong> days since you last engaged. You currently have a <strong>62%</strong> in the class, and I want to make sure we keep that momentum going so you can successfully complete the course on time.</p>
+                <p style="margin: 0 0 10px 0;">I saw that the last assignment you submitted was <strong>Week 3 Quiz</strong>. Would you be open to a quick call today? I'd love to discuss a game plan to help you tackle the upcoming workload and ensure you feel supported. Reminder that your next assignment is due on <strong>January 15, 2026</strong>.</p>
+                <p style="margin: 0 0 10px 0;">Best regards,</p>
+                <p style="margin: 0;"><strong>Advisor 2</strong></p>
+            `
+        };
+
+        previewButtons.forEach(button => {
+            // Clone and replace to remove any existing event listeners
+            const newButton = button.cloneNode(true);
+            button.parentNode.replaceChild(newButton, button);
+
+            // Add click event listener
+            newButton.addEventListener('click', (e) => {
+                e.preventDefault();
+
+                const previewType = newButton.dataset.preview;
+                const isActive = newButton.dataset.active === 'true';
+
+                if (isActive) {
+                    // Deactivate - show template
+                    emailTemplateBox.innerHTML = templateHTML;
+                    emailTemplateBox.style.fontFamily = 'monospace';
+                    emailTemplateBox.style.color = '#374151';
+                    newButton.style.background = 'rgba(0,0,0,0.06)';
+                    newButton.style.color = 'inherit';
+                    newButton.dataset.active = 'false';
+                } else {
+                    // Activate - show preview
+                    emailTemplateBox.innerHTML = previews[previewType];
+                    emailTemplateBox.style.fontFamily = 'inherit';
+                    emailTemplateBox.style.color = 'inherit';
+                    newButton.style.background = 'var(--primary-color)';
+                    newButton.style.color = 'white';
+                    newButton.dataset.active = 'true';
+
+                    // Deactivate other button
+                    previewButtons.forEach(otherBtn => {
+                        if (otherBtn !== newButton && otherBtn.dataset) {
+                            otherBtn.style.background = 'rgba(0,0,0,0.06)';
+                            otherBtn.style.color = 'inherit';
+                            otherBtn.dataset.active = 'false';
+                        }
+                    });
                 }
             });
         });
