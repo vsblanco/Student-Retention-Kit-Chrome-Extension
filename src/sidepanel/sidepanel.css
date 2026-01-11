@@ -991,18 +991,20 @@ input:focus, textarea:focus, select:focus {
 /* Tutorial Navigation */
 .tutorial-navigation {
     display: flex;
-    gap: 12px;
+    flex-direction: column;
+    gap: 15px;
     align-items: center;
-    justify-content: space-between;
+    justify-content: center;
     padding-top: 20px;
     margin-top: 20px;
     border-top: 1px solid rgba(0, 0, 0, 0.08);
 }
 
-.tutorial-nav-right {
+.tutorial-nav-buttons {
     display: flex;
     gap: 12px;
     align-items: center;
+    justify-content: center;
 }
 
 .tutorial-navigation button {
