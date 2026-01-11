@@ -277,7 +277,6 @@ input:focus, textarea:focus, select:focus {
     font-weight: 500;
     transition: background 0.2s;
     width: 100%;
-    margin-top: 10px;
 }
 
 .btn-primary:hover { background: var(--primary-hover); }
