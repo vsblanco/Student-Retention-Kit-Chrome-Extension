@@ -45,6 +45,7 @@ export const TUTORIAL_PAGES = [
                     <li>Sending personalized emails to students</li>
                     <li>Real-time student submission feedback</li>
                     <li>Student communication tracking</li>
+					<li>Calling Students via Five9</li>
                 </ul>
             </div>
         `,
@@ -97,7 +98,7 @@ export const TUTORIAL_PAGES = [
                     This sheet contains the complete student population of your campus. It serves as the target for your imports and the source for your LDA.
                 </p>
                 <p style="margin-top: 20px; line-height: 1.8;">
-                    You can update your Master List by clicking the <strong>"Update Master List"</strong> button in the Data tab.
+                    You can update your Master List by clicking the <strong>Update Master List</strong> button in the Data tab. Then simply upload your student population report.
                 </p>
                 <p style="margin-top: 30px; text-align: center;">
                     <strong>You're all set! Click "Finish" to start using the extension.</strong>
