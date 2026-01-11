@@ -258,6 +258,11 @@ class TutorialManager {
         if (page.id === 'personalized-emails') {
             this.setupEmailPreviewButtons();
         }
+
+        // If we're on the Missing Assignments page, setup preview buttons
+        if (page.id === 'missing-assignments') {
+            this.setupMissingAssignmentsPreviewButtons();
+        }
     }
 
     /**
@@ -443,6 +448,90 @@ class TutorialManager {
                     emailTemplateBox.innerHTML = previews[previewType];
                     emailTemplateBox.style.fontFamily = 'inherit';
                     emailTemplateBox.style.color = 'inherit';
+                    newButton.style.background = 'var(--primary-color)';
+                    newButton.style.color = 'white';
+                    newButton.dataset.active = 'true';
+                }
+            });
+        });
+    }
+
+    /**
+     * Set up event listeners for missing assignments preview buttons
+     */
+    setupMissingAssignmentsPreviewButtons() {
+        const previewButtons = document.querySelectorAll('.missing-preview-btn');
+        const missingTemplateBox = document.getElementById('missingTemplateBox');
+
+        if (!missingTemplateBox) return;
+
+        // Template HTML with parameters
+        const templateHTML = `
+            <p style="margin: 0 0 10px 0;">Hello <span style="background-color: #fef3c7; padding: 2px 4px; border-radius: 3px; font-weight: 500;">{First}</span>,</p>
+            <p style="margin: 0 0 10px 0;">I hope you are having a great day. I noticed it's been <span style="background-color: #fef3c7; padding: 2px 4px; border-radius: 3px; font-weight: 500;">{DaysOut}</span> days since you last engaged with your course.</p>
+            <p style="margin: 0 0 5px 0;">You are currently missing:</p>
+            <div style="background-color: #fef3c7; padding: 2px 4px; border-radius: 3px; font-weight: 500; display: inline-block;">{MissingAssignmentsList}</div>
+        `;
+
+        // Preview data
+        const previews = {
+            preview1: `
+                <p style="margin: 0 0 10px 0;">Hello <strong>Jane</strong>,</p>
+                <p style="margin: 0 0 10px 0;">I hope you are having a great day. I noticed it's been <strong>5</strong> days since you last engaged with your course.</p>
+                <p style="margin: 0 0 5px 0;">You are currently missing:</p>
+                <ul style="margin: 5px 0 10px 20px; padding: 0;">
+                    <li style="margin-bottom: 5px;"><span style="color: var(--primary-color); text-decoration: underline; cursor: pointer;">Discussion Post 2.0</span></li>
+                    <li style="margin-bottom: 5px;"><span style="color: var(--primary-color); text-decoration: underline; cursor: pointer;">Mid Term</span></li>
+                    <li style="margin-bottom: 5px;"><span style="color: var(--primary-color); text-decoration: underline; cursor: pointer;">Mind Tap 2.2 - Human Anatomy</span></li>
+                </ul>
+            `,
+            preview2: `
+                <p style="margin: 0 0 10px 0;">Hello <strong>Michael</strong>,</p>
+                <p style="margin: 0 0 10px 0;">I hope you are having a great day. I noticed it's been <strong>8</strong> days since you last engaged with your course.</p>
+                <p style="margin: 0 0 5px 0;">You are currently missing:</p>
+                <ul style="margin: 5px 0 10px 20px; padding: 0;">
+                    <li style="margin-bottom: 5px;"><span style="color: var(--primary-color); text-decoration: underline; cursor: pointer;">1.6 MindTap Assignment</span></li>
+                    <li style="margin-bottom: 5px;"><span style="color: var(--primary-color); text-decoration: underline; cursor: pointer;">2.2 Lab</span></li>
+                    <li style="margin-bottom: 5px;"><span style="color: var(--primary-color); text-decoration: underline; cursor: pointer;">2.4 Mid Term</span></li>
+                    <li style="margin-bottom: 5px;"><span style="color: var(--primary-color); text-decoration: underline; cursor: pointer;">3.3 WebAssign Laboratory</span></li>
+                </ul>
+            `
+        };
+
+        previewButtons.forEach(button => {
+            // Clone and replace to remove any existing event listeners
+            const newButton = button.cloneNode(true);
+            button.parentNode.replaceChild(newButton, button);
+
+            // Add click event listener
+            newButton.addEventListener('click', (e) => {
+                e.preventDefault();
+
+                const previewType = newButton.dataset.preview;
+                const isActive = newButton.dataset.active === 'true';
+
+                if (isActive) {
+                    // Clicking the same button - deactivate and show template
+                    missingTemplateBox.innerHTML = templateHTML;
+                    missingTemplateBox.style.fontFamily = 'monospace';
+                    missingTemplateBox.style.color = '#374151';
+                    newButton.style.background = 'rgba(0,0,0,0.06)';
+                    newButton.style.color = 'inherit';
+                    newButton.dataset.active = 'false';
+                } else {
+                    // Clicking a different button or activating from template
+                    // First, deactivate all buttons
+                    const allButtons = document.querySelectorAll('.missing-preview-btn');
+                    allButtons.forEach(btn => {
+                        btn.style.background = 'rgba(0,0,0,0.06)';
+                        btn.style.color = 'inherit';
+                        btn.dataset.active = 'false';
+                    });
+
+                    // Then activate the clicked button and show its preview
+                    missingTemplateBox.innerHTML = previews[previewType];
+                    missingTemplateBox.style.fontFamily = 'inherit';
+                    missingTemplateBox.style.color = 'inherit';
                     newButton.style.background = 'var(--primary-color)';
                     newButton.style.color = 'white';
                     newButton.dataset.active = 'true';

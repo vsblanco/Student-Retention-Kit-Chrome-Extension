@@ -310,15 +310,15 @@ export const TUTORIAL_PAGES = [
                     You can use the <strong>Special Parameter: Missing Assignments List</strong> in sending personalized emails to students. This creates clickable hyperlinks that lead you straight to the assignments.
                 </p>
                 <h3 style="margin: 25px 0 15px 0; color: var(--primary-color); font-size: 1.1em;">Example Email:</h3>
-                <div style="background: rgba(255, 255, 255, 0.4); border: 1px solid rgba(0, 0, 0, 0.05); border-radius: 0.75rem; padding: 15px; margin-bottom: 20px; font-size: 0.95em; line-height: 1.8;">
-                    <p style="margin: 0 0 10px 0;">Hello Jane,</p>
-                    <p style="margin: 0 0 10px 0;">I hope you are having a great day. I noticed it's been 5 days since you last engaged with your course.</p>
+                <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                    <button id="missingPreviewBtn1" class="missing-preview-btn" data-active="false" data-preview="preview1" style="flex: 1; padding: 8px 12px; background: rgba(0,0,0,0.06); color: inherit; border: none; border-radius: 0.5rem; cursor: pointer; font-size: 0.9em; font-weight: 500;">Preview 1</button>
+                    <button id="missingPreviewBtn2" class="missing-preview-btn" data-active="false" data-preview="preview2" style="flex: 1; padding: 8px 12px; background: rgba(0,0,0,0.06); color: inherit; border: none; border-radius: 0.5rem; cursor: pointer; font-size: 0.9em; font-weight: 500;">Preview 2</button>
+                </div>
+                <div id="missingTemplateBox" style="background: rgba(255, 255, 255, 0.4); border: 1px solid rgba(0, 0, 0, 0.05); border-radius: 0.75rem; padding: 15px; margin-bottom: 20px; font-size: 0.95em; line-height: 1.8; font-family: monospace; color: #374151;">
+                    <p style="margin: 0 0 10px 0;">Hello <span style="background-color: #fef3c7; padding: 2px 4px; border-radius: 3px; font-weight: 500;">{First}</span>,</p>
+                    <p style="margin: 0 0 10px 0;">I hope you are having a great day. I noticed it's been <span style="background-color: #fef3c7; padding: 2px 4px; border-radius: 3px; font-weight: 500;">{DaysOut}</span> days since you last engaged with your course.</p>
                     <p style="margin: 0 0 5px 0;">You are currently missing:</p>
-                    <ul style="margin: 5px 0 10px 20px; padding: 0;">
-                        <li style="margin-bottom: 5px;"><span style="color: var(--primary-color); text-decoration: underline; cursor: pointer;">Discussion Post 2.0</span></li>
-                        <li style="margin-bottom: 5px;"><span style="color: var(--primary-color); text-decoration: underline; cursor: pointer;">Mid Term</span></li>
-                        <li style="margin-bottom: 5px;"><span style="color: var(--primary-color); text-decoration: underline; cursor: pointer;">Mind Tap 2.2 - Human Anatomy</span></li>
-                    </ul>
+                    <div style="background-color: #fef3c7; padding: 2px 4px; border-radius: 3px; font-weight: 500; display: inline-block;">{MissingAssignmentsList}</div>
                 </div>
             </div>
         `,
