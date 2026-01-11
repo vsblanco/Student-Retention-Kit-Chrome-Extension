@@ -265,6 +265,27 @@ export const TUTORIAL_PAGES = [
         nextLabel: 'Next'
     },
     {
+        id: 'personalized-emails',
+        header: 'Sending Personalized Emails',
+        body: `
+            <div class="tutorial-content">
+                <p style="line-height: 1.8; font-size: 1.05em;">
+                    You can automatically send personalized emails to each student by granting consent to send emails on your behalf.
+                </p>
+                <p style="margin-top: 20px; line-height: 1.8;">
+                    You will see what parameters you can choose from to help personalize your emails. You can also create your own parameters for further customization.
+                </p>
+                <p style="margin-top: 20px; line-height: 1.8;">
+                    Alternatively, if you have a <strong>Power Automate Premium</strong> license, you can configure an HTTP request to create more advanced automations.
+                </p>
+            </div>
+        `,
+        showSkip: true,
+        showPrevious: true,
+        showNext: true,
+        nextLabel: 'Next'
+    },
+    {
         id: 'missing-assignments',
         header: 'Missing Assignments',
         body: `
@@ -374,27 +395,6 @@ export const TUTORIAL_PAGES = [
                         <strong>Include DNC Tag Indicators</strong> - Show <span style="display: inline-block; padding: 0.5px 6px; font-weight: 600; border-radius: 9999px; background-color: #fecaca; color: #000000; font-size: 0.95em;">DNC</span> tag markers to identify students who requested no contact
                     </div>
                 </div>
-            </div>
-        `,
-        showSkip: true,
-        showPrevious: true,
-        showNext: true,
-        nextLabel: 'Next'
-    },
-    {
-        id: 'personalized-emails',
-        header: 'Sending Personalized Emails',
-        body: `
-            <div class="tutorial-content">
-                <p style="line-height: 1.8; font-size: 1.05em;">
-                    You can automatically send personalized emails to each student by granting consent to send emails on your behalf.
-                </p>
-                <p style="margin-top: 20px; line-height: 1.8;">
-                    You will see what parameters you can choose from to help personalize your emails. You can also create your own parameters for further customization.
-                </p>
-                <p style="margin-top: 20px; line-height: 1.8;">
-                    Alternatively, if you have a <strong>Power Automate Premium</strong> license, you can configure an HTTP request to create more advanced automations.
-                </p>
             </div>
         `,
         showSkip: true,
