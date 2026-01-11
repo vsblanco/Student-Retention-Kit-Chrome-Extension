@@ -56,7 +56,7 @@ export const TUTORIAL_PAGES = [
         id: 'what-is-srk',
         header: 'What is Student Retention Kit?',
         body: `
-            <div class="tutorial-content" style="text-align: center;">
+            <div class="tutorial-content">
                 <p style="font-size: 1.1em; line-height: 1.8; margin: 20px 0;">
                     The Student Retention Kit is a tool designed to help educators identify and support at-risk students.
                     Its goal is to make your workflow as efficiently as possible, so that you can focus on what's most important.
@@ -82,6 +82,51 @@ export const TUTORIAL_PAGES = [
                     <li>Student communication tracking</li>
 					<li>Calling Students via Five9</li>
                 </ul>
+            </div>
+        `,
+        showSkip: true,
+        showPrevious: true,
+        showNext: true,
+        nextLabel: 'Next'
+    },
+    {
+        id: 'disclaimers',
+        header: 'Privacy & Disclaimers',
+        body: `
+            <div class="tutorial-content">
+                <p style="margin-bottom: 20px; line-height: 1.8; font-size: 1.05em;">
+                    This is a <strong>proof of concept</strong> and should not be considered full production. Expect bugs as development continues.
+                </p>
+
+                <h3 style="margin: 25px 0 15px 0; color: var(--primary-color); font-size: 1.1em;">
+                    <i class="fas fa-shield-alt"></i> Privacy First
+                </h3>
+                <p style="line-height: 1.8; margin-bottom: 15px;">
+                    <strong>Student Retention Kit aims for efficiency, but most of all privacy.</strong> This tool does not collect any data. The sole purpose is to improve your workflow efficiency.
+                </p>
+                <ul style="line-height: 2; margin-left: 20px; font-size: 1.05em; margin-bottom: 25px;">
+                    <li><strong>All data is self-contained</strong> on your Excel workbook</li>
+                    <li>No external data collection or storage</li>
+                    <li>Your information stays with you</li>
+                </ul>
+
+                <h3 style="margin: 25px 0 15px 0; color: var(--primary-color); font-size: 1.1em;">
+                    <i class="fas fa-info-circle"></i> Technical Details
+                </h3>
+                <div style="line-height: 1.8; font-size: 0.95em;">
+                    <p style="margin-bottom: 15px;">
+                        <strong>Canvas API:</strong> Only works if you are logged in. The extension cannot see your login information. It uses publicly available information from Instructure's Canvas API.
+                        <br><a href="https://developerdocs.instructure.com/services/canvas" target="_blank" style="color: var(--primary-color); text-decoration: underline;">Learn more about Canvas API</a>
+                    </p>
+                    <p style="margin-bottom: 15px;">
+                        <strong>Five9:</strong> Only works if you have the Five9 tab opened. Think of this as an assistant that clicks the call button for you—nothing more.
+                        <br><a href="https://documentation.five9.com/" target="_blank" style="color: var(--primary-color); text-decoration: underline;">Five9 Documentation</a>
+                    </p>
+                    <p style="margin-bottom: 15px;">
+                        <strong>Excel Add-in (SSO):</strong> Automatic SSO documentation is from Microsoft themselves. The add-in can only view basic information such as your name and work email.
+                        <br><a href="https://learn.microsoft.com/en-us/office/dev/add-ins/develop/sso-in-office-add-ins?tabs=jsonmanifest" target="_blank" style="color: var(--primary-color); text-decoration: underline;">Microsoft SSO Documentation</a>
+                    </p>
+                </div>
             </div>
         `,
         showSkip: true,
@@ -429,8 +474,23 @@ export const TUTORIAL_PAGES = [
                 <p style="margin-top: 20px; line-height: 1.8;">
                     This process helps you efficiently reach out to all your students in a timely manner.
                 </p>
-                <p style="margin-top: 30px; text-align: center;">
-                    <strong>You're all set! Click "Finish" to start using the extension.</strong>
+            </div>
+        `,
+        showSkip: false,
+        showPrevious: true,
+        showNext: true,
+        nextLabel: 'Next'
+    },
+    {
+        id: 'thats-it',
+        header: 'That\'s it!',
+        body: `
+            <div class="tutorial-content">
+                <p style="font-size: 1.1em; line-height: 1.8; margin: 20px 0;">
+                    Now you have a better grasp of how the Student Retention Kit works. Keep in mind this is a proof of concept and should not be considered full production. Expect tons of bugs. However, this application aims to drastically improve the efficiency of your work.
+                </p>
+                <p style="font-size: 1.2em; font-weight: 500; margin-top: 40px; color: var(--primary-color);">
+                    Enjoy!
                 </p>
             </div>
         `,
