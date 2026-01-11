@@ -242,7 +242,8 @@ export async function sendConnectionPing() {
 
         // Send ping message to background/content script which will relay to Office Add-in
         chrome.runtime.sendMessage({
-            type: MESSAGE_TYPES.SRK_PING
+            type: MESSAGE_TYPES.SRK_PING,
+            payload: { type: MESSAGE_TYPES.SRK_PING }
         }).catch((error) => {
             console.log('🏓 SRK_PING failed (extension context may not be ready):', error.message);
         });
