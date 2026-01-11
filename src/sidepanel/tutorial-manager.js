@@ -422,7 +422,7 @@ class TutorialManager {
                 const isActive = newButton.dataset.active === 'true';
 
                 if (isActive) {
-                    // Deactivate - show template
+                    // Clicking the same button - deactivate and show template
                     emailTemplateBox.innerHTML = templateHTML;
                     emailTemplateBox.style.fontFamily = 'monospace';
                     emailTemplateBox.style.color = '#374151';
@@ -430,22 +430,22 @@ class TutorialManager {
                     newButton.style.color = 'inherit';
                     newButton.dataset.active = 'false';
                 } else {
-                    // Activate - show preview
+                    // Clicking a different button or activating from template
+                    // First, deactivate all buttons
+                    const allButtons = document.querySelectorAll('.email-preview-btn');
+                    allButtons.forEach(btn => {
+                        btn.style.background = 'rgba(0,0,0,0.06)';
+                        btn.style.color = 'inherit';
+                        btn.dataset.active = 'false';
+                    });
+
+                    // Then activate the clicked button and show its preview
                     emailTemplateBox.innerHTML = previews[previewType];
                     emailTemplateBox.style.fontFamily = 'inherit';
                     emailTemplateBox.style.color = 'inherit';
                     newButton.style.background = 'var(--primary-color)';
                     newButton.style.color = 'white';
                     newButton.dataset.active = 'true';
-
-                    // Deactivate other button
-                    previewButtons.forEach(otherBtn => {
-                        if (otherBtn !== newButton && otherBtn.dataset) {
-                            otherBtn.style.background = 'rgba(0,0,0,0.06)';
-                            otherBtn.style.color = 'inherit';
-                            otherBtn.dataset.active = 'false';
-                        }
-                    });
                 }
             });
         });
