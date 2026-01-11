@@ -162,12 +162,15 @@ async function processBatchResult(result) {
 }
 
 async function analyzeMissingMode(entry, submissions, userObject) {
+    // Support both 'url' field and legacy 'Gradebook' field
+    const gradebookUrl = entry.url || entry.Gradebook;
+
     const now = new Date();
     const collectedAssignments = [];
 
-    let debugStats = { 
-        total: submissions.length, 
-        foundMissing: 0 
+    let debugStats = {
+        total: submissions.length,
+        foundMissing: 0
     };
 
     let currentGrade = "";
@@ -205,8 +208,8 @@ async function analyzeMissingMode(entry, submissions, userObject) {
             debugStats.foundMissing++;
             collectedAssignments.push({
                 title: sub.assignment ? sub.assignment.name : 'Unknown Assignment',
-                link: entry.url,
-                submissionLink: sub.preview_url || entry.url,
+                link: gradebookUrl,
+                submissionLink: sub.preview_url || gradebookUrl,
                 dueDate: sub.cached_due_date ? new Date(sub.cached_due_date).toLocaleDateString() : 'No Date',
                 score: sub.grade || (sub.score !== null ? sub.score : '-'),
                 isMissing: isMissing
@@ -220,15 +223,18 @@ async function analyzeMissingMode(entry, submissions, userObject) {
 
     return {
         studentName: entry.name,
-        gradeBook: entry.url,
-        currentGrade: currentGrade, 
-        count: collectedAssignments.length, 
-        duration: "0.2", 
+        gradeBook: gradebookUrl,
+        currentGrade: currentGrade,
+        count: collectedAssignments.length,
+        duration: "0.2",
         assignments: collectedAssignments
     };
 }
 
 async function analyzeSubmissionMode(entry, submissions) {
+    // Support both 'url' field and legacy 'Gradebook' field
+    const gradebookUrl = entry.url || entry.Gradebook;
+
     const settings = await chrome.storage.local.get([
         STORAGE_KEYS.CUSTOM_KEYWORD,
         STORAGE_KEYS.USE_SPECIFIC_DATE,
@@ -284,7 +290,7 @@ async function analyzeSubmissionMode(entry, submissions) {
                 foundDetails = {
                     name: entry.name,
                     time: subDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
-                    url: entry.url,
+                    url: gradebookUrl,
                     timestamp: sub.submitted_at,
                     assignment: sub.assignment ? sub.assignment.name : 'Unknown Assignment',
                     syStudentId: entry.SyStudentId || null
@@ -320,7 +326,9 @@ function prepareBatches(entries) {
     const skippedStudents = [];
 
     entries.forEach(entry => {
-        const parsed = parseIdsFromUrl(entry.url);
+        // Support both 'url' field and legacy 'Gradebook' field
+        const gradebookUrl = entry.url || entry.Gradebook;
+        const parsed = parseIdsFromUrl(gradebookUrl);
         if (parsed) {
             entry.parsed = parsed;
             if (!courses[parsed.courseId]) {
@@ -330,7 +338,7 @@ function prepareBatches(entries) {
         } else {
             // Log skipped students with invalid URLs
             const studentName = entry.name || 'Unknown Student';
-            const urlStatus = entry.url === undefined ? 'undefined' : (entry.url === null ? 'null' : `invalid: ${entry.url}`);
+            const urlStatus = gradebookUrl === undefined ? 'undefined' : (gradebookUrl === null ? 'null' : `invalid: ${gradebookUrl}`);
             skippedStudents.push({ name: studentName, url: urlStatus });
             console.warn(`[LOOPER] Skipping student with invalid URL - Name: ${studentName}, URL: ${urlStatus}`);
             logToDebug('warn', `Skipping student with invalid URL - Name: ${studentName}, URL: ${urlStatus}`);
