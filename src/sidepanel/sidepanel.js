@@ -338,6 +338,14 @@ function setupEventListeners() {
         });
     }
 
+    // Review Tutorial Button
+    const reviewTutorialBtn = document.getElementById('reviewTutorialBtn');
+    if (reviewTutorialBtn) {
+        reviewTutorialBtn.addEventListener('click', () => {
+            tutorialManager.restartTutorial();
+        });
+    }
+
     // Connections Modal
     if (elements.configureExcelBtn) {
         elements.configureExcelBtn.addEventListener('click', () => openConnectionsModal('excel'));

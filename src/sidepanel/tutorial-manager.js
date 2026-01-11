@@ -134,6 +134,15 @@ class TutorialManager {
     }
 
     /**
+     * Restart the tutorial (for users who want to review it)
+     */
+    async restartTutorial() {
+        // Reset to first page and start tutorial
+        this.currentPageIndex = 0;
+        await this.startTutorial();
+    }
+
+    /**
      * Switch to the tutorial tab
      */
     switchToTutorialTab() {
