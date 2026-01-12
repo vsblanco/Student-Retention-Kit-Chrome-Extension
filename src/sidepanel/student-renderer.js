@@ -40,6 +40,12 @@ export function setActiveStudent(rawEntry, callManager) {
         }
         if (callManager) {
             callManager.updateCallInterfaceState();
+
+            // Hide disposition section when new student is selected
+            callManager.waitingForDisposition = false;
+            if (elements.callDispositionSection) {
+                elements.callDispositionSection.style.display = 'none';
+            }
         }
         if (elements.upNextCard) {
             elements.upNextCard.style.display = 'none';
