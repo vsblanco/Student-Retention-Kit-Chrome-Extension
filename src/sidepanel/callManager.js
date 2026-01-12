@@ -19,6 +19,7 @@ export default class CallManager {
         this.currentAutomationIndex = 0;
         this.skippedIndices = new Set(); // Track indices of students to skip
         this.uiCallbacks = uiCallbacks; // Callbacks for UI updates
+        this.waitingForDisposition = false; // Track if call ended but waiting for disposition
     }
 
     /**
@@ -88,6 +89,9 @@ export default class CallManager {
         if (forceEnd) this.isCallActive = false;
 
         if (this.isCallActive) {
+            // Reset waiting for disposition flag when starting new call
+            this.waitingForDisposition = false;
+
             // --- INITIATE FIVE9 CALL (ONLY IF DEBUG MODE OFF) ---
             if (!this.debugMode) {
                 const currentStudent = this.selectedQueue[0];
@@ -116,6 +120,9 @@ export default class CallManager {
 
             this.startCallTimer();
         } else {
+            // Call is ending - show "Ending call" status
+            this.elements.callStatusText.innerHTML = '<span class="status-indicator" style="background:#f59e0b;"></span> Ending call...';
+
             // --- HANGUP FIVE9 CALL (ONLY IF DEBUG MODE OFF) ---
             if (!this.debugMode) {
                 this.hangupCall(); // Trigger Five9 API hangup
@@ -126,12 +133,10 @@ export default class CallManager {
 
             this.elements.dialBtn.style.background = '#10b981';
             this.elements.dialBtn.style.transform = 'rotate(0deg)';
-            this.elements.callStatusText.innerHTML = '<span class="status-indicator ready"></span> Ready to Connect';
 
-            // Hide Disposition Grid
-            if (this.elements.callDispositionSection) {
-                this.elements.callDispositionSection.style.display = 'none';
-            }
+            // KEEP Disposition Grid open for user to select disposition
+            // Don't hide it - user needs to select a disposition
+            this.waitingForDisposition = true;
 
             // Hide custom input area if it was open
             if (this.elements.otherInputArea) {
@@ -445,31 +450,55 @@ export default class CallManager {
         // - Associate with current student
         // - Track disposition history
 
-        // --- HANGUP FIVE9 CALL (ONLY IF DEBUG MODE OFF) ---
-        if (!this.debugMode) {
-            console.log("⏳ Waiting for Five9 dispose to complete...");
-            // CRITICAL: Wait for dispose to complete before marking call as inactive
-            // This prevents race conditions where pings arrive before dispose finishes
-            await this.hangupCall(type);
-        } else {
-            console.log("📞 [DEMO MODE] Simulating hangup after disposition");
-        }
-        // -------------------------
+        // Check if call was already ended (user clicked end call button first)
+        if (this.waitingForDisposition) {
+            // Call already ended, just setting disposition
+            this.elements.callStatusText.innerHTML = '<span class="status-indicator" style="background:#3b82f6;"></span> Setting disposition...';
 
-        // IMPORTANT: Only set call as inactive AFTER dispose completes
-        // This ensures no new calls can be initiated until cleanup is done
-        this.isCallActive = false;
-        this.stopCallTimer();
+            // Skip hangup since call is already ended
+            console.log("📋 Setting disposition for already-ended call");
+
+            // Small delay to show the status
+            await new Promise(resolve => setTimeout(resolve, 500));
+        } else {
+            // Call is still active, need to end it first
+            this.elements.callStatusText.innerHTML = '<span class="status-indicator" style="background:#f59e0b;"></span> Ending call...';
+
+            // --- HANGUP FIVE9 CALL (ONLY IF DEBUG MODE OFF) ---
+            if (!this.debugMode) {
+                console.log("⏳ Waiting for Five9 dispose to complete...");
+                // CRITICAL: Wait for dispose to complete before marking call as inactive
+                // This prevents race conditions where pings arrive before dispose finishes
+                await this.hangupCall(type);
+            } else {
+                console.log("📞 [DEMO MODE] Simulating hangup after disposition");
+            }
+            // -------------------------
+
+            // Show "Setting disposition" status after call ends
+            this.elements.callStatusText.innerHTML = '<span class="status-indicator" style="background:#3b82f6;"></span> Setting disposition...';
+
+            // Small delay to show the status
+            await new Promise(resolve => setTimeout(resolve, 500));
+
+            // IMPORTANT: Only set call as inactive AFTER dispose completes
+            // This ensures no new calls can be initiated until cleanup is done
+            this.isCallActive = false;
+            this.stopCallTimer();
+        }
 
         // Update last call timestamp
         await this.updateLastCallTimestamp();
+
+        // Clear waiting for disposition flag
+        this.waitingForDisposition = false;
 
         // Check if in automation mode
         if (this.automationMode) {
             // Move to next student
             this.currentAutomationIndex++;
 
-            // Hide disposition section temporarily
+            // Hide disposition section
             if (this.elements.callDispositionSection) {
                 this.elements.callDispositionSection.style.display = 'none';
             }
