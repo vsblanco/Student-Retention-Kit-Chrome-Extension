@@ -455,11 +455,18 @@ export default class CallManager {
             // Call already ended, just setting disposition
             this.elements.callStatusText.innerHTML = '<span class="status-indicator" style="background:#3b82f6;"></span> Setting disposition...';
 
-            // Skip hangup since call is already ended
+            // Send dispose-only request to Five9
             console.log("📋 Setting disposition for already-ended call");
 
-            // Small delay to show the status
-            await new Promise(resolve => setTimeout(resolve, 500));
+            // --- SEND DISPOSITION TO FIVE9 (ONLY IF DEBUG MODE OFF) ---
+            if (!this.debugMode) {
+                await this.sendDispositionOnly(type);
+            } else {
+                console.log("📞 [DEMO MODE] Simulating disposition send");
+                // Small delay to simulate the operation
+                await new Promise(resolve => setTimeout(resolve, 500));
+            }
+            // -------------------------
         } else {
             // Call is still active, need to end it first
             this.elements.callStatusText.innerHTML = '<span class="status-indicator" style="background:#f59e0b;"></span> Ending call...';
@@ -599,6 +606,60 @@ export default class CallManager {
             });
         } catch (error) {
             console.error("Error hanging up call:", error);
+            return { success: false, error: error.message };
+        }
+    }
+
+    /**
+     * Sends disposition only (for calls already disconnected)
+     * Used when user ends call first, then selects disposition
+     * @param {string} dispositionType - The disposition type selected by the user
+     * @returns {Promise<{success: boolean, error?: string}>}
+     */
+    async sendDispositionOnly(dispositionType) {
+        try {
+            // Create a promise that resolves when the dispose is complete
+            return new Promise((resolve) => {
+                let isResolved = false;
+
+                // Set up one-time listener for dispose completion
+                const disposeListener = (message) => {
+                    if (message.type === 'disposeStatus' && !isResolved) {
+                        isResolved = true;
+                        // Remove listener after receiving response
+                        chrome.runtime.onMessage.removeListener(disposeListener);
+
+                        if (message.success) {
+                            console.log("✓ Five9 disposition sent successfully");
+                            resolve({ success: true });
+                        } else {
+                            console.error("Five9 disposition error:", message.error);
+                            resolve({ success: false, error: message.error });
+                        }
+                    }
+                };
+
+                // Add listener before sending message
+                chrome.runtime.onMessage.addListener(disposeListener);
+
+                // Safety timeout: If no response after 10 seconds, resolve anyway
+                setTimeout(() => {
+                    if (!isResolved) {
+                        isResolved = true;
+                        chrome.runtime.onMessage.removeListener(disposeListener);
+                        console.warn("⚠️ Dispose timeout - assuming completed");
+                        resolve({ success: true, warning: "Timeout" });
+                    }
+                }, 10000);
+
+                // Send dispose request
+                chrome.runtime.sendMessage({
+                    type: 'triggerFive9DisposeOnly',
+                    dispositionType: dispositionType
+                });
+            });
+        } catch (error) {
+            console.error("Error sending disposition:", error);
             return { success: false, error: error.message };
         }
     }

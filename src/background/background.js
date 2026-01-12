@@ -426,6 +426,28 @@ chrome.runtime.onMessage.addListener(async (msg, sender, sendResponse) => {
       })();
       return true;
   }
+  else if (msg.type === 'triggerFive9DisposeOnly') {
+      (async () => {
+          const tabs = await chrome.tabs.query({ url: "https://app-atl.five9.com/*" });
+          if (tabs.length === 0) {
+              chrome.runtime.sendMessage({ type: 'disposeStatus', success: false, error: "Five9 tab not found." });
+              return;
+          }
+
+          chrome.tabs.sendMessage(tabs[0].id, {
+              type: 'executeFive9DisposeOnly',
+              dispositionType: msg.dispositionType
+          }, (response) => {
+              if (chrome.runtime.lastError) {
+                  console.error("Five9 Dispose Error:", chrome.runtime.lastError.message);
+                  chrome.runtime.sendMessage({ type: 'disposeStatus', success: false, error: "Five9 disconnected." });
+              } else {
+                  chrome.runtime.sendMessage({ type: 'disposeStatus', success: response?.success, error: response?.error });
+              }
+          });
+      })();
+      return true;
+  }
 });
 
 // --- HIGHLIGHT STUDENT ROW HANDLING ---
