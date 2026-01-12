@@ -434,7 +434,7 @@ export default class CallManager {
      * Handles call disposition selection and ends the call
      * @param {string} type - The disposition type selected
      */
-    handleDisposition(type) {
+    async handleDisposition(type) {
         console.log("Logged Disposition:", type);
 
         // TODO: Store disposition data
@@ -445,13 +445,17 @@ export default class CallManager {
 
         // --- HANGUP FIVE9 CALL (ONLY IF DEBUG MODE OFF) ---
         if (!this.debugMode) {
-            this.hangupCall(type); // Trigger Five9 API hangup with disposition type
+            console.log("⏳ Waiting for Five9 dispose to complete...");
+            // CRITICAL: Wait for dispose to complete before marking call as inactive
+            // This prevents race conditions where pings arrive before dispose finishes
+            await this.hangupCall(type);
         } else {
             console.log("📞 [DEMO MODE] Simulating hangup after disposition");
         }
         // -------------------------
 
-        // End current call
+        // IMPORTANT: Only set call as inactive AFTER dispose completes
+        // This ensures no new calls can be initiated until cleanup is done
         this.isCallActive = false;
         this.stopCallTimer();
 
@@ -465,10 +469,9 @@ export default class CallManager {
                 this.elements.callDispositionSection.style.display = 'none';
             }
 
-            // Brief delay before next call (for demo purposes)
-            setTimeout(() => {
-                this.callNextStudentInQueue();
-            }, 500);
+            // Call next student immediately after dispose completes
+            // No need for delay since we already waited for dispose
+            this.callNextStudentInQueue();
         } else {
             // Single call mode - update UI to end the call
             this.elements.dialBtn.style.background = '#10b981';
@@ -519,13 +522,47 @@ export default class CallManager {
      */
     async hangupCall(dispositionType = null) {
         try {
-            chrome.runtime.sendMessage({
-                type: 'triggerFive9Hangup',
-                dispositionType: dispositionType
-            });
+            // Create a promise that resolves when the hangup is complete
+            return new Promise((resolve) => {
+                let isResolved = false;
 
-            // Note: Response will come via 'hangupStatus' message listener
-            return { success: true };
+                // Set up one-time listener for hangup completion
+                const hangupListener = (message) => {
+                    if (message.type === 'hangupStatus' && !isResolved) {
+                        isResolved = true;
+                        // Remove listener after receiving response
+                        chrome.runtime.onMessage.removeListener(hangupListener);
+
+                        if (message.success) {
+                            console.log("✓ Five9 dispose completed successfully");
+                            resolve({ success: true });
+                        } else {
+                            console.error("Five9 dispose error:", message.error);
+                            resolve({ success: false, error: message.error });
+                        }
+                    }
+                };
+
+                // Add listener before sending message
+                chrome.runtime.onMessage.addListener(hangupListener);
+
+                // Safety timeout: If no response after 10 seconds, resolve anyway
+                // This prevents the call from being stuck indefinitely
+                setTimeout(() => {
+                    if (!isResolved) {
+                        isResolved = true;
+                        chrome.runtime.onMessage.removeListener(hangupListener);
+                        console.warn("⚠️ Hangup timeout - assuming dispose completed");
+                        resolve({ success: true, warning: "Timeout" });
+                    }
+                }, 10000);
+
+                // Send hangup request
+                chrome.runtime.sendMessage({
+                    type: 'triggerFive9Hangup',
+                    dispositionType: dispositionType
+                });
+            });
         } catch (error) {
             console.error("Error hanging up call:", error);
             return { success: false, error: error.message };
