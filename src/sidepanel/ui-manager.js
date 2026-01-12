@@ -31,6 +31,7 @@ export function cacheDomElements() {
     elements.callStatusText = document.querySelector('.call-status-bar');
     elements.callTimer = document.querySelector('.call-timer');
     elements.callDispositionSection = document.getElementById('callDispositionSection');
+    elements.lastCallTimestamp = document.getElementById('lastCallTimestamp');
     elements.otherInputArea = document.getElementById('otherInputArea');
     elements.customNote = document.getElementById('customNote');
     elements.confirmNoteBtn = elements.otherInputArea ? elements.otherInputArea.querySelector('.btn-primary') : null;

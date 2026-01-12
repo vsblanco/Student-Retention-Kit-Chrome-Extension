@@ -3,6 +3,8 @@
 // v1.2: Skip button marks students to skip over without removing from queue
 // v1.3: Dial button cancels automation and keeps only current student
 
+import { STORAGE_KEYS } from '../constants/index.js';
+
 /**
  * CallManager class - Manages call state, timers, and automation sequences
  */
@@ -434,7 +436,7 @@ export default class CallManager {
      * Handles call disposition selection and ends the call
      * @param {string} type - The disposition type selected
      */
-    handleDisposition(type) {
+    async handleDisposition(type) {
         console.log("Logged Disposition:", type);
 
         // TODO: Store disposition data
@@ -445,15 +447,22 @@ export default class CallManager {
 
         // --- HANGUP FIVE9 CALL (ONLY IF DEBUG MODE OFF) ---
         if (!this.debugMode) {
-            this.hangupCall(type); // Trigger Five9 API hangup with disposition type
+            console.log("⏳ Waiting for Five9 dispose to complete...");
+            // CRITICAL: Wait for dispose to complete before marking call as inactive
+            // This prevents race conditions where pings arrive before dispose finishes
+            await this.hangupCall(type);
         } else {
             console.log("📞 [DEMO MODE] Simulating hangup after disposition");
         }
         // -------------------------
 
-        // End current call
+        // IMPORTANT: Only set call as inactive AFTER dispose completes
+        // This ensures no new calls can be initiated until cleanup is done
         this.isCallActive = false;
         this.stopCallTimer();
+
+        // Update last call timestamp
+        await this.updateLastCallTimestamp();
 
         // Check if in automation mode
         if (this.automationMode) {
@@ -465,10 +474,9 @@ export default class CallManager {
                 this.elements.callDispositionSection.style.display = 'none';
             }
 
-            // Brief delay before next call (for demo purposes)
-            setTimeout(() => {
-                this.callNextStudentInQueue();
-            }, 500);
+            // Call next student immediately after dispose completes
+            // No need for delay since we already waited for dispose
+            this.callNextStudentInQueue();
         } else {
             // Single call mode - update UI to end the call
             this.elements.dialBtn.style.background = '#10b981';
@@ -519,13 +527,47 @@ export default class CallManager {
      */
     async hangupCall(dispositionType = null) {
         try {
-            chrome.runtime.sendMessage({
-                type: 'triggerFive9Hangup',
-                dispositionType: dispositionType
-            });
+            // Create a promise that resolves when the hangup is complete
+            return new Promise((resolve) => {
+                let isResolved = false;
 
-            // Note: Response will come via 'hangupStatus' message listener
-            return { success: true };
+                // Set up one-time listener for hangup completion
+                const hangupListener = (message) => {
+                    if (message.type === 'hangupStatus' && !isResolved) {
+                        isResolved = true;
+                        // Remove listener after receiving response
+                        chrome.runtime.onMessage.removeListener(hangupListener);
+
+                        if (message.success) {
+                            console.log("✓ Five9 dispose completed successfully");
+                            resolve({ success: true });
+                        } else {
+                            console.error("Five9 dispose error:", message.error);
+                            resolve({ success: false, error: message.error });
+                        }
+                    }
+                };
+
+                // Add listener before sending message
+                chrome.runtime.onMessage.addListener(hangupListener);
+
+                // Safety timeout: If no response after 10 seconds, resolve anyway
+                // This prevents the call from being stuck indefinitely
+                setTimeout(() => {
+                    if (!isResolved) {
+                        isResolved = true;
+                        chrome.runtime.onMessage.removeListener(hangupListener);
+                        console.warn("⚠️ Hangup timeout - assuming dispose completed");
+                        resolve({ success: true, warning: "Timeout" });
+                    }
+                }, 10000);
+
+                // Send hangup request
+                chrome.runtime.sendMessage({
+                    type: 'triggerFive9Hangup',
+                    dispositionType: dispositionType
+                });
+            });
         } catch (error) {
             console.error("Error hanging up call:", error);
             return { success: false, error: error.message };
@@ -552,6 +594,76 @@ export default class CallManager {
                 this.elements.dialBtn.title = 'Live Mode - Calls via Five9 API';
                 this.elements.callStatusText.innerHTML = '<span class="status-indicator ready"></span> Ready to Connect';
             }
+        }
+    }
+
+    /**
+     * Formats a timestamp for display
+     * If today: shows time only (e.g., "3:45 PM")
+     * If not today: shows date (e.g., "12-25-25")
+     * @param {number} timestamp - Unix timestamp in milliseconds
+     * @returns {string} Formatted timestamp string
+     */
+    formatLastCallTimestamp(timestamp) {
+        if (!timestamp) return 'Never';
+
+        const now = new Date();
+        const callDate = new Date(timestamp);
+
+        // Check if the call was today
+        const isToday = now.toDateString() === callDate.toDateString();
+
+        if (isToday) {
+            // Return time only
+            let hours = callDate.getHours();
+            const minutes = callDate.getMinutes().toString().padStart(2, '0');
+            const ampm = hours >= 12 ? 'PM' : 'AM';
+            hours = hours % 12 || 12; // Convert to 12-hour format
+            return `${hours}:${minutes} ${ampm}`;
+        } else {
+            // Return date in MM-DD-YY format
+            const month = (callDate.getMonth() + 1).toString().padStart(2, '0');
+            const day = callDate.getDate().toString().padStart(2, '0');
+            const year = callDate.getFullYear().toString().slice(-2);
+            return `${month}-${day}-${year}`;
+        }
+    }
+
+    /**
+     * Updates the last call timestamp and saves to storage
+     */
+    async updateLastCallTimestamp() {
+        const now = Date.now();
+
+        // Save to storage
+        await chrome.storage.local.set({
+            [STORAGE_KEYS.LAST_CALL_TIMESTAMP]: now
+        });
+
+        // Update UI
+        this.displayLastCallTimestamp(now);
+    }
+
+    /**
+     * Displays the last call timestamp in the UI
+     * @param {number} timestamp - Unix timestamp in milliseconds
+     */
+    displayLastCallTimestamp(timestamp) {
+        if (!this.elements.lastCallTimestamp) return;
+
+        const formattedTime = this.formatLastCallTimestamp(timestamp);
+        this.elements.lastCallTimestamp.textContent = `Last call: ${formattedTime}`;
+    }
+
+    /**
+     * Loads and displays the last call timestamp from storage
+     */
+    async loadLastCallTimestamp() {
+        const result = await chrome.storage.local.get(STORAGE_KEYS.LAST_CALL_TIMESTAMP);
+        const timestamp = result[STORAGE_KEYS.LAST_CALL_TIMESTAMP];
+
+        if (timestamp) {
+            this.displayLastCallTimestamp(timestamp);
         }
     }
 

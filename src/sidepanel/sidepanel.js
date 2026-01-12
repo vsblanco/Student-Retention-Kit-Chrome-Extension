@@ -1,5 +1,5 @@
 // Sidepanel Main - Orchestrates all modules and manages app lifecycle
-import { STORAGE_KEYS, EXTENSION_STATES, MESSAGE_TYPES, GUIDES } from '../constants/index.js';
+import { STORAGE_KEYS, EXTENSION_STATES, MESSAGE_TYPES, GUIDES, UI_FEATURES } from '../constants/index.js';
 import { hasDispositionCode } from '../constants/dispositions.js';
 import { getCacheStats, clearAllCache } from '../utils/canvasCache.js';
 import { loadAndRenderMarkdown } from '../utils/markdownRenderer.js';
@@ -123,9 +123,13 @@ async function initializeApp() {
     queueManager = new QueueManager(callManager);
 
     setupEventListeners();
+    initializeCallControlButtons();
     await loadStorageData();
     setActiveStudent(null, callManager);
     populateGuides();
+
+    // Load and display last call timestamp
+    await callManager.loadLastCallTimestamp();
 
     // Start Five9 connection monitoring
     startFive9ConnectionMonitor(() => queueManager.getQueue());
@@ -570,23 +574,10 @@ function setupEventListeners() {
                 return;
             }
 
-            if (btn.innerText.includes('Other')) {
-                elements.otherInputArea.style.display = 'block';
-            } else {
-                callManager.handleDisposition(btn.innerText.trim());
-            }
+            callManager.handleDisposition(btn.innerText.trim());
         });
 
         initializeDispositionButtons();
-    }
-
-    if (elements.confirmNoteBtn) {
-        elements.confirmNoteBtn.addEventListener('click', () => {
-            const note = elements.customNote.value;
-            callManager.handleDisposition(`Custom Note: ${note}`);
-            elements.otherInputArea.style.display = 'none';
-            elements.customNote.value = '';
-        });
     }
 
     // Data Tab
@@ -689,6 +680,7 @@ function setupEventListeners() {
 
 /**
  * Initializes disposition button states
+ * Only shows dispositions that have a valid code defined
  */
 function initializeDispositionButtons() {
     const dispositionButtons = document.querySelectorAll('.disposition-btn');
@@ -696,22 +688,34 @@ function initializeDispositionButtons() {
     dispositionButtons.forEach(btn => {
         const buttonText = btn.innerText.trim();
 
-        if (buttonText.includes('Other')) {
-            return;
-        }
-
+        // Hide dispositions that don't have a code (including "Other")
         if (!hasDispositionCode(buttonText)) {
-            btn.classList.add('disabled');
-            btn.style.opacity = '0.4';
-            btn.style.cursor = 'not-allowed';
-            btn.title = 'Disposition code not set - add to constants/dispositions.js';
+            btn.style.display = 'none';
         } else {
+            btn.style.display = 'flex';
             btn.classList.remove('disabled');
             btn.style.opacity = '1';
             btn.style.cursor = 'pointer';
             btn.title = '';
         }
     });
+}
+
+/**
+ * Initializes call control button visibility based on UI_FEATURES flags
+ */
+function initializeCallControlButtons() {
+    // Mute button visibility
+    const muteButton = document.querySelector('.control-btn.mute');
+    if (muteButton) {
+        muteButton.style.display = UI_FEATURES.SHOW_MUTE_BUTTON ? 'flex' : 'none';
+    }
+
+    // Speaker button visibility
+    const speakerButton = document.querySelector('.control-btn.speaker');
+    if (speakerButton) {
+        speakerButton.style.display = UI_FEATURES.SHOW_SPEAKER_BUTTON ? 'flex' : 'none';
+    }
 }
 
 /**

@@ -66,6 +66,15 @@ export const CONNECTION_TYPES = {
 };
 
 /**
+ * UI feature flags for call controls
+ * Set to true to show the feature, false to hide
+ */
+export const UI_FEATURES = {
+    SHOW_MUTE_BUTTON: false,    // Future feature - mute/unmute during calls
+    SHOW_SPEAKER_BUTTON: false  // Future feature - speaker volume control
+};
+
+/**
  * Keys for data stored in chrome.storage.local.
  */
 export const STORAGE_KEYS = {
@@ -78,6 +87,7 @@ export const STORAGE_KEYS = {
     CONNECTIONS: 'connections',
     DEBUG_MODE: 'debugMode',
     LATEST_MISSING_REPORT: 'latestMissingReport',
+    LAST_CALL_TIMESTAMP: 'lastCallTimestamp',
     // Settings
     CHECKER_MODE: 'checkerMode',
     CONCURRENT_TABS: 'concurrentTabs',

@@ -4,8 +4,7 @@
 export const DISPOSITION_CODES = {
     "Left Voicemail": "300000000000046",
     "No Answer": "",        // TODO: Add Five9 disposition code
-    "Disconnected": "",     // TODO: Add Five9 disposition code
-    "Other": ""            // TODO: Add Five9 disposition code
+    "Disconnected": ""      // TODO: Add Five9 disposition code
 };
 
 /**
@@ -14,11 +13,6 @@ export const DISPOSITION_CODES = {
  * @returns {string|null} The Five9 disposition code, or null if not found/empty
  */
 export function getDispositionCode(dispositionType) {
-    // Handle custom notes (starts with "Custom Note:")
-    if (dispositionType.startsWith("Custom Note:")) {
-        return DISPOSITION_CODES["Other"];
-    }
-
     return DISPOSITION_CODES[dispositionType] || null;
 }
 
