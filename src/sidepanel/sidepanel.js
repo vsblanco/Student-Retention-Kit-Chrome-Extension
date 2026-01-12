@@ -128,6 +128,9 @@ async function initializeApp() {
     setActiveStudent(null, callManager);
     populateGuides();
 
+    // Load and display last call timestamp
+    await callManager.loadLastCallTimestamp();
+
     // Start Five9 connection monitoring
     startFive9ConnectionMonitor(() => queueManager.getQueue());
 

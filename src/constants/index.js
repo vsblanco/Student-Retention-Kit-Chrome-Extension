@@ -87,6 +87,7 @@ export const STORAGE_KEYS = {
     CONNECTIONS: 'connections',
     DEBUG_MODE: 'debugMode',
     LATEST_MISSING_REPORT: 'latestMissingReport',
+    LAST_CALL_TIMESTAMP: 'lastCallTimestamp',
     // Settings
     CHECKER_MODE: 'checkerMode',
     CONCURRENT_TABS: 'concurrentTabs',

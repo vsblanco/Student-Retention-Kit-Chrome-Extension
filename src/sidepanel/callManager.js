@@ -3,6 +3,8 @@
 // v1.2: Skip button marks students to skip over without removing from queue
 // v1.3: Dial button cancels automation and keeps only current student
 
+import { STORAGE_KEYS } from '../constants/index.js';
+
 /**
  * CallManager class - Manages call state, timers, and automation sequences
  */
@@ -459,6 +461,9 @@ export default class CallManager {
         this.isCallActive = false;
         this.stopCallTimer();
 
+        // Update last call timestamp
+        await this.updateLastCallTimestamp();
+
         // Check if in automation mode
         if (this.automationMode) {
             // Move to next student
@@ -589,6 +594,76 @@ export default class CallManager {
                 this.elements.dialBtn.title = 'Live Mode - Calls via Five9 API';
                 this.elements.callStatusText.innerHTML = '<span class="status-indicator ready"></span> Ready to Connect';
             }
+        }
+    }
+
+    /**
+     * Formats a timestamp for display
+     * If today: shows time only (e.g., "3:45 PM")
+     * If not today: shows date (e.g., "12-25-25")
+     * @param {number} timestamp - Unix timestamp in milliseconds
+     * @returns {string} Formatted timestamp string
+     */
+    formatLastCallTimestamp(timestamp) {
+        if (!timestamp) return 'Never';
+
+        const now = new Date();
+        const callDate = new Date(timestamp);
+
+        // Check if the call was today
+        const isToday = now.toDateString() === callDate.toDateString();
+
+        if (isToday) {
+            // Return time only
+            let hours = callDate.getHours();
+            const minutes = callDate.getMinutes().toString().padStart(2, '0');
+            const ampm = hours >= 12 ? 'PM' : 'AM';
+            hours = hours % 12 || 12; // Convert to 12-hour format
+            return `${hours}:${minutes} ${ampm}`;
+        } else {
+            // Return date in MM-DD-YY format
+            const month = (callDate.getMonth() + 1).toString().padStart(2, '0');
+            const day = callDate.getDate().toString().padStart(2, '0');
+            const year = callDate.getFullYear().toString().slice(-2);
+            return `${month}-${day}-${year}`;
+        }
+    }
+
+    /**
+     * Updates the last call timestamp and saves to storage
+     */
+    async updateLastCallTimestamp() {
+        const now = Date.now();
+
+        // Save to storage
+        await chrome.storage.local.set({
+            [STORAGE_KEYS.LAST_CALL_TIMESTAMP]: now
+        });
+
+        // Update UI
+        this.displayLastCallTimestamp(now);
+    }
+
+    /**
+     * Displays the last call timestamp in the UI
+     * @param {number} timestamp - Unix timestamp in milliseconds
+     */
+    displayLastCallTimestamp(timestamp) {
+        if (!this.elements.lastCallTimestamp) return;
+
+        const formattedTime = this.formatLastCallTimestamp(timestamp);
+        this.elements.lastCallTimestamp.textContent = `Last call: ${formattedTime}`;
+    }
+
+    /**
+     * Loads and displays the last call timestamp from storage
+     */
+    async loadLastCallTimestamp() {
+        const result = await chrome.storage.local.get(STORAGE_KEYS.LAST_CALL_TIMESTAMP);
+        const timestamp = result[STORAGE_KEYS.LAST_CALL_TIMESTAMP];
+
+        if (timestamp) {
+            this.displayLastCallTimestamp(timestamp);
         }
     }
 
