@@ -123,13 +123,19 @@ async function handleFive9Hangup(dispositionType, sendResponse) {
 
             if (disposeResp.ok) {
                 console.log("SRK: Hangup Complete.");
-                sendResponse({ success: true });
+
+                // Get the interaction state after dispose
+                const interactionData = await disposeResp.json();
+                const state = interactionData?.state || 'UNKNOWN';
+                console.log("SRK: Interaction state after dispose:", state);
+
+                sendResponse({ success: true, state: state });
             } else {
                 const errorText = await disposeResp.text();
                 console.error("Dispose Error:", disposeResp.status, errorText);
 
                 if (disposeResp.status === 404 || disposeResp.status === 435) {
-                    sendResponse({ success: true });
+                    sendResponse({ success: true, state: 'UNKNOWN' });
                 } else {
                     sendResponse({ success: false, error: `${disposeResp.status} - ${errorText}` });
                 }
@@ -137,7 +143,22 @@ async function handleFive9Hangup(dispositionType, sendResponse) {
         } else {
             console.warn("SRK: No disposition code available - skipping dispose step.");
             console.warn("SRK: Call disconnected but not disposed. Add disposition code to constants/dispositions.js");
-            sendResponse({ success: true, warning: "No disposition code - call disconnected only" });
+
+            // Fetch interaction to get current state (should be WRAP_UP)
+            try {
+                const interactionsResp = await fetch(`https://app-atl.five9.com/appsvcs/rs/svc/agents/${metadata.userId}/interactions`);
+                if (interactionsResp.ok) {
+                    const interactions = await interactionsResp.json();
+                    const recentCall = interactions.find(i => i.channelType === 'CALL');
+                    const state = recentCall?.state || 'WRAP_UP';
+                    console.log("SRK: Interaction state after disconnect (no dispose):", state);
+                    sendResponse({ success: true, warning: "No disposition code - call disconnected only", state: state });
+                } else {
+                    sendResponse({ success: true, warning: "No disposition code - call disconnected only", state: 'WRAP_UP' });
+                }
+            } catch (e) {
+                sendResponse({ success: true, warning: "No disposition code - call disconnected only", state: 'WRAP_UP' });
+            }
         }
 
     } catch (error) {
@@ -196,14 +217,20 @@ async function handleFive9DisposeOnly(dispositionType, sendResponse) {
 
         if (disposeResp.ok) {
             console.log("SRK: Dispose-only Complete.");
-            sendResponse({ success: true });
+
+            // Get the interaction state after dispose
+            const interactionData = await disposeResp.json();
+            const state = interactionData?.state || 'UNKNOWN';
+            console.log("SRK: Interaction state after dispose-only:", state);
+
+            sendResponse({ success: true, state: state });
         } else {
             const errorText = await disposeResp.text();
             console.error("Dispose Error:", disposeResp.status, errorText);
 
             if (disposeResp.status === 404 || disposeResp.status === 435) {
                 console.warn("SRK: Interaction may have already been disposed or timed out.");
-                sendResponse({ success: true, warning: "Interaction already disposed or not found" });
+                sendResponse({ success: true, warning: "Interaction already disposed or not found", state: 'UNKNOWN' });
             } else {
                 sendResponse({ success: false, error: `${disposeResp.status} - ${errorText}` });
             }

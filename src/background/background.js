@@ -420,7 +420,12 @@ chrome.runtime.onMessage.addListener(async (msg, sender, sendResponse) => {
                   console.error("Five9 Hangup Error:", chrome.runtime.lastError.message);
                   chrome.runtime.sendMessage({ type: 'hangupStatus', success: false, error: "Five9 disconnected." });
               } else {
-                  chrome.runtime.sendMessage({ type: 'hangupStatus', success: response?.success, error: response?.error });
+                  chrome.runtime.sendMessage({
+                      type: 'hangupStatus',
+                      success: response?.success,
+                      error: response?.error,
+                      state: response?.state
+                  });
               }
           });
       })();
@@ -442,7 +447,12 @@ chrome.runtime.onMessage.addListener(async (msg, sender, sendResponse) => {
                   console.error("Five9 Dispose Error:", chrome.runtime.lastError.message);
                   chrome.runtime.sendMessage({ type: 'disposeStatus', success: false, error: "Five9 disconnected." });
               } else {
-                  chrome.runtime.sendMessage({ type: 'disposeStatus', success: response?.success, error: response?.error });
+                  chrome.runtime.sendMessage({
+                      type: 'disposeStatus',
+                      success: response?.success,
+                      error: response?.error,
+                      state: response?.state
+                  });
               }
           });
       })();
