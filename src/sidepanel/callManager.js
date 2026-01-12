@@ -68,7 +68,7 @@ export default class CallManager {
      * Handles both single calls and automation mode
      * @param {boolean} forceEnd - Force end the call regardless of current state
      */
-    toggleCallState(forceEnd = false) {
+    async toggleCallState(forceEnd = false) {
         // --- CANCEL AUTOMATION MODE ---
         // If in automation mode and call is active, cancel automation
         if (this.automationMode && this.isCallActive) {
@@ -123,9 +123,11 @@ export default class CallManager {
             // Call is ending - show "Ending call" status
             this.elements.callStatusText.innerHTML = '<span class="status-indicator" style="background:#f59e0b;"></span> Ending call...';
 
+            let hangupResult = { success: true, state: 'WRAP_UP' };
+
             // --- HANGUP FIVE9 CALL (ONLY IF DEBUG MODE OFF) ---
             if (!this.debugMode) {
-                this.hangupCall(); // Trigger Five9 API hangup
+                hangupResult = await this.hangupCall(); // Trigger Five9 API hangup and wait for response
             } else {
                 console.log("📞 [DEMO MODE] Simulating hangup (Five9 API not called)");
             }
@@ -134,9 +136,25 @@ export default class CallManager {
             this.elements.dialBtn.style.background = '#10b981';
             this.elements.dialBtn.style.transform = 'rotate(0deg)';
 
-            // KEEP Disposition Grid open for user to select disposition
-            // Don't hide it - user needs to select a disposition
-            this.waitingForDisposition = true;
+            // Check the interaction state
+            const state = hangupResult?.state || 'WRAP_UP';
+            console.log("📊 Call state after hangup:", state);
+
+            if (state === 'WRAP_UP') {
+                // Call disconnected but waiting for disposition
+                this.elements.callStatusText.innerHTML = '<span class="status-indicator" style="background:#f59e0b;"></span> Awaiting Disposition';
+
+                // KEEP call active to block pings until disposition is set
+                this.isCallActive = true;
+                this.waitingForDisposition = true;
+
+                // Keep disposition UI open
+            } else {
+                // Call fully completed (shouldn't normally happen without disposition)
+                this.elements.callStatusText.innerHTML = '<span class="status-indicator ready"></span> Ready to Connect';
+                this.isCallActive = false;
+                this.waitingForDisposition = false;
+            }
 
             // Hide custom input area if it was open
             if (this.elements.otherInputArea) {
@@ -450,16 +468,25 @@ export default class CallManager {
         // - Associate with current student
         // - Track disposition history
 
+        let disposeResult = { success: true, state: 'FINISHED' };
+
         // Check if call was already ended (user clicked end call button first)
         if (this.waitingForDisposition) {
             // Call already ended, just setting disposition
             this.elements.callStatusText.innerHTML = '<span class="status-indicator" style="background:#3b82f6;"></span> Setting disposition...';
 
-            // Skip hangup since call is already ended
+            // Send dispose-only request to Five9
             console.log("📋 Setting disposition for already-ended call");
 
-            // Small delay to show the status
-            await new Promise(resolve => setTimeout(resolve, 500));
+            // --- SEND DISPOSITION TO FIVE9 (ONLY IF DEBUG MODE OFF) ---
+            if (!this.debugMode) {
+                disposeResult = await this.sendDispositionOnly(type);
+            } else {
+                console.log("📞 [DEMO MODE] Simulating disposition send");
+                // Small delay to simulate the operation
+                await new Promise(resolve => setTimeout(resolve, 500));
+            }
+            // -------------------------
         } else {
             // Call is still active, need to end it first
             this.elements.callStatusText.innerHTML = '<span class="status-indicator" style="background:#f59e0b;"></span> Ending call...';
@@ -469,7 +496,7 @@ export default class CallManager {
                 console.log("⏳ Waiting for Five9 dispose to complete...");
                 // CRITICAL: Wait for dispose to complete before marking call as inactive
                 // This prevents race conditions where pings arrive before dispose finishes
-                await this.hangupCall(type);
+                disposeResult = await this.hangupCall(type);
             } else {
                 console.log("📞 [DEMO MODE] Simulating hangup after disposition");
             }
@@ -480,9 +507,25 @@ export default class CallManager {
 
             // Small delay to show the status
             await new Promise(resolve => setTimeout(resolve, 500));
+        }
 
-            // IMPORTANT: Only set call as inactive AFTER dispose completes
-            // This ensures no new calls can be initiated until cleanup is done
+        // Check the interaction state after disposition
+        const state = disposeResult?.state || 'FINISHED';
+        console.log("📊 Call state after disposition:", state);
+
+        if (state === 'FINISHED') {
+            // Disposition set successfully - call is completely done
+            this.elements.callStatusText.innerHTML = '<span class="status-indicator" style="background:#10b981;"></span> Disposition Set';
+
+            // NOW we can mark call as inactive - disposition is confirmed
+            this.isCallActive = false;
+            this.stopCallTimer();
+
+            // Small delay to show the "Disposition Set" message
+            await new Promise(resolve => setTimeout(resolve, 1000));
+        } else {
+            // Unexpected state - mark as inactive anyway
+            console.warn("⚠️ Unexpected state after disposition:", state);
             this.isCallActive = false;
             this.stopCallTimer();
         }
@@ -569,7 +612,8 @@ export default class CallManager {
 
                         if (message.success) {
                             console.log("✓ Five9 dispose completed successfully");
-                            resolve({ success: true });
+                            console.log("✓ Interaction state:", message.state);
+                            resolve({ success: true, state: message.state });
                         } else {
                             console.error("Five9 dispose error:", message.error);
                             resolve({ success: false, error: message.error });
@@ -599,6 +643,61 @@ export default class CallManager {
             });
         } catch (error) {
             console.error("Error hanging up call:", error);
+            return { success: false, error: error.message };
+        }
+    }
+
+    /**
+     * Sends disposition only (for calls already disconnected)
+     * Used when user ends call first, then selects disposition
+     * @param {string} dispositionType - The disposition type selected by the user
+     * @returns {Promise<{success: boolean, error?: string}>}
+     */
+    async sendDispositionOnly(dispositionType) {
+        try {
+            // Create a promise that resolves when the dispose is complete
+            return new Promise((resolve) => {
+                let isResolved = false;
+
+                // Set up one-time listener for dispose completion
+                const disposeListener = (message) => {
+                    if (message.type === 'disposeStatus' && !isResolved) {
+                        isResolved = true;
+                        // Remove listener after receiving response
+                        chrome.runtime.onMessage.removeListener(disposeListener);
+
+                        if (message.success) {
+                            console.log("✓ Five9 disposition sent successfully");
+                            console.log("✓ Interaction state:", message.state);
+                            resolve({ success: true, state: message.state });
+                        } else {
+                            console.error("Five9 disposition error:", message.error);
+                            resolve({ success: false, error: message.error });
+                        }
+                    }
+                };
+
+                // Add listener before sending message
+                chrome.runtime.onMessage.addListener(disposeListener);
+
+                // Safety timeout: If no response after 10 seconds, resolve anyway
+                setTimeout(() => {
+                    if (!isResolved) {
+                        isResolved = true;
+                        chrome.runtime.onMessage.removeListener(disposeListener);
+                        console.warn("⚠️ Dispose timeout - assuming completed");
+                        resolve({ success: true, warning: "Timeout" });
+                    }
+                }, 10000);
+
+                // Send dispose request
+                chrome.runtime.sendMessage({
+                    type: 'triggerFive9DisposeOnly',
+                    dispositionType: dispositionType
+                });
+            });
+        } catch (error) {
+            console.error("Error sending disposition:", error);
             return { success: false, error: error.message };
         }
     }

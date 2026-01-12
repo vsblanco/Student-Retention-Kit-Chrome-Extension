@@ -3,6 +3,9 @@
 
 export const DISPOSITION_CODES = {
     "Left Voicemail": "300000000000046",
+    "Service Completed": "300000000000043",
+    "Outbound Error": "300000000000271",
+    "Follow Up": "300000000000048",
     "No Answer": "",        // TODO: Add Five9 disposition code
     "Disconnected": ""      // TODO: Add Five9 disposition code
 };
