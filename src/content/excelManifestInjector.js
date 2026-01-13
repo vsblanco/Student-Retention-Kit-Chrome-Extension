@@ -227,7 +227,49 @@ const MANIFEST_XML = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 </OfficeApp>`;
 
 const ADDIN_ID = 'a8b1e479-1b3d-4e9e-9a1c-2f8e1c8b4a0e';
-const SESSION_ID = '3735224676'; // Fixed session ID for consistent add-in loading
+
+/**
+ * Finds existing Office session IDs in localStorage or generates a new one
+ * This ensures the add-in works for all users, not just those with a specific session ID
+ * @returns {string} The session ID to use
+ */
+function findOrGenerateSessionId() {
+    // Look for existing __OSF_UPLOADFILE keys to find the session ID
+    for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith('__OSF_UPLOADFILE.MyAddins.16.')) {
+            // Extract session ID from key like "__OSF_UPLOADFILE.MyAddins.16.3735224676"
+            const parts = key.split('.');
+            if (parts.length >= 4) {
+                const sessionId = parts[3];
+                console.log('[SRK Auto-Sideloader] Found existing session ID:', sessionId);
+                return sessionId;
+            }
+        }
+    }
+
+    // Alternative: Look for ack keys with pattern ack*_WAC_Excel_*
+    for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.includes('_WAC_Excel_')) {
+            // Extract session ID from key like "ack3_WAC_Excel_3735224676_8"
+            const match = key.match(/_WAC_Excel_(\d+)_/);
+            if (match && match[1]) {
+                const sessionId = match[1];
+                console.log('[SRK Auto-Sideloader] Found existing session ID from ack key:', sessionId);
+                return sessionId;
+            }
+        }
+    }
+
+    // If no existing session found, generate a new one
+    // Excel uses what appears to be a random 10-digit number
+    const sessionId = Math.floor(Math.random() * 9999999999).toString();
+    console.log('[SRK Auto-Sideloader] No existing session ID found, generated new one:', sessionId);
+    return sessionId;
+}
+
+const SESSION_ID = findOrGenerateSessionId(); // Dynamically find or generate session ID
 
 // Main injection function
 function injectManifest() {
