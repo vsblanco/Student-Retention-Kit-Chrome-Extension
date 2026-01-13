@@ -25,7 +25,6 @@ export function cacheDomElements() {
     elements.foundList = document.querySelector('#checker .glass-list');
     elements.clearListBtn = document.getElementById('clearFoundListBtn');
     elements.foundSearch = document.querySelector('#checker input[type="text"]');
-    elements.foundCountText = document.getElementById('foundCountText');
 
     // Call Tab
     elements.dialBtn = document.getElementById('dialBtn');
