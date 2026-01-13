@@ -230,7 +230,7 @@ const ADDIN_ID = 'a8b1e479-1b3d-4e9e-9a1c-2f8e1c8b4a0e';
 
 /**
  * Gets a stable session ID for this user
- * First checks chrome.storage for a saved ID, then scans localStorage, then generates new
+ * First checks chrome.storage for a saved ID, then scans for Office's ack key, then generates new
  * @returns {Promise<string>} The session ID to use
  */
 async function getStableSessionId() {
@@ -243,16 +243,32 @@ async function getStableSessionId() {
                 return;
             }
 
-            // No stored ID, try to find one in localStorage
+            // No stored ID, scan for Office's own ack key to find the REAL active session ID
+            // Office creates keys like: ack3_WAC_Excel_3735224676_0
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key && key.startsWith('ack3_WAC_Excel_')) {
+                    // Extract session ID from key like "ack3_WAC_Excel_3735224676_0"
+                    const parts = key.substring('ack3_WAC_Excel_'.length).split('_');
+                    if (parts.length > 0 && parts[0]) {
+                        const sessionId = parts[0];
+                        console.log('[SRK Auto-Sideloader] Found Office session ID from ack key:', sessionId);
+                        // Save it for future use
+                        chrome.storage.local.set({ srkOfficeSessionId: sessionId });
+                        resolve(sessionId);
+                        return;
+                    }
+                }
+            }
+
+            // Fallback: try to find one in __OSF_UPLOADFILE.MyAddins keys
             for (let i = 0; i < localStorage.length; i++) {
                 const key = localStorage.key(i);
                 if (key && key.startsWith('__OSF_UPLOADFILE.MyAddins.16.')) {
-                    // Extract session ID from key like "__OSF_UPLOADFILE.MyAddins.16.3735224676"
                     const parts = key.split('.');
                     if (parts.length >= 4) {
                         const sessionId = parts[3];
-                        console.log('[SRK Auto-Sideloader] Found existing Office session ID:', sessionId);
-                        // Save it for future use
+                        console.log('[SRK Auto-Sideloader] Found existing session ID from MyAddins:', sessionId);
                         chrome.storage.local.set({ srkOfficeSessionId: sessionId });
                         resolve(sessionId);
                         return;
