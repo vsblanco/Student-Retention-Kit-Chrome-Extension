@@ -107,6 +107,13 @@ export function cacheDomElements() {
     elements.resendHighlightPingMenuItem = document.getElementById('resendHighlightPingMenuItem');
     elements.checkerContextMenuText = document.getElementById('checkerContextMenuText');
     elements.updateQueueSection = document.getElementById('updateQueueSection');
+
+    // Mini Console
+    elements.miniConsole = document.getElementById('miniConsole');
+    elements.consoleHeader = document.getElementById('consoleHeader');
+    elements.consoleContent = document.getElementById('consoleContent');
+    elements.consoleToggleIcon = document.getElementById('consoleToggleIcon');
+    elements.clearConsoleBtn = document.getElementById('clearConsoleBtn');
     elements.queueCloseBtn = elements.updateQueueSection ? elements.updateQueueSection.querySelector('.icon-btn') : null;
     elements.lastUpdatedText = document.getElementById('lastUpdatedText');
     elements.totalCountText = document.getElementById('totalCountText');

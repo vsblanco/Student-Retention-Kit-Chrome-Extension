@@ -718,6 +718,85 @@ function setupEventListeners() {
         });
     }
 
+    // Mini Console functionality
+    if (elements.consoleHeader && elements.miniConsole && elements.consoleToggleIcon) {
+        elements.consoleHeader.addEventListener('click', (e) => {
+            // Don't toggle if clicking on the clear button
+            if (e.target.closest('#clearConsoleBtn')) return;
+
+            elements.miniConsole.classList.toggle('collapsed');
+            if (elements.miniConsole.classList.contains('collapsed')) {
+                elements.consoleToggleIcon.className = 'fas fa-chevron-up';
+            } else {
+                elements.consoleToggleIcon.className = 'fas fa-chevron-down';
+            }
+        });
+    }
+
+    if (elements.clearConsoleBtn && elements.consoleContent) {
+        elements.clearConsoleBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            elements.consoleContent.innerHTML = '';
+        });
+    }
+
+    // Intercept console logs and display in mini console
+    const originalConsole = {
+        log: console.log,
+        warn: console.warn,
+        error: console.error,
+        info: console.info
+    };
+
+    function addConsoleMessage(type, args) {
+        if (!elements.consoleContent) return;
+
+        const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        const message = Array.from(args).map(arg => {
+            if (typeof arg === 'object') {
+                try {
+                    return JSON.stringify(arg, null, 2);
+                } catch (e) {
+                    return String(arg);
+                }
+            }
+            return String(arg);
+        }).join(' ');
+
+        const logEntry = document.createElement('div');
+        logEntry.className = `console-log ${type}`;
+        logEntry.innerHTML = `<span class="timestamp">[${timestamp}]</span>${message}`;
+
+        elements.consoleContent.appendChild(logEntry);
+        elements.consoleContent.scrollTop = elements.consoleContent.scrollHeight;
+
+        // Limit to 100 entries
+        const entries = elements.consoleContent.querySelectorAll('.console-log');
+        if (entries.length > 100) {
+            entries[0].remove();
+        }
+    }
+
+    console.log = function(...args) {
+        originalConsole.log.apply(console, args);
+        addConsoleMessage('log', args);
+    };
+
+    console.warn = function(...args) {
+        originalConsole.warn.apply(console, args);
+        addConsoleMessage('warn', args);
+    };
+
+    console.error = function(...args) {
+        originalConsole.error.apply(console, args);
+        addConsoleMessage('error', args);
+    };
+
+    console.info = function(...args) {
+        originalConsole.info.apply(console, args);
+        addConsoleMessage('info', args);
+    };
+
     if (elements.studentPopFile) {
         elements.studentPopFile.addEventListener('change', (e) => {
             handleFileImport(e.target.files[0], (students) => {

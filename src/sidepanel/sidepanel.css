@@ -733,6 +733,98 @@ input:focus, textarea:focus, select:focus {
     font-size: 0.95em;
 }
 
+/* Mini Console */
+.mini-console {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: rgba(30, 30, 30, 0.95);
+    backdrop-filter: blur(10px);
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    z-index: 1500;
+    display: flex;
+    flex-direction: column;
+    transition: all 0.3s ease;
+    max-height: 300px;
+}
+
+.mini-console.collapsed {
+    max-height: 40px;
+}
+
+.console-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 15px;
+    color: #fff;
+    font-size: 0.9em;
+    cursor: pointer;
+    user-select: none;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.console-header:hover {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.console-btn {
+    background: none;
+    border: none;
+    color: #fff;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.9em;
+    transition: background 0.2s;
+}
+
+.console-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.console-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 10px 15px;
+    font-family: 'Courier New', monospace;
+    font-size: 0.85em;
+    color: #e0e0e0;
+    line-height: 1.5;
+}
+
+.console-log {
+    padding: 4px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.console-log:last-child {
+    border-bottom: none;
+}
+
+.console-log.log {
+    color: #e0e0e0;
+}
+
+.console-log.warn {
+    color: #ffa500;
+}
+
+.console-log.error {
+    color: #ff4444;
+}
+
+.console-log.info {
+    color: #4fc3f7;
+}
+
+.console-log .timestamp {
+    color: #888;
+    font-size: 0.9em;
+    margin-right: 8px;
+}
+
 /* Markdown Content Styles */
 #aboutContent h1 {
     font-size: 1.8em;
