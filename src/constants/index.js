@@ -100,7 +100,6 @@ export const STORAGE_KEYS = {
     INCLUDE_ALL_ASSIGNMENTS: 'includeAllAssignments',
     CANVAS_API_CACHE: 'canvasApiCache',
     // Scan Filter Settings
-    SCAN_FILTER_DAYS_OUT: 'scanFilterDaysOut',
     SCAN_FILTER_INCLUDE_FAILING: 'scanFilterIncludeFailing',
     // Master List Auto-Update Settings
     AUTO_UPDATE_MASTER_LIST: 'autoUpdateMasterList',
@@ -136,11 +135,10 @@ export const DEFAULT_SETTINGS = {
     [STORAGE_KEYS.CONCURRENT_TABS]: 5, // Increased default since API is faster
     [STORAGE_KEYS.HIGHLIGHT_COLOR]: '#ffff00',
     [STORAGE_KEYS.CUSTOM_KEYWORD]: '',
-    [STORAGE_KEYS.LOOPER_DAYS_OUT_FILTER]: 'all',
+    [STORAGE_KEYS.LOOPER_DAYS_OUT_FILTER]: '>=5',
     [STORAGE_KEYS.DEBUG_MODE]: false,
     [STORAGE_KEYS.EMBED_IN_CANVAS]: true,
     [STORAGE_KEYS.INCLUDE_ALL_ASSIGNMENTS]: false,
-    [STORAGE_KEYS.SCAN_FILTER_DAYS_OUT]: '>=5',
     [STORAGE_KEYS.SCAN_FILTER_INCLUDE_FAILING]: false,
     [STORAGE_KEYS.AUTO_UPDATE_MASTER_LIST]: 'always', // Options: 'always', 'once-daily', 'never'
     [STORAGE_KEYS.SYNC_ACTIVE_STUDENT]: true, // Enable student sync from Excel add-in by default
