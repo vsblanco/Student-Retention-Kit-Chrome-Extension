@@ -269,14 +269,15 @@ function findOrGenerateSessionId() {
         }
     }
 
-    // Strategy 3: If no existing session found, generate a new one
-    // Excel uses what appears to be a random 10-digit number
-    const sessionId = Math.floor(Math.random() * 9999999999).toString();
-    console.log('[SRK Auto-Sideloader] No existing session ID found, generated new one:', sessionId);
-    return sessionId;
+    // No session ID found - do not sideload
+    console.log('%c [SRK Auto-Sideloader] Could not find session ID - skipping sideload', 'background: #ff9800; color: white; font-weight: bold; padding: 2px 4px;');
+    console.log('[SRK Auto-Sideloader] No Office session ID detected in localStorage.');
+    console.log('[SRK Auto-Sideloader] The add-in will not be sideloaded automatically.');
+    console.log('[SRK Auto-Sideloader] Please ensure you have opened Excel Online at least once.');
+    return null;
 }
 
-const SESSION_ID = findOrGenerateSessionId(); // Dynamically find or generate session ID
+const SESSION_ID = findOrGenerateSessionId(); // Dynamically find session ID (returns null if not found)
 
 // Main injection function
 function injectManifest() {
@@ -411,6 +412,12 @@ chrome.storage.local.get(['autoSideloadManifest'], (result) => {
     }
 
     console.log('[SRK] Auto-sideload is enabled, proceeding...');
+
+    // Check if we have a valid session ID before injecting
+    if (!SESSION_ID) {
+        console.log('[SRK] Cannot proceed with sideload - no session ID found');
+        return;
+    }
 
     // Simply inject the manifest - the ack key should make Office recognize it
     injectManifest();
