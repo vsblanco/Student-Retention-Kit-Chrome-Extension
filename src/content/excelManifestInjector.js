@@ -235,21 +235,43 @@ const ADDIN_ID = 'a8b1e479-1b3d-4e9e-9a1c-2f8e1c8b4a0e';
  */
 function discoverOfficeSessionId() {
     console.log('[SRK Auto-Sideloader] Scanning localStorage for Office session ID...');
+    console.log('[SRK Auto-Sideloader] Current URL:', window.location.href);
 
-    // Scan for Office's own ack key to find the REAL active session ID
-    // Office creates keys like: ack3_WAC_Excel_3735224676_0
-    // This ID is user-specific and consistent across all Microsoft accounts for that user
+    // First, try to extract from URL parameters (hid parameter might contain session info)
+    const urlParams = new URLSearchParams(window.location.search);
+    const hid = urlParams.get('hid');
+    if (hid) {
+        console.log('[SRK Auto-Sideloader] Found hid parameter:', hid);
+    }
+
+    // Scan for ALL ack keys to see what's available
+    const ackKeys = [];
     for (let i = 0; i < localStorage.length; i++) {
         const key = localStorage.key(i);
         if (key && key.startsWith('ack3_WAC_Excel_') && key.endsWith('_0')) {
-            // Extract session ID from key like "ack3_WAC_Excel_3735224676_0"
             const match = key.match(/^ack3_WAC_Excel_(\d+)_0$/);
             if (match && match[1]) {
-                const sessionId = match[1];
-                console.log('[SRK Auto-Sideloader] ✓ Found Office session ID from ack key:', sessionId);
-                return sessionId;
+                ackKeys.push(match[1]);
             }
         }
+    }
+
+    console.log('[SRK Auto-Sideloader] Found ack_*_0 keys for session IDs:', ackKeys);
+
+    // If there's only one, use it
+    if (ackKeys.length === 1) {
+        const sessionId = ackKeys[0];
+        console.log('[SRK Auto-Sideloader] ✓ Using only available session ID:', sessionId);
+        return sessionId;
+    }
+
+    // If there are multiple, we need to determine which is current
+    // For now, use the first one found (we'll need more info to determine the right one)
+    if (ackKeys.length > 0) {
+        const sessionId = ackKeys[0];
+        console.log('[SRK Auto-Sideloader] ⚠ Multiple session IDs found, using first:', sessionId);
+        console.log('[SRK Auto-Sideloader] ⚠ Available IDs:', ackKeys);
+        return sessionId;
     }
 
     // Fallback: try to find one in __OSF_UPLOADFILE.MyAddins keys
