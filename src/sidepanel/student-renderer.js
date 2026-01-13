@@ -192,12 +192,21 @@ export function renderFoundList(rawEntries) {
         if (elements.clearListBtn) {
             elements.clearListBtn.style.display = 'none';
         }
+        if (elements.foundCountText) {
+            elements.foundCountText.textContent = '0 students submitted';
+        }
         return;
     }
 
     // Show clear button when there are entries
     if (elements.clearListBtn) {
         elements.clearListBtn.style.display = 'block';
+    }
+
+    // Update counter
+    const count = rawEntries.length;
+    if (elements.foundCountText) {
+        elements.foundCountText.textContent = `${count} student${count !== 1 ? 's' : ''} submitted`;
     }
 
     // Create pairs of raw entries and resolved data, then sort by timestamp
