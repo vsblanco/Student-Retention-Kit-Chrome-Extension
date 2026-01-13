@@ -235,6 +235,36 @@ function populateGuides() {
     });
 }
 
+// --- CONSOLE MESSAGE HANDLER ---
+function addConsoleMessage(type, args) {
+    if (!elements.consoleContent) return;
+
+    const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    const message = Array.from(args).map(arg => {
+        if (typeof arg === 'object') {
+            try {
+                return JSON.stringify(arg, null, 2);
+            } catch (e) {
+                return String(arg);
+            }
+        }
+        return String(arg);
+    }).join(' ');
+
+    const logEntry = document.createElement('div');
+    logEntry.className = `console-log ${type}`;
+    logEntry.innerHTML = `<span class="timestamp">[${timestamp}]</span>${message}`;
+
+    elements.consoleContent.appendChild(logEntry);
+    elements.consoleContent.scrollTop = elements.consoleContent.scrollHeight;
+
+    // Limit to 100 entries
+    const entries = elements.consoleContent.querySelectorAll('.console-log');
+    if (entries.length > 100) {
+        entries[0].remove();
+    }
+}
+
 // --- EVENT LISTENERS ---
 function setupEventListeners() {
     // Tab switching
@@ -737,42 +767,13 @@ function setupEventListeners() {
         });
     }
 
-    // Intercept console logs and display in mini console
+    // Intercept console logs from sidepanel and display in mini console
     const originalConsole = {
         log: console.log,
         warn: console.warn,
         error: console.error,
         info: console.info
     };
-
-    function addConsoleMessage(type, args) {
-        if (!elements.consoleContent) return;
-
-        const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-        const message = Array.from(args).map(arg => {
-            if (typeof arg === 'object') {
-                try {
-                    return JSON.stringify(arg, null, 2);
-                } catch (e) {
-                    return String(arg);
-                }
-            }
-            return String(arg);
-        }).join(' ');
-
-        const logEntry = document.createElement('div');
-        logEntry.className = `console-log ${type}`;
-        logEntry.innerHTML = `<span class="timestamp">[${timestamp}]</span>${message}`;
-
-        elements.consoleContent.appendChild(logEntry);
-        elements.consoleContent.scrollTop = elements.consoleContent.scrollHeight;
-
-        // Limit to 100 entries
-        const entries = elements.consoleContent.querySelectorAll('.console-log');
-        if (entries.length > 100) {
-            entries[0].remove();
-        }
-    }
 
     console.log = function(...args) {
         originalConsole.log.apply(console, args);
@@ -1065,6 +1066,11 @@ chrome.runtime.onMessage.addListener(async (msg, sender, sendResponse) => {
                 console.log(`Automation mode enabled with ${msg.count} students`);
             }
         }
+    }
+
+    // Handle logs from background script
+    if (msg.type === MESSAGE_TYPES.LOG_TO_PANEL) {
+        addConsoleMessage(msg.level, msg.args);
     }
 });
 

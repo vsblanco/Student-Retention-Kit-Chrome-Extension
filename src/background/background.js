@@ -17,6 +17,43 @@ function addToLogBuffer(level, payload) {
     }
 }
 
+// Intercept console logs and send to sidepanel
+const originalConsole = {
+    log: console.log,
+    warn: console.warn,
+    error: console.error,
+    info: console.info
+};
+
+function sendLogToPanel(level, args) {
+    // Send to sidepanel
+    chrome.runtime.sendMessage({
+        type: MESSAGE_TYPES.LOG_TO_PANEL,
+        level: level,
+        args: args
+    }).catch(() => {}); // Ignore errors if sidepanel is not open
+}
+
+console.log = function(...args) {
+    originalConsole.log.apply(console, args);
+    sendLogToPanel('log', args);
+};
+
+console.warn = function(...args) {
+    originalConsole.warn.apply(console, args);
+    sendLogToPanel('warn', args);
+};
+
+console.error = function(...args) {
+    originalConsole.error.apply(console, args);
+    sendLogToPanel('error', args);
+};
+
+console.info = function(...args) {
+    originalConsole.info.apply(console, args);
+    sendLogToPanel('info', args);
+};
+
 // --- CALLBACKS FOR LOOPER ---
 
 // Handle found submissions (Submission Mode)
