@@ -808,6 +808,14 @@ input:focus, textarea:focus, select:focus {
     color: #4fc3f7;
 }
 
+.console-log.ping {
+    color: #ffa500;
+}
+
+.console-log.submission {
+    color: #4caf50;
+}
+
 .console-log .timestamp {
     color: #888;
     font-size: 0.9em;

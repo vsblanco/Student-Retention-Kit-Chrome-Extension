@@ -251,8 +251,16 @@ function addConsoleMessage(type, args) {
         return String(arg);
     }).join(' ');
 
+    // Detect specific message patterns and apply custom colors
+    let customType = type;
+    if (message.includes('Sending payload to Office Add-in') || message.includes('SRK_HIGHLIGHT_STUDENT_ROW')) {
+        customType = 'ping';
+    } else if (message.includes('onSubmissionFound triggered') || message.includes('Submission Found')) {
+        customType = 'submission';
+    }
+
     const logEntry = document.createElement('div');
-    logEntry.className = `console-log ${type}`;
+    logEntry.className = `console-log ${customType}`;
     logEntry.innerHTML = `<span class="timestamp">[${timestamp}]</span>${message}`;
 
     elements.consoleContent.appendChild(logEntry);
