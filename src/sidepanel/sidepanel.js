@@ -89,6 +89,20 @@ let isDebugMode = false;
 let embedHelperEnabled = true;
 let highlightColor = '#ffff00';
 
+// --- RESEND HIGHLIGHT PING FUNCTIONS ---
+async function resendHighlightPing(entry) {
+    await chrome.runtime.sendMessage({
+        type: MESSAGE_TYPES.RESEND_HIGHLIGHT_PING,
+        entry: entry
+    });
+}
+
+async function resendAllHighlightPings() {
+    await chrome.runtime.sendMessage({
+        type: MESSAGE_TYPES.RESEND_ALL_HIGHLIGHT_PINGS
+    });
+}
+
 // --- INITIALIZATION ---
 document.addEventListener('DOMContentLoaded', () => {
     blockTextSelection();
@@ -633,7 +647,61 @@ function setupEventListeners() {
         if (elements.updateMasterContextMenu) {
             elements.updateMasterContextMenu.style.display = 'none';
         }
+        if (elements.checkerContextMenu) {
+            elements.checkerContextMenu.style.display = 'none';
+        }
     });
+
+    // Variable to track the selected student entry for context menu
+    let selectedStudentEntry = null;
+
+    // Right-click context menu for Checker Tab
+    const checkerTab = document.getElementById('checker');
+    if (checkerTab) {
+        checkerTab.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+
+            if (!elements.checkerContextMenu || !elements.checkerContextMenuText) return;
+
+            // Check if right-clicked on a student list item
+            const listItem = e.target.closest('.glass-list li');
+
+            if (listItem && listItem.dataset.entryData) {
+                // Right-clicked on a student - show "Resend Highlight Ping"
+                selectedStudentEntry = JSON.parse(listItem.dataset.entryData);
+                elements.checkerContextMenuText.textContent = 'Resend Highlight Ping';
+            } else {
+                // Right-clicked elsewhere on checker tab - show "Resend All Highlight Pings"
+                selectedStudentEntry = null;
+                elements.checkerContextMenuText.textContent = 'Resend All Highlight Pings';
+            }
+
+            // Position the context menu at the mouse position
+            elements.checkerContextMenu.style.left = `${e.pageX}px`;
+            elements.checkerContextMenu.style.top = `${e.pageY}px`;
+            elements.checkerContextMenu.style.display = 'block';
+        });
+    }
+
+    // Context menu item - Resend Highlight Ping(s)
+    if (elements.resendHighlightPingMenuItem) {
+        elements.resendHighlightPingMenuItem.addEventListener('click', async () => {
+            // Hide context menu
+            if (elements.checkerContextMenu) {
+                elements.checkerContextMenu.style.display = 'none';
+            }
+
+            if (selectedStudentEntry) {
+                // Resend ping for single student
+                await resendHighlightPing(selectedStudentEntry);
+                console.log('Resent highlight ping for:', selectedStudentEntry.name);
+            } else {
+                // Resend pings for all students
+                await resendAllHighlightPings();
+                console.log('Resent all highlight pings');
+            }
+        });
+    }
 
     if (elements.studentPopFile) {
         elements.studentPopFile.addEventListener('change', (e) => {

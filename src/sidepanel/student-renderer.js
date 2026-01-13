@@ -233,6 +233,9 @@ export function renderFoundList(rawEntries) {
         nameLink.addEventListener('mouseenter', () => nameLink.style.textDecoration = 'underline');
         nameLink.addEventListener('mouseleave', () => nameLink.style.textDecoration = 'none');
 
+        // Store the entry data on the li element for context menu access
+        li.dataset.entryData = JSON.stringify(data);
+
         elements.foundList.appendChild(li);
     });
 }
