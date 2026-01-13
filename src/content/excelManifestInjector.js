@@ -229,38 +229,55 @@ const MANIFEST_XML = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 const ADDIN_ID = 'a8b1e479-1b3d-4e9e-9a1c-2f8e1c8b4a0e';
 
 /**
- * Finds existing Office session IDs in localStorage or generates a new one
- * This ensures the add-in works for all users, not just a hardcoded session
- * @returns {string} The session ID to use
+ * Gets a stable session ID for this user
+ * First checks chrome.storage for a saved ID, then scans localStorage, then generates new
+ * @returns {Promise<string>} The session ID to use
  */
-function findOrGenerateSessionId() {
-    // Look for existing __OSF_UPLOADFILE keys to find the session ID
-    for (let i = 0; i < localStorage.length; i++) {
-        const key = localStorage.key(i);
-        if (key && key.startsWith('__OSF_UPLOADFILE.MyAddins.16.')) {
-            // Extract session ID from key like "__OSF_UPLOADFILE.MyAddins.16.3735224676"
-            const parts = key.split('.');
-            if (parts.length >= 4) {
-                console.log('[SRK Auto-Sideloader] Found existing Office session ID:', parts[3]);
-                return parts[3];
+async function getStableSessionId() {
+    return new Promise((resolve) => {
+        // First, check if we already have a saved session ID in chrome.storage
+        chrome.storage.local.get(['srkOfficeSessionId'], (result) => {
+            if (result.srkOfficeSessionId) {
+                console.log('[SRK Auto-Sideloader] Using stored session ID:', result.srkOfficeSessionId);
+                resolve(result.srkOfficeSessionId);
+                return;
             }
-        }
-    }
 
-    // If no existing session found, generate a new one
-    // Excel uses what appears to be a random number
-    const newSessionId = Math.floor(Math.random() * 9999999999).toString();
-    console.log('[SRK Auto-Sideloader] Generated new session ID:', newSessionId);
-    return newSessionId;
+            // No stored ID, try to find one in localStorage
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key && key.startsWith('__OSF_UPLOADFILE.MyAddins.16.')) {
+                    // Extract session ID from key like "__OSF_UPLOADFILE.MyAddins.16.3735224676"
+                    const parts = key.split('.');
+                    if (parts.length >= 4) {
+                        const sessionId = parts[3];
+                        console.log('[SRK Auto-Sideloader] Found existing Office session ID:', sessionId);
+                        // Save it for future use
+                        chrome.storage.local.set({ srkOfficeSessionId: sessionId });
+                        resolve(sessionId);
+                        return;
+                    }
+                }
+            }
+
+            // No existing session found, generate a new one
+            // Excel uses what appears to be a random number
+            const newSessionId = Math.floor(Math.random() * 9999999999).toString();
+            console.log('[SRK Auto-Sideloader] Generated new session ID:', newSessionId);
+            // Save it for future use
+            chrome.storage.local.set({ srkOfficeSessionId: newSessionId });
+            resolve(newSessionId);
+        });
+    });
 }
 
 // Main injection function
-function injectManifest() {
+async function injectManifest() {
     console.log('%c [SRK Auto-Sideloader] Injecting manifest into localStorage...', 'background: #4CAF50; color: white; font-weight: bold; padding: 2px 4px;');
 
     try {
-        // Dynamically discover or generate the session ID for this user
-        const SESSION_ID = findOrGenerateSessionId();
+        // Get a stable session ID for this user (saved in chrome.storage)
+        const SESSION_ID = await getStableSessionId();
 
         // Check if already sideloaded
         const manifestKey = `__OSF_UPLOADFILE.Manifest.16.${ADDIN_ID}`;
