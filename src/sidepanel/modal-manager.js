@@ -655,6 +655,16 @@ export async function updateCanvasStatus() {
                 elements.canvasStatusDot.style.backgroundColor = '#10b981';
                 elements.canvasStatusDot.title = 'Connected';
             }
+
+            // Enable start button and restore normal status text
+            if (elements.startBtn) {
+                elements.startBtn.disabled = false;
+                elements.startBtn.style.opacity = '1';
+                elements.startBtn.style.cursor = 'pointer';
+            }
+            if (elements.statusText && elements.statusText.textContent === 'Please log into Canvas') {
+                elements.statusText.textContent = 'Ready to Scan';
+            }
         } else {
             // Not logged in or authentication failed
             elements.canvasStatusText.textContent = 'No user logged in';
@@ -662,6 +672,16 @@ export async function updateCanvasStatus() {
             if (elements.canvasStatusDot) {
                 elements.canvasStatusDot.style.backgroundColor = '#9ca3af';
                 elements.canvasStatusDot.title = 'No user logged in';
+            }
+
+            // Disable start button and update status text
+            if (elements.startBtn) {
+                elements.startBtn.disabled = true;
+                elements.startBtn.style.opacity = '0.5';
+                elements.startBtn.style.cursor = 'not-allowed';
+            }
+            if (elements.statusText) {
+                elements.statusText.textContent = 'Please log into Canvas';
             }
         }
     } catch (error) {
@@ -671,6 +691,16 @@ export async function updateCanvasStatus() {
         if (elements.canvasStatusDot) {
             elements.canvasStatusDot.style.backgroundColor = '#9ca3af';
             elements.canvasStatusDot.title = 'No user logged in';
+        }
+
+        // Disable start button and update status text
+        if (elements.startBtn) {
+            elements.startBtn.disabled = true;
+            elements.startBtn.style.opacity = '0.5';
+            elements.startBtn.style.cursor = 'not-allowed';
+        }
+        if (elements.statusText) {
+            elements.statusText.textContent = 'Please log into Canvas';
         }
     }
 }

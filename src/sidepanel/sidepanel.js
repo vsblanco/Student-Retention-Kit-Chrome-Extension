@@ -176,6 +176,11 @@ async function initializeApp() {
             openDailyUpdateModal();
         }
     }
+
+    // Periodically check Canvas connection status (every 5 seconds)
+    setInterval(async () => {
+        await updateCanvasStatus();
+    }, 5000);
 }
 
 // --- ABOUT PAGE ---
@@ -1086,6 +1091,11 @@ chrome.runtime.onMessage.addListener(async (msg, sender, sendResponse) => {
  * Toggles scanning state
  */
 function toggleScanState() {
+    // Don't toggle if button is disabled (no Canvas connection)
+    if (elements.startBtn && elements.startBtn.disabled) {
+        return;
+    }
+
     isScanning = !isScanning;
     const newState = isScanning ? EXTENSION_STATES.ON : EXTENSION_STATES.OFF;
     chrome.storage.local.set({ [STORAGE_KEYS.EXTENSION_STATE]: newState });
