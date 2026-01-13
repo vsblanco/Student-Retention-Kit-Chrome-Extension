@@ -235,6 +235,44 @@ function populateGuides() {
     });
 }
 
+// --- CONSOLE MESSAGE HANDLER ---
+function addConsoleMessage(type, args) {
+    if (!elements.consoleContent) return;
+
+    const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    const message = Array.from(args).map(arg => {
+        if (typeof arg === 'object') {
+            try {
+                return JSON.stringify(arg, null, 2);
+            } catch (e) {
+                return String(arg);
+            }
+        }
+        return String(arg);
+    }).join(' ');
+
+    // Detect specific message patterns and apply custom colors
+    let customType = type;
+    if (message.includes('Sending payload to Office Add-in') || message.includes('SRK_HIGHLIGHT_STUDENT_ROW')) {
+        customType = 'ping';
+    } else if (message.includes('onSubmissionFound triggered') || message.includes('Submission Found')) {
+        customType = 'submission';
+    }
+
+    const logEntry = document.createElement('div');
+    logEntry.className = `console-log ${customType}`;
+    logEntry.innerHTML = `<span class="timestamp">[${timestamp}]</span>${message}`;
+
+    elements.consoleContent.appendChild(logEntry);
+    elements.consoleContent.scrollTop = elements.consoleContent.scrollHeight;
+
+    // Limit to 100 entries
+    const entries = elements.consoleContent.querySelectorAll('.console-log');
+    if (entries.length > 100) {
+        entries[0].remove();
+    }
+}
+
 // --- EVENT LISTENERS ---
 function setupEventListeners() {
     // Tab switching
@@ -718,6 +756,53 @@ function setupEventListeners() {
         });
     }
 
+    // Mini Console functionality - toggle with status text
+    if (elements.statusText && elements.miniConsole) {
+        elements.statusText.style.cursor = 'pointer';
+        elements.statusText.addEventListener('click', () => {
+            if (elements.miniConsole.style.display === 'none') {
+                elements.miniConsole.style.display = 'flex';
+            } else {
+                elements.miniConsole.style.display = 'none';
+            }
+        });
+    }
+
+    if (elements.clearConsoleBtn && elements.consoleContent) {
+        elements.clearConsoleBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            elements.consoleContent.innerHTML = '';
+        });
+    }
+
+    // Intercept console logs from sidepanel and display in mini console
+    const originalConsole = {
+        log: console.log,
+        warn: console.warn,
+        error: console.error,
+        info: console.info
+    };
+
+    console.log = function(...args) {
+        originalConsole.log.apply(console, args);
+        addConsoleMessage('log', args);
+    };
+
+    console.warn = function(...args) {
+        originalConsole.warn.apply(console, args);
+        addConsoleMessage('warn', args);
+    };
+
+    console.error = function(...args) {
+        originalConsole.error.apply(console, args);
+        addConsoleMessage('error', args);
+    };
+
+    console.info = function(...args) {
+        originalConsole.info.apply(console, args);
+        addConsoleMessage('info', args);
+    };
+
     if (elements.studentPopFile) {
         elements.studentPopFile.addEventListener('change', (e) => {
             handleFileImport(e.target.files[0], (students) => {
@@ -989,6 +1074,11 @@ chrome.runtime.onMessage.addListener(async (msg, sender, sendResponse) => {
                 console.log(`Automation mode enabled with ${msg.count} students`);
             }
         }
+    }
+
+    // Handle logs from background script
+    if (msg.type === MESSAGE_TYPES.LOG_TO_PANEL) {
+        addConsoleMessage(msg.level, msg.args);
     }
 });
 

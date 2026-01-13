@@ -107,6 +107,12 @@ export function cacheDomElements() {
     elements.resendHighlightPingMenuItem = document.getElementById('resendHighlightPingMenuItem');
     elements.checkerContextMenuText = document.getElementById('checkerContextMenuText');
     elements.updateQueueSection = document.getElementById('updateQueueSection');
+
+    // Mini Console
+    elements.miniConsole = document.getElementById('miniConsole');
+    elements.consoleHeader = document.getElementById('consoleHeader');
+    elements.consoleContent = document.getElementById('consoleContent');
+    elements.clearConsoleBtn = document.getElementById('clearConsoleBtn');
     elements.queueCloseBtn = elements.updateQueueSection ? elements.updateQueueSection.querySelector('.icon-btn') : null;
     elements.lastUpdatedText = document.getElementById('lastUpdatedText');
     elements.totalCountText = document.getElementById('totalCountText');
@@ -203,6 +209,13 @@ export function switchTab(targetId) {
 
     const targetTab = document.querySelector(`.tab-button[data-tab="${targetId}"]`);
     if (targetTab) targetTab.classList.add('active');
+
+    // Hide mini console when not on checker tab
+    if (elements.miniConsole) {
+        if (targetId !== 'checker') {
+            elements.miniConsole.style.display = 'none';
+        }
+    }
 }
 
 /**
