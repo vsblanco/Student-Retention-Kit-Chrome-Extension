@@ -234,7 +234,7 @@ const ADDIN_ID = 'a8b1e479-1b3d-4e9e-9a1c-2f8e1c8b4a0e';
  * @returns {string} The session ID to use
  */
 function findOrGenerateSessionId() {
-    // Look for existing __OSF_UPLOADFILE keys to find the session ID
+    // Strategy 1: Look for existing __OSF_UPLOADFILE keys to find the session ID (most reliable)
     for (let i = 0; i < localStorage.length; i++) {
         const key = localStorage.key(i);
         if (key && key.startsWith('__OSF_UPLOADFILE.MyAddins.16.')) {
@@ -242,27 +242,34 @@ function findOrGenerateSessionId() {
             const parts = key.split('.');
             if (parts.length >= 4) {
                 const sessionId = parts[3];
-                console.log('[SRK Auto-Sideloader] Found existing session ID:', sessionId);
+                console.log('[SRK Auto-Sideloader] Found existing session ID from __OSF_UPLOADFILE:', sessionId);
                 return sessionId;
             }
         }
     }
 
-    // Alternative: Look for ack keys with pattern ack*_WAC_Excel_*
+    // Strategy 2: Look for WAC (Web Application Companion) keys with various patterns
+    // These keys are created by Office and contain the session ID
+    // Patterns include:
+    //   - ack3_WAC_Excel_{SESSION_ID}_0/10/18
+    //   - ak0_WAC_Excel_{SESSION_ID}_0
+    //   - ak4_WAC_Excel_{SESSION_ID}_0/10/18
+    //   - Flyout_WAC_Excel_{SESSION_ID}__0_ExpirationTime/StoreDisabled
     for (let i = 0; i < localStorage.length; i++) {
         const key = localStorage.key(i);
         if (key && key.includes('_WAC_Excel_')) {
-            // Extract session ID from key like "ack3_WAC_Excel_3735224676_8"
-            const match = key.match(/_WAC_Excel_(\d+)_/);
+            // Match session ID with flexible pattern to handle both single (_) and double (__) underscores
+            // Examples: "ack3_WAC_Excel_3735224676_8" or "Flyout_WAC_Excel_3735224676__0_ExpirationTime"
+            const match = key.match(/_WAC_Excel_(\d+)(_|__)/);
             if (match && match[1]) {
                 const sessionId = match[1];
-                console.log('[SRK Auto-Sideloader] Found existing session ID from ack key:', sessionId);
+                console.log('[SRK Auto-Sideloader] Found existing session ID from WAC key:', sessionId, 'Key:', key);
                 return sessionId;
             }
         }
     }
 
-    // If no existing session found, generate a new one
+    // Strategy 3: If no existing session found, generate a new one
     // Excel uses what appears to be a random 10-digit number
     const sessionId = Math.floor(Math.random() * 9999999999).toString();
     console.log('[SRK Auto-Sideloader] No existing session ID found, generated new one:', sessionId);
