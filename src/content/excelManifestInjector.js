@@ -272,7 +272,7 @@ function injectManifest() {
             console.log('[SRK Auto-Sideloader] First-time sideload detected');
         }
 
-        console.log('[SRK Auto-Sideloader] Using session ID:', SESSION_ID);
+        console.log('%c [SRK Auto-Sideloader] 🔑 SESSION ID: ' + SESSION_ID, 'background: #9C27B0; color: white; font-weight: bold; padding: 4px 8px; font-size: 12px;');
 
         // Write manifest
         const manifestValue = JSON.stringify({
