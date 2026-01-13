@@ -389,7 +389,7 @@ async function performLoop() {
     console.log(`[LOOPER] Data loaded - Master: ${masterEntries.length} students, Found: ${foundEntries.length}, Filter: "${filterText}", IncludeFailing: ${includeFailing}`);
 
     // 2. Re-build Cache
-    foundUrlCache = new Set(foundEntries.map(e => e.url).filter(Boolean));
+    foundUrlCache = new Set(foundEntries.map(e => e.url || e.Gradebook).filter(Boolean));
 
     let filteredList = masterEntries;
 
@@ -433,7 +433,7 @@ async function performLoop() {
     // 4. Remove Already Found Students (Submission Mode)
     if (currentCheckerMode === CHECKER_MODES.SUBMISSION) {
         const initialCount = filteredList.length;
-        filteredList = filteredList.filter(entry => !foundUrlCache.has(entry.url));
+        filteredList = filteredList.filter(entry => !foundUrlCache.has(entry.url || entry.Gradebook));
         if (initialCount !== filteredList.length) {
             console.log(`Skipping ${initialCount - filteredList.length} already found students.`);
         }
