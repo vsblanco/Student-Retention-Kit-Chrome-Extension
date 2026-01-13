@@ -176,6 +176,11 @@ async function initializeApp() {
             openDailyUpdateModal();
         }
     }
+
+    // Periodically check Canvas connection status (every 5 seconds)
+    setInterval(async () => {
+        await updateCanvasStatus();
+    }, 5000);
 }
 
 // --- ABOUT PAGE ---
@@ -756,16 +761,10 @@ function setupEventListeners() {
         });
     }
 
-    // Mini Console functionality - toggle with status text
-    if (elements.statusText && elements.miniConsole) {
+    // Mini Console toggle functionality is now handled in updateCanvasStatus
+    // to allow status text to be a clickable link when Canvas is disconnected
+    if (elements.statusText) {
         elements.statusText.style.cursor = 'pointer';
-        elements.statusText.addEventListener('click', () => {
-            if (elements.miniConsole.style.display === 'none') {
-                elements.miniConsole.style.display = 'flex';
-            } else {
-                elements.miniConsole.style.display = 'none';
-            }
-        });
     }
 
     if (elements.clearConsoleBtn && elements.consoleContent) {
@@ -1086,6 +1085,11 @@ chrome.runtime.onMessage.addListener(async (msg, sender, sendResponse) => {
  * Toggles scanning state
  */
 function toggleScanState() {
+    // Don't toggle if button is disabled (no Canvas connection)
+    if (elements.startBtn && elements.startBtn.disabled) {
+        return;
+    }
+
     isScanning = !isScanning;
     const newState = isScanning ? EXTENSION_STATES.ON : EXTENSION_STATES.OFF;
     chrome.storage.local.set({ [STORAGE_KEYS.EXTENSION_STATE]: newState });

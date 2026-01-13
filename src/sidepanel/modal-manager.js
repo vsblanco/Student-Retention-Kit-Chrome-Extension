@@ -1,5 +1,5 @@
 // Modal Manager - Handles all modal dialogs (scan filter, queue, version history)
-import { STORAGE_KEYS } from '../constants/index.js';
+import { STORAGE_KEYS, CANVAS_DOMAIN } from '../constants/index.js';
 import { elements } from './ui-manager.js';
 import { resolveStudentData } from './student-renderer.js';
 
@@ -655,6 +655,29 @@ export async function updateCanvasStatus() {
                 elements.canvasStatusDot.style.backgroundColor = '#10b981';
                 elements.canvasStatusDot.title = 'Connected';
             }
+
+            // Enable start button and restore normal status text
+            if (elements.startBtn) {
+                elements.startBtn.disabled = false;
+                elements.startBtn.style.opacity = '1';
+                elements.startBtn.style.cursor = 'pointer';
+            }
+            if (elements.statusText) {
+                // Remove link styling and restore normal text
+                elements.statusText.textContent = 'Ready to Scan';
+                elements.statusText.style.textDecoration = 'none';
+                elements.statusText.style.color = '';
+                // Set onclick to toggle mini console when connected
+                elements.statusText.onclick = () => {
+                    if (elements.miniConsole) {
+                        if (elements.miniConsole.style.display === 'none') {
+                            elements.miniConsole.style.display = 'flex';
+                        } else {
+                            elements.miniConsole.style.display = 'none';
+                        }
+                    }
+                };
+            }
         } else {
             // Not logged in or authentication failed
             elements.canvasStatusText.textContent = 'No user logged in';
@@ -662,6 +685,21 @@ export async function updateCanvasStatus() {
             if (elements.canvasStatusDot) {
                 elements.canvasStatusDot.style.backgroundColor = '#9ca3af';
                 elements.canvasStatusDot.title = 'No user logged in';
+            }
+
+            // Disable start button and update status text as clickable link
+            if (elements.startBtn) {
+                elements.startBtn.disabled = true;
+                elements.startBtn.style.opacity = '0.5';
+                elements.startBtn.style.cursor = 'not-allowed';
+            }
+            if (elements.statusText) {
+                elements.statusText.textContent = 'Please log into Canvas';
+                elements.statusText.style.textDecoration = 'underline';
+                elements.statusText.style.color = 'var(--primary-color)';
+                elements.statusText.onclick = () => {
+                    chrome.tabs.create({ url: CANVAS_DOMAIN });
+                };
             }
         }
     } catch (error) {
@@ -671,6 +709,21 @@ export async function updateCanvasStatus() {
         if (elements.canvasStatusDot) {
             elements.canvasStatusDot.style.backgroundColor = '#9ca3af';
             elements.canvasStatusDot.title = 'No user logged in';
+        }
+
+        // Disable start button and update status text as clickable link
+        if (elements.startBtn) {
+            elements.startBtn.disabled = true;
+            elements.startBtn.style.opacity = '0.5';
+            elements.startBtn.style.cursor = 'not-allowed';
+        }
+        if (elements.statusText) {
+            elements.statusText.textContent = 'Please log into Canvas';
+            elements.statusText.style.textDecoration = 'underline';
+            elements.statusText.style.color = 'var(--primary-color)';
+            elements.statusText.onclick = () => {
+                chrome.tabs.create({ url: CANVAS_DOMAIN });
+            };
         }
     }
 }
