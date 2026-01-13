@@ -661,7 +661,7 @@ function setupEventListeners() {
     // Right-click context menu for Checker Tab
     const checkerTab = document.getElementById('checker');
     if (checkerTab) {
-        checkerTab.addEventListener('contextmenu', (e) => {
+        checkerTab.addEventListener('contextmenu', async (e) => {
             e.preventDefault();
 
             if (!elements.checkerContextMenu || !elements.checkerContextMenuText) return;
@@ -673,16 +673,28 @@ function setupEventListeners() {
                 // Right-clicked on a student - show "Resend Highlight Ping"
                 selectedStudentEntry = JSON.parse(listItem.dataset.entryData);
                 elements.checkerContextMenuText.textContent = 'Resend Highlight Ping';
-            } else {
-                // Right-clicked elsewhere on checker tab - show "Resend All Highlight Pings"
-                selectedStudentEntry = null;
-                elements.checkerContextMenuText.textContent = 'Resend All Highlight Pings';
-            }
 
-            // Position the context menu at the mouse position
-            elements.checkerContextMenu.style.left = `${e.pageX}px`;
-            elements.checkerContextMenu.style.top = `${e.pageY}px`;
-            elements.checkerContextMenu.style.display = 'block';
+                // Position the context menu at the mouse position
+                elements.checkerContextMenu.style.left = `${e.pageX}px`;
+                elements.checkerContextMenu.style.top = `${e.pageY}px`;
+                elements.checkerContextMenu.style.display = 'block';
+            } else {
+                // Right-clicked elsewhere on checker tab - check if there are any students
+                const data = await chrome.storage.local.get(STORAGE_KEYS.FOUND_ENTRIES);
+                const foundEntries = data[STORAGE_KEYS.FOUND_ENTRIES] || [];
+
+                if (foundEntries.length > 0) {
+                    // Show "Resend All Highlight Pings" only if there are students
+                    selectedStudentEntry = null;
+                    elements.checkerContextMenuText.textContent = 'Resend All Highlight Pings';
+
+                    // Position the context menu at the mouse position
+                    elements.checkerContextMenu.style.left = `${e.pageX}px`;
+                    elements.checkerContextMenu.style.top = `${e.pageY}px`;
+                    elements.checkerContextMenu.style.display = 'block';
+                }
+                // If no students, don't show the context menu
+            }
         });
     }
 
