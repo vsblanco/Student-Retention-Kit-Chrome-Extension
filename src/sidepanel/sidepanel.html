@@ -699,18 +699,15 @@
     </div>
 
     <!-- Mini Console -->
-    <div id="miniConsole" class="mini-console collapsed">
+    <div id="miniConsole" class="mini-console" style="display: none;">
         <div id="consoleHeader" class="console-header">
             <div style="display: flex; align-items: center; gap: 8px;">
                 <i class="fas fa-terminal" style="font-size: 0.9em;"></i>
                 <span style="font-weight: 500;">Console</span>
             </div>
-            <div style="display: flex; align-items: center; gap: 8px;">
-                <button id="clearConsoleBtn" class="console-btn" title="Clear console">
-                    <i class="fas fa-trash"></i>
-                </button>
-                <i id="consoleToggleIcon" class="fas fa-chevron-up"></i>
-            </div>
+            <button id="clearConsoleBtn" class="console-btn" title="Clear console">
+                <i class="fas fa-trash"></i>
+            </button>
         </div>
         <div id="consoleContent" class="console-content"></div>
     </div>

@@ -718,17 +718,14 @@ function setupEventListeners() {
         });
     }
 
-    // Mini Console functionality
-    if (elements.consoleHeader && elements.miniConsole && elements.consoleToggleIcon) {
-        elements.consoleHeader.addEventListener('click', (e) => {
-            // Don't toggle if clicking on the clear button
-            if (e.target.closest('#clearConsoleBtn')) return;
-
-            elements.miniConsole.classList.toggle('collapsed');
-            if (elements.miniConsole.classList.contains('collapsed')) {
-                elements.consoleToggleIcon.className = 'fas fa-chevron-up';
+    // Mini Console functionality - toggle with status text
+    if (elements.statusText && elements.miniConsole) {
+        elements.statusText.style.cursor = 'pointer';
+        elements.statusText.addEventListener('click', () => {
+            if (elements.miniConsole.style.display === 'none') {
+                elements.miniConsole.style.display = 'flex';
             } else {
-                elements.consoleToggleIcon.className = 'fas fa-chevron-down';
+                elements.miniConsole.style.display = 'none';
             }
         });
     }
