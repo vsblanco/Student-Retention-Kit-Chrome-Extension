@@ -761,16 +761,10 @@ function setupEventListeners() {
         });
     }
 
-    // Mini Console functionality - toggle with status text
-    if (elements.statusText && elements.miniConsole) {
+    // Mini Console toggle functionality is now handled in updateCanvasStatus
+    // to allow status text to be a clickable link when Canvas is disconnected
+    if (elements.statusText) {
         elements.statusText.style.cursor = 'pointer';
-        elements.statusText.addEventListener('click', () => {
-            if (elements.miniConsole.style.display === 'none') {
-                elements.miniConsole.style.display = 'flex';
-            } else {
-                elements.miniConsole.style.display = 'none';
-            }
-        });
     }
 
     if (elements.clearConsoleBtn && elements.consoleContent) {
