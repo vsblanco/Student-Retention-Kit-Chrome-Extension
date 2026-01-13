@@ -136,6 +136,9 @@ async function initializeApp() {
     // Initialize queue manager
     queueManager = new QueueManager(callManager);
 
+    // Ensure checker is stopped when side panel opens
+    await chrome.storage.local.set({ [STORAGE_KEYS.EXTENSION_STATE]: EXTENSION_STATES.OFF });
+
     setupEventListeners();
     initializeCallControlButtons();
     await loadStorageData();
