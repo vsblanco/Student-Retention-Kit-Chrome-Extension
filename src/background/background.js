@@ -194,6 +194,18 @@ chrome.runtime.onMessage.addListener(async (msg, sender, sendResponse) => {
     if (msg.payload) {
       await sendConnectionPings(msg.payload);
     }
+  } else if (msg.type === MESSAGE_TYPES.RESEND_HIGHLIGHT_PING) {
+    if (msg.entry) {
+      await sendHighlightStudentRowPayload(msg.entry);
+      console.log('Resent highlight ping for:', msg.entry.name);
+    }
+  } else if (msg.type === MESSAGE_TYPES.RESEND_ALL_HIGHLIGHT_PINGS) {
+    const data = await chrome.storage.local.get(STORAGE_KEYS.FOUND_ENTRIES);
+    const foundEntries = data[STORAGE_KEYS.FOUND_ENTRIES] || [];
+    for (const entry of foundEntries) {
+      await sendHighlightStudentRowPayload(entry);
+    }
+    console.log('Resent all highlight pings for', foundEntries.length, 'students');
   } else if (msg.type === MESSAGE_TYPES.LOG_TO_PANEL) {
       // Re-broadcast logs
   }

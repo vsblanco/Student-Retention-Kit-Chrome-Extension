@@ -200,24 +200,28 @@ export function renderFoundList(rawEntries) {
         elements.clearListBtn.style.display = 'block';
     }
 
-    const entries = rawEntries.map(resolveStudentData);
-    entries.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+    // Create pairs of raw entries and resolved data, then sort by timestamp
+    const entriesWithRaw = rawEntries.map(rawEntry => ({
+        raw: rawEntry,
+        resolved: resolveStudentData(rawEntry)
+    }));
+    entriesWithRaw.sort((a, b) => new Date(b.resolved.timestamp) - new Date(a.resolved.timestamp));
 
-    entries.forEach(data => {
+    entriesWithRaw.forEach(({ raw, resolved }) => {
         const li = document.createElement('li');
         let timeDisplay = 'Just now';
-        if (data.timestamp) {
-            timeDisplay = new Date(data.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        if (resolved.timestamp) {
+            timeDisplay = new Date(resolved.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         }
 
-        const assignmentTitle = data.assignment || 'Untitled Assignment';
+        const assignmentTitle = resolved.assignment || 'Untitled Assignment';
 
         li.innerHTML = `
             <div style="display: flex; align-items: center; width:100%;">
                 <div class="heatmap-indicator heatmap-green"></div>
                 <div style="flex-grow:1; display:flex; justify-content:space-between; align-items:center;">
                     <div style="display:flex; flex-direction:column;">
-                        <span class="student-name" style="font-weight:500; color:var(--primary-color); cursor:pointer;">${data.name}</span>
+                        <span class="student-name" style="font-weight:500; color:var(--primary-color); cursor:pointer;">${resolved.name}</span>
                         <span style="font-size:0.8em; color:var(--text-secondary);">${assignmentTitle}</span>
                     </div>
                     <span class="timestamp-pill">${timeDisplay}</span>
@@ -228,10 +232,14 @@ export function renderFoundList(rawEntries) {
         const nameLink = li.querySelector('.student-name');
         nameLink.addEventListener('click', (e) => {
             e.stopPropagation();
-            if (data.url) chrome.tabs.create({ url: data.url });
+            if (resolved.url) chrome.tabs.create({ url: resolved.url });
         });
         nameLink.addEventListener('mouseenter', () => nameLink.style.textDecoration = 'underline');
         nameLink.addEventListener('mouseleave', () => nameLink.style.textDecoration = 'none');
+
+        // Store the ORIGINAL raw entry data on the li element for context menu access
+        // This ensures all fields like SyStudentId are preserved
+        li.dataset.entryData = JSON.stringify(raw);
 
         elements.foundList.appendChild(li);
     });

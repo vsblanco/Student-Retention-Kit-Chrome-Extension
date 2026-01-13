@@ -11,11 +11,11 @@ export async function openScanFilterModal() {
 
     // Load current settings
     const settings = await chrome.storage.local.get([
-        STORAGE_KEYS.SCAN_FILTER_DAYS_OUT,
+        STORAGE_KEYS.LOOPER_DAYS_OUT_FILTER,
         STORAGE_KEYS.SCAN_FILTER_INCLUDE_FAILING
     ]);
 
-    const daysOutFilter = settings[STORAGE_KEYS.SCAN_FILTER_DAYS_OUT] || '>=5';
+    const daysOutFilter = settings[STORAGE_KEYS.LOOPER_DAYS_OUT_FILTER] || '>=5';
     const includeFailing = settings[STORAGE_KEYS.SCAN_FILTER_INCLUDE_FAILING] || false;
 
     // Parse days out filter (e.g., ">=5" -> operator: ">=", value: "5")
@@ -125,9 +125,8 @@ export async function saveScanFilterSettings() {
     const includeFailing = elements.failingToggle.classList.contains('fa-toggle-on');
 
     await chrome.storage.local.set({
-        [STORAGE_KEYS.SCAN_FILTER_DAYS_OUT]: daysOutFilter,
-        [STORAGE_KEYS.SCAN_FILTER_INCLUDE_FAILING]: includeFailing,
-        [STORAGE_KEYS.LOOPER_DAYS_OUT_FILTER]: daysOutFilter // Backward compatibility
+        [STORAGE_KEYS.LOOPER_DAYS_OUT_FILTER]: daysOutFilter,
+        [STORAGE_KEYS.SCAN_FILTER_INCLUDE_FAILING]: includeFailing
     });
 
     closeScanFilterModal();

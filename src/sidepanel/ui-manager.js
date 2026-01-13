@@ -103,6 +103,9 @@ export function cacheDomElements() {
     elements.downloadMasterBtn = document.getElementById('downloadMasterBtn');
     elements.updateMasterContextMenu = document.getElementById('updateMasterContextMenu');
     elements.sendListToExcelMenuItem = document.getElementById('sendListToExcelMenuItem');
+    elements.checkerContextMenu = document.getElementById('checkerContextMenu');
+    elements.resendHighlightPingMenuItem = document.getElementById('resendHighlightPingMenuItem');
+    elements.checkerContextMenuText = document.getElementById('checkerContextMenuText');
     elements.updateQueueSection = document.getElementById('updateQueueSection');
     elements.queueCloseBtn = elements.updateQueueSection ? elements.updateQueueSection.querySelector('.icon-btn') : null;
     elements.lastUpdatedText = document.getElementById('lastUpdatedText');

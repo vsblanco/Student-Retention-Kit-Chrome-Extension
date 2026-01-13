@@ -393,53 +393,55 @@
                 <button class="icon-btn" id="closeScanFilterBtn" title="Close"><i class="fas fa-times"></i></button>
             </div>
 
-            <div style="margin-bottom: 20px;">
-                <label style="font-size:0.95em; font-weight:500; color:var(--text-main); display:block; margin-bottom:8px;">
-                    <i class="fas fa-calendar-day"></i> Days Out Threshold
-                </label>
-                <div style="display:flex; align-items:center; gap:10px;">
-                    <select id="daysOutOperator" style="width:auto; padding:8px;">
-                        <option value=">=">&gt;=</option>
-                        <option value=">">&gt;</option>
-                        <option value="<=">&lt;=</option>
-                        <option value="<">&lt;</option>
-                        <option value="=">=</option>
-                    </select>
-                    <input type="number" id="daysOutValue" min="0" value="5" style="flex:1; padding:8px;">
-                </div>
-                <div style="font-size:0.8em; color:var(--text-secondary); margin-top:5px;">
-                    Only scan students matching this days out criteria
-                </div>
-            </div>
-
-            <div style="margin-bottom: 20px;">
-                <div class="setting-card" style="margin-bottom:0;">
+            <div class="modal-body">
+                <div style="margin-bottom: 20px;">
+                    <label style="font-size:0.95em; font-weight:500; color:var(--text-main); display:block; margin-bottom:8px;">
+                        <i class="fas fa-calendar-day"></i> Days Out Threshold
+                    </label>
                     <div style="display:flex; align-items:center; gap:10px;">
-                        <i class="fas fa-exclamation-triangle" style="color:#ef4444; font-size:1.2em;"></i>
+                        <select id="daysOutOperator" style="width:auto; padding:8px;">
+                            <option value=">=">&gt;=</option>
+                            <option value=">">&gt;</option>
+                            <option value="<=">&lt;=</option>
+                            <option value="<">&lt;</option>
+                            <option value="=">=</option>
+                        </select>
+                        <input type="number" id="daysOutValue" min="0" value="5" style="flex:1; padding:8px;">
+                    </div>
+                    <div style="font-size:0.8em; color:var(--text-secondary); margin-top:5px;">
+                        Only scan students matching this days out criteria
+                    </div>
+                </div>
+
+                <div style="margin-bottom: 20px;">
+                    <div class="setting-card" style="margin-bottom:0;">
+                        <div style="display:flex; align-items:center; gap:10px;">
+                            <i class="fas fa-exclamation-triangle" style="color:#ef4444; font-size:1.2em;"></i>
+                            <div>
+                                <div style="font-weight:500; color:var(--text-main);">Include Failing Students</div>
+                                <div style="font-size:0.8em; color:var(--text-secondary);">Scan students with grade &lt; 60% regardless of days out</div>
+                            </div>
+                        </div>
+                        <i id="failingToggle" class="fas fa-toggle-off" style="color:gray; font-size:2em; cursor:pointer;"></i>
+                    </div>
+                </div>
+
+                <div id="scanFilterCount" style="background: rgba(0, 90, 156, 0.1); border-left: 4px solid var(--primary-color); padding: 12px; border-radius: 0.75rem; margin-bottom: 15px;">
+                    <div style="display:flex; align-items:center; gap:10px;">
+                        <i class="fas fa-users" style="color:var(--primary-color); font-size:1.2em;"></i>
                         <div>
-                            <div style="font-weight:500; color:var(--text-main);">Include Failing Students</div>
-                            <div style="font-size:0.8em; color:var(--text-secondary);">Scan students with grade &lt; 60% regardless of days out</div>
-                        </div>
-                    </div>
-                    <i id="failingToggle" class="fas fa-toggle-off" style="color:gray; font-size:2em; cursor:pointer;"></i>
-                </div>
-            </div>
-
-            <div id="scanFilterCount" style="background: rgba(0, 90, 156, 0.1); border-left: 4px solid var(--primary-color); padding: 12px; border-radius: 0.75rem; margin-bottom: 15px;">
-                <div style="display:flex; align-items:center; gap:10px;">
-                    <i class="fas fa-users" style="color:var(--primary-color); font-size:1.2em;"></i>
-                    <div>
-                        <div style="font-weight:600; color:var(--text-main); font-size:0.95em;">
-                            <span id="studentCountValue">0</span> students will be scanned
-                        </div>
-                        <div style="font-size:0.75em; color:var(--text-secondary); margin-top:2px;">
-                            Based on current filter settings
+                            <div style="font-weight:600; color:var(--text-main); font-size:0.95em;">
+                                <span id="studentCountValue">0</span> students will be scanned
+                            </div>
+                            <div style="font-size:0.75em; color:var(--text-secondary); margin-top:2px;">
+                                Based on current filter settings
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div>
 
-            <button class="btn-primary" id="saveScanFilterBtn">Save Filters</button>
+                <button class="btn-primary" id="saveScanFilterBtn">Save Filters</button>
+            </div>
         </div>
     </div>
 
@@ -685,6 +687,14 @@
         <div class="context-menu-item" id="sendListToExcelMenuItem">
             <i class="fas fa-file-export"></i>
             <span>Send List to Excel</span>
+        </div>
+    </div>
+
+    <!-- Context Menu for Checker Tab -->
+    <div id="checkerContextMenu" class="context-menu">
+        <div class="context-menu-item" id="resendHighlightPingMenuItem">
+            <i class="fas fa-sync-alt"></i>
+            <span id="checkerContextMenuText">Resend Highlight Ping</span>
         </div>
     </div>
 
