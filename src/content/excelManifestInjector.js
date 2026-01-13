@@ -229,71 +229,58 @@ const MANIFEST_XML = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 const ADDIN_ID = 'a8b1e479-1b3d-4e9e-9a1c-2f8e1c8b4a0e';
 
 /**
- * Gets a stable session ID for this user
- * First checks chrome.storage for a saved ID, then scans for Office's ack key, then generates new
- * @returns {Promise<string>} The session ID to use
+ * Gets the current Office session ID by scanning localStorage for Office's ack key
+ * Each user has a unique session ID that persists across all their Microsoft accounts
+ * @returns {string} The session ID to use
  */
-async function getStableSessionId() {
-    return new Promise((resolve) => {
-        // First, check if we already have a saved session ID in chrome.storage
-        chrome.storage.local.get(['srkOfficeSessionId'], (result) => {
-            if (result.srkOfficeSessionId) {
-                console.log('[SRK Auto-Sideloader] Using stored session ID:', result.srkOfficeSessionId);
-                resolve(result.srkOfficeSessionId);
-                return;
-            }
+function discoverOfficeSessionId() {
+    console.log('[SRK Auto-Sideloader] Scanning localStorage for Office session ID...');
 
-            // No stored ID, scan for Office's own ack key to find the REAL active session ID
-            // Office creates keys like: ack3_WAC_Excel_3735224676_0
-            for (let i = 0; i < localStorage.length; i++) {
-                const key = localStorage.key(i);
-                if (key && key.startsWith('ack3_WAC_Excel_')) {
-                    // Extract session ID from key like "ack3_WAC_Excel_3735224676_0"
-                    const parts = key.substring('ack3_WAC_Excel_'.length).split('_');
-                    if (parts.length > 0 && parts[0]) {
-                        const sessionId = parts[0];
-                        console.log('[SRK Auto-Sideloader] Found Office session ID from ack key:', sessionId);
-                        // Save it for future use
-                        chrome.storage.local.set({ srkOfficeSessionId: sessionId });
-                        resolve(sessionId);
-                        return;
-                    }
-                }
+    // Scan for Office's own ack key to find the REAL active session ID
+    // Office creates keys like: ack3_WAC_Excel_3735224676_0
+    // This ID is user-specific and consistent across all Microsoft accounts for that user
+    for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith('ack3_WAC_Excel_') && key.endsWith('_0')) {
+            // Extract session ID from key like "ack3_WAC_Excel_3735224676_0"
+            const match = key.match(/^ack3_WAC_Excel_(\d+)_0$/);
+            if (match && match[1]) {
+                const sessionId = match[1];
+                console.log('[SRK Auto-Sideloader] ✓ Found Office session ID from ack key:', sessionId);
+                return sessionId;
             }
+        }
+    }
 
-            // Fallback: try to find one in __OSF_UPLOADFILE.MyAddins keys
-            for (let i = 0; i < localStorage.length; i++) {
-                const key = localStorage.key(i);
-                if (key && key.startsWith('__OSF_UPLOADFILE.MyAddins.16.')) {
-                    const parts = key.split('.');
-                    if (parts.length >= 4) {
-                        const sessionId = parts[3];
-                        console.log('[SRK Auto-Sideloader] Found existing session ID from MyAddins:', sessionId);
-                        chrome.storage.local.set({ srkOfficeSessionId: sessionId });
-                        resolve(sessionId);
-                        return;
-                    }
-                }
+    // Fallback: try to find one in __OSF_UPLOADFILE.MyAddins keys
+    console.log('[SRK Auto-Sideloader] No ack_0 key found, checking MyAddins keys...');
+    for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith('__OSF_UPLOADFILE.MyAddins.16.')) {
+            const parts = key.split('.');
+            if (parts.length >= 4 && parts[3]) {
+                const sessionId = parts[3];
+                console.log('[SRK Auto-Sideloader] ✓ Found session ID from MyAddins:', sessionId);
+                return sessionId;
             }
+        }
+    }
 
-            // No existing session found, generate a new one
-            // Excel uses what appears to be a random number
-            const newSessionId = Math.floor(Math.random() * 9999999999).toString();
-            console.log('[SRK Auto-Sideloader] Generated new session ID:', newSessionId);
-            // Save it for future use
-            chrome.storage.local.set({ srkOfficeSessionId: newSessionId });
-            resolve(newSessionId);
-        });
-    });
+    // Last resort: Generate a new one
+    // Excel uses what appears to be a random 10-digit number
+    const newSessionId = Math.floor(Math.random() * 9999999999).toString();
+    console.log('[SRK Auto-Sideloader] ⚠ No existing session found, generated new:', newSessionId);
+    return newSessionId;
 }
 
 // Main injection function
-async function injectManifest() {
+function injectManifest() {
     console.log('%c [SRK Auto-Sideloader] Injecting manifest into localStorage...', 'background: #4CAF50; color: white; font-weight: bold; padding: 2px 4px;');
 
     try {
-        // Get a stable session ID for this user (saved in chrome.storage)
-        const SESSION_ID = await getStableSessionId();
+        // Discover the current Office session ID from localStorage
+        // This ID is user-specific: Victor → 3735224676, Melissa → 1702417060
+        const SESSION_ID = discoverOfficeSessionId();
 
         // Check if already sideloaded
         const manifestKey = `__OSF_UPLOADFILE.Manifest.16.${ADDIN_ID}`;
