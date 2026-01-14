@@ -11,6 +11,10 @@ const DISPOSITION_CODES = {
     "Disconnected": ""      // TODO: Add Five9 disposition code
 };
 
+// Store current student name for display
+let currentStudentName = null;
+let contactNodeObserver = null;
+
 /**
  * Gets the disposition code for a given disposition type
  * @param {string} dispositionType - The disposition type (e.g., "Left Voicemail")
@@ -21,11 +25,74 @@ function getDispositionCode(dispositionType) {
     return (code && code !== "") ? code : null;
 }
 
+/**
+ * Replaces the phone number in the contact node with the student's name
+ */
+function updateContactNodeWithName() {
+    const contactNode = document.getElementById('AgentVoiceDetailsHeader-contact-node');
+
+    if (contactNode && currentStudentName) {
+        // Only replace if the current text looks like a phone number
+        const currentText = contactNode.textContent;
+        if (currentText && (currentText.match(/[\d\+\-\(\)\s]+/) || currentText.startsWith('+'))) {
+            console.log(`SRK: Replacing "${currentText}" with "${currentStudentName}"`);
+            contactNode.textContent = currentStudentName;
+        }
+    }
+}
+
+/**
+ * Sets up a MutationObserver to watch for changes to the contact node
+ * This ensures the name stays visible even when Five9 updates the DOM
+ */
+function setupContactNodeObserver() {
+    // Disconnect existing observer if any
+    if (contactNodeObserver) {
+        contactNodeObserver.disconnect();
+    }
+
+    // Only set up observer if we have a student name
+    if (!currentStudentName) {
+        return;
+    }
+
+    // Immediately try to update the existing element
+    updateContactNodeWithName();
+
+    // Create observer to watch for DOM changes
+    contactNodeObserver = new MutationObserver((mutations) => {
+        updateContactNodeWithName();
+    });
+
+    // Start observing the entire document for child list and subtree changes
+    // This catches when the contact node is added or modified
+    contactNodeObserver.observe(document.body, {
+        childList: true,
+        subtree: true,
+        characterData: true,
+        characterDataOldValue: true
+    });
+
+    console.log("SRK: Contact node observer started for:", currentStudentName);
+}
+
+/**
+ * Stops the contact node observer and clears the student name
+ */
+function stopContactNodeObserver() {
+    if (contactNodeObserver) {
+        contactNodeObserver.disconnect();
+        contactNodeObserver = null;
+    }
+    currentStudentName = null;
+    console.log("SRK: Contact node observer stopped");
+}
+
 console.log("SRK: Five9 Connector Loaded");
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.type === 'executeFive9Call') {
-        handleFive9Call(request.phoneNumber, sendResponse);
+        handleFive9Call(request.phoneNumber, request.studentName, sendResponse);
         return true; // Keep channel open for async response
     }
     if (request.type === 'executeFive9Hangup') {
@@ -38,13 +105,21 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     }
 });
 
-async function handleFive9Call(phoneNumber, sendResponse) {
+async function handleFive9Call(phoneNumber, studentName, sendResponse) {
     try {
         console.log(`SRK: Dialing ${phoneNumber}...`);
+
+        // Store student name and set up observer
+        if (studentName) {
+            currentStudentName = studentName;
+            console.log(`SRK: Student name set to: ${studentName}`);
+            setupContactNodeObserver();
+        }
+
         const metadataResp = await fetch("https://app-atl.five9.com/appsvcs/rs/svc/auth/metadata");
         if (!metadataResp.ok) throw new Error("Could not fetch User Metadata");
         const metadata = await metadataResp.json();
-        
+
         const url = `https://app-atl.five9.com/appsvcs/rs/svc/agents/${metadata.userId}/interactions/make_external_call`;
         const payload = {
             "number": phoneNumber,
@@ -72,6 +147,9 @@ async function handleFive9Hangup(dispositionType, sendResponse) {
     try {
         console.log("SRK: Attempting TWO-STEP hangup...");
         console.log("SRK: Disposition type:", dispositionType);
+
+        // Stop the contact node observer when call ends
+        stopContactNodeObserver();
 
         // Get the disposition code from constants
         const dispositionCode = getDispositionCode(dispositionType);

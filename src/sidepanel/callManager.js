@@ -97,8 +97,9 @@ export default class CallManager {
                 const currentStudent = this.selectedQueue[0];
                 if (currentStudent) {
                     const phoneNumber = this.getPhoneNumber(currentStudent);
+                    const studentName = currentStudent.name || currentStudent.Name || null;
                     if (phoneNumber && phoneNumber !== "No Phone Listed") {
-                        this.initiateCall(phoneNumber); // Trigger Five9 API call
+                        this.initiateCall(phoneNumber, studentName); // Trigger Five9 API call
                     } else {
                         console.warn("No valid phone number for current student");
                     }
@@ -224,8 +225,9 @@ export default class CallManager {
         // --- INITIATE FIVE9 CALL (ONLY IF DEBUG MODE OFF) ---
         if (!this.debugMode) {
             const phoneNumber = this.getPhoneNumber(currentStudent);
+            const studentName = currentStudent.name || currentStudent.Name || null;
             if (phoneNumber && phoneNumber !== "No Phone Listed") {
-                this.initiateCall(phoneNumber); // Trigger Five9 API call
+                this.initiateCall(phoneNumber, studentName); // Trigger Five9 API call
             } else {
                 console.warn(`No valid phone number for student: ${currentStudent.name || 'Unknown'}`);
             }
@@ -570,9 +572,10 @@ export default class CallManager {
     /**
      * Initiates a call through Five9
      * @param {string} phoneNumber - Phone number to dial
+     * @param {string} studentName - Student's name to display in Five9 UI
      * @returns {Promise<{success: boolean, error?: string}>}
      */
-    async initiateCall(phoneNumber) {
+    async initiateCall(phoneNumber, studentName = null) {
         if (!phoneNumber || phoneNumber === "No Phone Listed") {
             return { success: false, error: "No valid phone number" };
         }
@@ -581,7 +584,8 @@ export default class CallManager {
             // Send message to background.js (which will forward to Five9 content script)
             chrome.runtime.sendMessage({
                 type: 'triggerFive9Call',
-                phoneNumber: phoneNumber
+                phoneNumber: phoneNumber,
+                studentName: studentName
             });
 
             // Note: Response will come via 'callStatus' message listener

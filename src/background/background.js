@@ -444,14 +444,14 @@ chrome.runtime.onMessage.addListener(async (msg, sender, sendResponse) => {
       (async () => {
           const tabs = await chrome.tabs.query({ url: "https://app-atl.five9.com/*" });
           if (tabs.length === 0) {
-              chrome.runtime.sendMessage({ 
-                  type: 'callStatus', 
-                  success: false, 
-                  error: "Five9 tab not found. Please open Five9." 
+              chrome.runtime.sendMessage({
+                  type: 'callStatus',
+                  success: false,
+                  error: "Five9 tab not found. Please open Five9."
               });
               return;
           }
-          
+
           const five9TabId = tabs[0].id;
           // Clean number logic
           let cleanNumber = msg.phoneNumber.replace(/[^0-9+]/g, '');
@@ -459,12 +459,13 @@ chrome.runtime.onMessage.addListener(async (msg, sender, sendResponse) => {
               cleanNumber = '+1' + cleanNumber;
           }
 
-          chrome.tabs.sendMessage(five9TabId, { 
-              type: 'executeFive9Call', 
-              phoneNumber: cleanNumber 
+          chrome.tabs.sendMessage(five9TabId, {
+              type: 'executeFive9Call',
+              phoneNumber: cleanNumber,
+              studentName: msg.studentName
           }, (response) => {
               if (chrome.runtime.lastError) {
-                  console.error("Five9 Connection Error:", chrome.runtime.lastError.message); 
+                  console.error("Five9 Connection Error:", chrome.runtime.lastError.message);
                   chrome.runtime.sendMessage({ type: 'callStatus', success: false, error: "Five9 disconnected. Refresh tab." });
               } else {
                   chrome.runtime.sendMessage({ type: 'callStatus', success: response?.success, error: response?.error });
