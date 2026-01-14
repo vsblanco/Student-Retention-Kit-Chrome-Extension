@@ -419,6 +419,26 @@ chrome.runtime.onMessage.addListener(async (msg, sender, sendResponse) => {
       });
   }
 
+  // --- OPEN LINKS FROM EXCEL ---
+  else if (msg.type === MESSAGE_TYPES.SRK_LINKS) {
+      console.log('%c [Background] Opening Links from Excel', 'background: #2196F3; color: white; font-weight: bold; padding: 2px 4px;');
+      console.log('   Links count:', msg.links?.length || 0);
+
+      if (msg.links && Array.isArray(msg.links)) {
+          for (const link of msg.links) {
+              try {
+                  await chrome.tabs.create({ url: link, active: false });
+                  console.log(`[SRK] Opened link: ${link}`);
+              } catch (err) {
+                  console.error(`[SRK] Failed to open link ${link}:`, err.message);
+              }
+          }
+          console.log(`[SRK] Opened ${msg.links.length} links successfully`);
+      } else {
+          console.warn('[SRK] No valid links array provided');
+      }
+  }
+
   // --- FIVE9 INTEGRATION ---
   else if (msg.type === 'triggerFive9Call') {
       (async () => {
