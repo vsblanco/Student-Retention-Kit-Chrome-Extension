@@ -48,6 +48,14 @@ export default class CallManager {
     }
 
     /**
+     * Gets current automation mode state
+     * @returns {boolean} Whether automation mode is currently active
+     */
+    getAutomationModeState() {
+        return this.automationMode;
+    }
+
+    /**
      * Extracts phone number from student object
      * @param {Object} student - Student object with phone property
      * @returns {string} Phone number or "No Phone Listed"

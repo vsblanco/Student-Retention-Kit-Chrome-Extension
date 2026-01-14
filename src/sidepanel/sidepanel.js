@@ -1056,9 +1056,11 @@ chrome.storage.onChanged.addListener((changes) => {
 // Runtime message listener for Office Add-in student selection sync
 chrome.runtime.onMessage.addListener(async (msg, sender, sendResponse) => {
     if (msg.type === MESSAGE_TYPES.SRK_SELECTED_STUDENTS) {
-        // IGNORE PINGS IF CALL IS ACTIVE - Don't interrupt current call session
-        if (callManager && callManager.getCallActiveState()) {
-            console.log('%c [Sidepanel] Ignoring ping - call already in session', 'color: orange; font-weight: bold');
+        // IGNORE PINGS IF CALL IS ACTIVE OR AUTOMATION MODE IS ACTIVE
+        // Don't interrupt current call session or disrupt automation queue
+        if (callManager && (callManager.getCallActiveState() || callManager.getAutomationModeState())) {
+            const reason = callManager.getAutomationModeState() ? 'automation mode active' : 'call already in session';
+            console.log(`%c [Sidepanel] Ignoring ping - ${reason}`, 'color: orange; font-weight: bold');
             return; // Exit early, don't process this ping
         }
 
