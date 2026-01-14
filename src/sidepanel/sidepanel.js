@@ -1022,6 +1022,35 @@ chrome.storage.onChanged.addListener((changes) => {
     if (changes[STORAGE_KEYS.EXTENSION_STATE]) {
         updateButtonVisuals(changes[STORAGE_KEYS.EXTENSION_STATE].newValue);
     }
+
+    // Handle name format toggle changes - re-render all displays
+    if (changes.reformatNameEnabled) {
+        console.log(`Name format changed to: ${changes.reformatNameEnabled.newValue ? 'First Last' : 'Original'}`);
+
+        // Re-render found list
+        chrome.storage.local.get([STORAGE_KEYS.FOUND_ENTRIES], (data) => {
+            const foundEntries = data[STORAGE_KEYS.FOUND_ENTRIES] || [];
+            renderFoundList(foundEntries);
+        });
+
+        // Re-render master list
+        chrome.storage.local.get([STORAGE_KEYS.MASTER_ENTRIES], (data) => {
+            const masterEntries = data[STORAGE_KEYS.MASTER_ENTRIES] || [];
+            renderMasterList(masterEntries, (entry, li, evt) => {
+                queueManager.handleStudentClick(entry, li, evt);
+            });
+        });
+
+        // Re-render active student if one is selected
+        if (callManager && callManager.activeStudent) {
+            setActiveStudent(callManager.activeStudent, callManager);
+        }
+
+        // Re-render queue modal if it's open
+        if (elements.queueModal && elements.queueModal.style.display !== 'none') {
+            queueManager.renderQueue();
+        }
+    }
 });
 
 // Runtime message listener for Office Add-in student selection sync
