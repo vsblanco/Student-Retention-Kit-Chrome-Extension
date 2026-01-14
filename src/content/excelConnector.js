@@ -178,6 +178,37 @@ if (window.hasSRKConnectorRun) {
     return cleaned.trim() || value.trim();
   }
 
+  /**
+   * Converts student name from "Last, First" format to "First Last" format if a comma is present.
+   * Examples:
+   * - "Smith, John" → "John Smith"
+   * - "Doe, Jane Marie" → "Jane Marie Doe"
+   * - "Johnson" → "Johnson" (unchanged if no comma)
+   *
+   * @param {string} name - The student name to convert
+   * @returns {string} The converted name in "First Last" format
+   */
+  function convertNameFormat(name) {
+    if (!name || typeof name !== 'string') return name;
+
+    // Check if the name contains a comma
+    if (!name.includes(',')) {
+      return name.trim();
+    }
+
+    // Split by comma and trim whitespace
+    const parts = name.split(',').map(part => part.trim());
+
+    // If we don't have exactly 2 parts, return the original name
+    if (parts.length !== 2) {
+      return name.trim();
+    }
+
+    // Convert from "Last, First" to "First Last"
+    const [lastName, firstName] = parts;
+    return `${firstName} ${lastName}`;
+  }
+
   // Notify extension that connector is active
   chrome.runtime.sendMessage({
       type: "SRK_CONNECTOR_ACTIVE",
@@ -390,8 +421,10 @@ if (window.hasSRKConnectorRun) {
               // Use getFieldWithAlias to ensure our standard field names are present
               // This handles cases where fields come with different names (aliases)
 
-              // Name - ensure it exists and has a fallback
-              transformedStudent.name = getFieldWithAlias(student, 'name', 'Unknown') || 'Unknown';
+              // Name - store original and formatted versions
+              const rawName = getFieldWithAlias(student, 'name', 'Unknown') || 'Unknown';
+              transformedStudent.nameOriginal = rawName;
+              transformedStudent.name = rawName; // Will be formatted based on user setting in display logic
 
               // Phone - use aliases to find it
               const phone = getFieldWithAlias(student, 'phone');
@@ -544,18 +577,22 @@ if (window.hasSRKConnectorRun) {
               }
 
               // Transform all students from add-in format to extension format
-              const transformedStudents = data.students.map(student => ({
-                  name: student.name || 'Unknown',
-                  phone: student.phone || student.otherPhone || null,
-                  SyStudentId: student.syStudentId || null,
-                  // Set defaults for fields not provided by the Office add-in
-                  grade: null,
-                  StudentNumber: null,
-                  daysOut: 0,
-                  missingCount: 0,
-                  url: null,
-                  assignments: []
-              }));
+              const transformedStudents = data.students.map(student => {
+                  const rawName = student.name || 'Unknown';
+                  return {
+                      nameOriginal: rawName,
+                      name: rawName, // Will be formatted based on user setting in display logic
+                      phone: student.phone || student.otherPhone || null,
+                      SyStudentId: student.syStudentId || null,
+                      // Set defaults for fields not provided by the Office add-in
+                      grade: null,
+                      StudentNumber: null,
+                      daysOut: 0,
+                      missingCount: 0,
+                      url: null,
+                      assignments: []
+                  };
+              });
 
               if (data.count === 1) {
                   console.log(`Setting active student: ${transformedStudents[0].name}`);

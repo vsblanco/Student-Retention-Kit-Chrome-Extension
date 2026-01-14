@@ -154,7 +154,7 @@ export function closeQueueModal() {
 /**
  * Renders the queue modal content
  */
-export function renderQueueModal(selectedQueue, onReorder, onRemove) {
+export async function renderQueueModal(selectedQueue, onReorder, onRemove) {
     if (!elements.queueList || !elements.queueCount) return;
 
     elements.queueList.innerHTML = '';
@@ -167,13 +167,17 @@ export function renderQueueModal(selectedQueue, onReorder, onRemove) {
 
     elements.queueCount.textContent = `${selectedQueue.length} student${selectedQueue.length !== 1 ? 's' : ''}`;
 
+    // Get reformat name setting
+    const settings = await chrome.storage.local.get(['reformatNameEnabled']);
+    const reformatEnabled = settings.reformatNameEnabled !== undefined ? settings.reformatNameEnabled : true;
+
     selectedQueue.forEach((student, index) => {
         const li = document.createElement('li');
         li.className = 'queue-item-draggable';
         li.draggable = true;
         li.dataset.index = index;
 
-        const data = resolveStudentData(student);
+        const data = resolveStudentData(student, reformatEnabled);
 
         li.innerHTML = `
             <div style="display: flex; align-items: center; width: 100%; justify-content: space-between;">
@@ -324,6 +328,7 @@ export function openConnectionsModal(connectionType) {
         'autoUpdateMasterList',
         'syncActiveStudent',
         'sendMasterListToExcel',
+        'reformatNameEnabled',
         'highlightStudentRowEnabled',
         'powerAutomateUrl',
         'embedInCanvas',
@@ -349,6 +354,10 @@ export function openConnectionsModal(connectionType) {
         // Load send master list to Excel setting
         const sendMasterListToExcel = result.sendMasterListToExcel !== undefined ? result.sendMasterListToExcel : true;
         updateSendMasterListModalUI(sendMasterListToExcel);
+
+        // Load reformat name setting
+        const reformatNameEnabled = result.reformatNameEnabled !== undefined ? result.reformatNameEnabled : true;
+        updateReformatNameModalUI(reformatNameEnabled);
 
         // Load highlight student row enabled setting
         const highlightStudentRowEnabled = result.highlightStudentRowEnabled !== undefined ? result.highlightStudentRowEnabled : true;
@@ -465,6 +474,22 @@ function updateSendMasterListModalUI(isEnabled) {
 }
 
 /**
+ * Updates the reformat name toggle UI in the modal
+ * @param {boolean} isEnabled - Whether name reformatting is enabled
+ */
+function updateReformatNameModalUI(isEnabled) {
+    if (!elements.reformatNameToggleModal) return;
+
+    if (isEnabled) {
+        elements.reformatNameToggleModal.className = 'fas fa-toggle-on';
+        elements.reformatNameToggleModal.style.color = 'var(--primary-color)';
+    } else {
+        elements.reformatNameToggleModal.className = 'fas fa-toggle-off';
+        elements.reformatNameToggleModal.style.color = 'gray';
+    }
+}
+
+/**
  * Updates the highlight student row toggle UI in the modal
  * @param {boolean} isEnabled - Whether student row highlighting is enabled
  */
@@ -544,6 +569,13 @@ export async function saveConnectionsSettings() {
         const sendEnabled = elements.sendMasterListToggleModal.classList.contains('fa-toggle-on');
         settingsToSave.sendMasterListToExcel = sendEnabled;
         console.log(`Send Master List to Excel setting saved: ${sendEnabled}`);
+    }
+
+    // Save reformat name setting
+    if (elements.reformatNameToggleModal) {
+        const reformatEnabled = elements.reformatNameToggleModal.classList.contains('fa-toggle-on');
+        settingsToSave.reformatNameEnabled = reformatEnabled;
+        console.log(`Reformat Name setting saved: ${reformatEnabled}`);
     }
 
     // Save highlight student row enabled setting
@@ -766,6 +798,16 @@ export function toggleSendMasterListModal() {
 
     const isCurrentlyOn = elements.sendMasterListToggleModal.classList.contains('fa-toggle-on');
     updateSendMasterListModalUI(!isCurrentlyOn);
+}
+
+/**
+ * Toggles the reformat name setting in the modal
+ */
+export function toggleReformatNameModal() {
+    if (!elements.reformatNameToggleModal) return;
+
+    const isCurrentlyOn = elements.reformatNameToggleModal.classList.contains('fa-toggle-on');
+    updateReformatNameModalUI(!isCurrentlyOn);
 }
 
 /**

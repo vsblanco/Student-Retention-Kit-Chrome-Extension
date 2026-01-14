@@ -165,6 +165,7 @@ export function cacheDomElements() {
     elements.autoUpdateSelectModal = document.getElementById('autoUpdateSelectModal');
     elements.syncActiveStudentToggleModal = document.getElementById('syncActiveStudentToggleModal');
     elements.sendMasterListToggleModal = document.getElementById('sendMasterListToggleModal');
+    elements.reformatNameToggleModal = document.getElementById('reformatNameToggleModal');
     elements.highlightStudentRowToggleModal = document.getElementById('highlightStudentRowToggleModal');
     elements.highlightSettingsContainer = document.getElementById('highlightSettingsContainer');
     elements.highlightStartColInput = document.getElementById('highlightStartColInput');

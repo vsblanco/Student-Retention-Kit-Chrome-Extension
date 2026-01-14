@@ -3,11 +3,56 @@ import { elements } from './ui-manager.js';
 import { GENERIC_AVATAR_URL } from '../constants/index.js';
 
 /**
- * Normalizes student data for consistent rendering
+ * Converts student name from "Last, First" format to "First Last" format if a comma is present.
+ * @param {string} name - The student name to convert
+ * @returns {string} The converted name in "First Last" format
  */
-export function resolveStudentData(entry) {
+function convertNameFormat(name) {
+    if (!name || typeof name !== 'string') return name;
+
+    // Check if the name contains a comma
+    if (!name.includes(',')) {
+        return name.trim();
+    }
+
+    // Split by comma and trim whitespace
+    const parts = name.split(',').map(part => part.trim());
+
+    // If we don't have exactly 2 parts, return the original name
+    if (parts.length !== 2) {
+        return name.trim();
+    }
+
+    // Convert from "Last, First" to "First Last"
+    const [lastName, firstName] = parts;
+    return `${firstName} ${lastName}`;
+}
+
+/**
+ * Gets the display name for a student based on the reformat name setting
+ * @param {Object} entry - The student entry
+ * @param {boolean} reformatEnabled - Whether name reformatting is enabled
+ * @returns {string} The formatted or original name
+ */
+export function getDisplayName(entry, reformatEnabled = true) {
+    const originalName = entry.nameOriginal || entry.name || 'Unknown Student';
+
+    if (reformatEnabled) {
+        return convertNameFormat(originalName);
+    }
+
+    return originalName;
+}
+
+/**
+ * Normalizes student data for consistent rendering
+ * @param {Object} entry - The student entry
+ * @param {boolean} reformatEnabled - Whether name reformatting is enabled
+ */
+export function resolveStudentData(entry, reformatEnabled = true) {
     return {
-        name: entry.name || 'Unknown Student',
+        name: getDisplayName(entry, reformatEnabled),
+        nameOriginal: entry.nameOriginal || entry.name || 'Unknown Student',
         sortable_name: entry.sortable_name || null,
         phone: entry.phone || null,
         daysOut: parseInt(entry.daysOut || 0),
@@ -28,7 +73,7 @@ export function resolveStudentData(entry) {
  * @param {Object|null} rawEntry - The student data or null to clear
  * @param {Object} callManager - Reference to call manager for state updates
  */
-export function setActiveStudent(rawEntry, callManager) {
+export async function setActiveStudent(rawEntry, callManager) {
     const contactTab = document.getElementById('contact');
     if (!contactTab) return;
 
@@ -80,7 +125,11 @@ export function setActiveStudent(rawEntry, callManager) {
         }
     });
 
-    const data = resolveStudentData(rawEntry);
+    // Get reformat name setting
+    const settings = await chrome.storage.local.get(['reformatNameEnabled']);
+    const reformatEnabled = settings.reformatNameEnabled !== undefined ? settings.reformatNameEnabled : true;
+
+    const data = resolveStudentData(rawEntry, reformatEnabled);
 
     // Generate initials from name
     const nameParts = data.name.trim().split(/\s+/);
@@ -183,7 +232,7 @@ export function setAutomationModeUI(queueLength) {
  * Renders the found submissions list
  * @param {Array} rawEntries - Array of found submissions
  */
-export function renderFoundList(rawEntries) {
+export async function renderFoundList(rawEntries) {
     if (!elements.foundList) return;
     elements.foundList.innerHTML = '';
 
@@ -200,10 +249,14 @@ export function renderFoundList(rawEntries) {
         elements.clearListBtn.style.display = 'block';
     }
 
+    // Get reformat name setting
+    const settings = await chrome.storage.local.get(['reformatNameEnabled']);
+    const reformatEnabled = settings.reformatNameEnabled !== undefined ? settings.reformatNameEnabled : true;
+
     // Create pairs of raw entries and resolved data, then sort by timestamp
     const entriesWithRaw = rawEntries.map(rawEntry => ({
         raw: rawEntry,
-        resolved: resolveStudentData(rawEntry)
+        resolved: resolveStudentData(rawEntry, reformatEnabled)
     }));
     entriesWithRaw.sort((a, b) => new Date(b.resolved.timestamp) - new Date(a.resolved.timestamp));
 
@@ -263,7 +316,7 @@ export function filterFoundList(e) {
  * @param {Array} rawEntries - Array of student data
  * @param {Function} onStudentClick - Callback when student is clicked
  */
-export function renderMasterList(rawEntries, onStudentClick) {
+export async function renderMasterList(rawEntries, onStudentClick) {
     if (!elements.masterList) return;
     elements.masterList.innerHTML = '';
 
@@ -278,8 +331,12 @@ export function renderMasterList(rawEntries, onStudentClick) {
         return;
     }
 
+    // Get reformat name setting
+    const settings = await chrome.storage.local.get(['reformatNameEnabled']);
+    const reformatEnabled = settings.reformatNameEnabled !== undefined ? settings.reformatNameEnabled : true;
+
     rawEntries.forEach(rawEntry => {
-        const data = resolveStudentData(rawEntry);
+        const data = resolveStudentData(rawEntry, reformatEnabled);
 
         const li = document.createElement('li');
         li.className = 'expandable';
