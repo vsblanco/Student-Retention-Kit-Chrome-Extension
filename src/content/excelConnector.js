@@ -421,9 +421,10 @@ if (window.hasSRKConnectorRun) {
               // Use getFieldWithAlias to ensure our standard field names are present
               // This handles cases where fields come with different names (aliases)
 
-              // Name - ensure it exists, convert from "Last, First" to "First Last" if needed
+              // Name - store original and formatted versions
               const rawName = getFieldWithAlias(student, 'name', 'Unknown') || 'Unknown';
-              transformedStudent.name = convertNameFormat(rawName);
+              transformedStudent.nameOriginal = rawName;
+              transformedStudent.name = rawName; // Will be formatted based on user setting in display logic
 
               // Phone - use aliases to find it
               const phone = getFieldWithAlias(student, 'phone');
@@ -576,18 +577,22 @@ if (window.hasSRKConnectorRun) {
               }
 
               // Transform all students from add-in format to extension format
-              const transformedStudents = data.students.map(student => ({
-                  name: convertNameFormat(student.name || 'Unknown'),
-                  phone: student.phone || student.otherPhone || null,
-                  SyStudentId: student.syStudentId || null,
-                  // Set defaults for fields not provided by the Office add-in
-                  grade: null,
-                  StudentNumber: null,
-                  daysOut: 0,
-                  missingCount: 0,
-                  url: null,
-                  assignments: []
-              }));
+              const transformedStudents = data.students.map(student => {
+                  const rawName = student.name || 'Unknown';
+                  return {
+                      nameOriginal: rawName,
+                      name: rawName, // Will be formatted based on user setting in display logic
+                      phone: student.phone || student.otherPhone || null,
+                      SyStudentId: student.syStudentId || null,
+                      // Set defaults for fields not provided by the Office add-in
+                      grade: null,
+                      StudentNumber: null,
+                      daysOut: 0,
+                      missingCount: 0,
+                      url: null,
+                      assignments: []
+                  };
+              });
 
               if (data.count === 1) {
                   console.log(`Setting active student: ${transformedStudents[0].name}`);

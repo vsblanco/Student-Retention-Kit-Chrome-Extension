@@ -58,6 +58,7 @@ import {
     toggleDebugModeModal,
     toggleSyncActiveStudentModal,
     toggleSendMasterListModal,
+    toggleReformatNameModal,
     toggleHighlightStudentRowModal,
     clearCacheFromModal,
     shouldShowDailyUpdateModal,
@@ -460,6 +461,10 @@ function setupEventListeners() {
 
     if (elements.sendMasterListToggleModal) {
         elements.sendMasterListToggleModal.addEventListener('click', toggleSendMasterListModal);
+    }
+
+    if (elements.reformatNameToggleModal) {
+        elements.reformatNameToggleModal.addEventListener('click', toggleReformatNameModal);
     }
 
     if (elements.highlightStudentRowToggleModal) {
