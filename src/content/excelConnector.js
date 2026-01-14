@@ -276,6 +276,20 @@ if (window.hasSRKConnectorRun) {
               // Extension might not be ready, that's ok
           });
       }
+
+      // Handle Links Request from Excel Add-in
+      else if (event.data.type === "SRK_LINKS") {
+          console.log("%c SRK Connector: Links Received!", "color: blue; font-weight: bold");
+          console.log("   Links count:", event.data.links?.length || 0);
+
+          // Forward links to extension to open
+          chrome.runtime.sendMessage({
+              type: "SRK_LINKS",
+              links: event.data.links
+          }).catch(() => {
+              // Extension might not be ready, that's ok
+          });
+      }
   });
 
   /**
