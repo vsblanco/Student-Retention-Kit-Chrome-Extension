@@ -22,6 +22,7 @@
     "https://*.sharepoint.com/*",
     "https://vsblanco.github.io/*",
     "https://app-atl.five9.com/*",
+    "https://*.five9.net/*",
     "https://m365.cloud.microsoft/*"
   ],
   "background": {
