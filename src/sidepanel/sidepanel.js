@@ -156,7 +156,7 @@ async function initializeApp() {
     updateFive9ConnectionIndicator(queueManager.getQueue());
 
     // Setup Five9 status listeners
-    setupFive9StatusListeners(callManager);
+    setupFive9StatusListeners(callManager, () => queueManager.getQueue());
 
     // Start Excel connection monitoring
     startExcelConnectionMonitor();

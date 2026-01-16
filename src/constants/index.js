@@ -69,6 +69,15 @@ export const CONNECTION_TYPES = {
 };
 
 /**
+ * An enum-like object for Five9 connection states.
+ */
+export const FIVE9_CONNECTION_STATES = {
+    NO_TAB: 'no_tab',                           // No Five9 tab detected
+    AWAITING_CONNECTION: 'awaiting_connection', // Tab exists but agent not connected
+    ACTIVE_CONNECTION: 'active_connection'      // Agent connected (network activity detected)
+};
+
+/**
  * UI feature flags for call controls
  * Set to true to show the feature, false to hide
  */

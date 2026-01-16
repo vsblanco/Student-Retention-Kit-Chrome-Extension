@@ -1,27 +1,48 @@
 // Five9 Integration - Monitors Five9 connection status
-import { STORAGE_KEYS } from '../constants/index.js';
+import { STORAGE_KEYS, FIVE9_CONNECTION_STATES } from '../constants/index.js';
 import { elements } from './ui-manager.js';
 
 let five9ConnectionCheckInterval = null;
-let lastFive9ConnectionState = false;
+let lastFive9ConnectionState = FIVE9_CONNECTION_STATES.NO_TAB;
 
 /**
- * Checks if Five9 tab is currently open
- * @returns {Promise<boolean>}
+ * Checks Five9 connection status with three states:
+ * - NO_TAB: No Five9 tab detected
+ * - AWAITING_CONNECTION: Tab exists but agent not connected
+ * - ACTIVE_CONNECTION: Agent connected (network activity detected)
+ * @returns {Promise<string>} One of FIVE9_CONNECTION_STATES
  */
 export async function checkFive9Connection() {
     try {
+        // First check if Five9 tab is open
         const tabs = await chrome.tabs.query({ url: "https://app-atl.five9.com/*" });
-        return tabs.length > 0;
+
+        if (tabs.length === 0) {
+            return FIVE9_CONNECTION_STATES.NO_TAB;
+        }
+
+        // Tab exists - now check if agent is connected via network monitoring
+        const response = await chrome.runtime.sendMessage({
+            type: 'GET_FIVE9_CONNECTION_STATE'
+        });
+
+        // If we have active connection from network monitoring, return that
+        if (response && response.state === FIVE9_CONNECTION_STATES.ACTIVE_CONNECTION) {
+            return FIVE9_CONNECTION_STATES.ACTIVE_CONNECTION;
+        }
+
+        // Tab exists but no agent connection detected yet
+        return FIVE9_CONNECTION_STATES.AWAITING_CONNECTION;
     } catch (error) {
         console.error("Error checking Five9 connection:", error);
-        return false;
+        return FIVE9_CONNECTION_STATES.NO_TAB;
     }
 }
 
 /**
- * Updates the Five9 connection indicator visibility
- * Only shows when debug mode is OFF, Five9 is NOT connected, and student is selected
+ * Updates the Five9 connection indicator based on connection state
+ * Shows different messages for NO_TAB, AWAITING_CONNECTION, and ACTIVE_CONNECTION states
+ * Only shows when debug mode is OFF and student is selected
  */
 export async function updateFive9ConnectionIndicator(selectedQueue) {
     if (!elements.five9ConnectionIndicator) return;
@@ -29,29 +50,48 @@ export async function updateFive9ConnectionIndicator(selectedQueue) {
     const isDebugMode = await chrome.storage.local.get(STORAGE_KEYS.DEBUG_MODE)
         .then(data => data[STORAGE_KEYS.DEBUG_MODE] || false);
 
-    const isFive9Connected = await checkFive9Connection();
+    const connectionState = await checkFive9Connection();
     const hasStudentSelected = selectedQueue && selectedQueue.length > 0;
 
-    const shouldShowFive9Indicator = !isDebugMode && !isFive9Connected && hasStudentSelected;
+    // Show indicator when debug mode is OFF, student is selected, and connection is not active
+    const shouldShowIndicator = !isDebugMode &&
+                                 hasStudentSelected &&
+                                 connectionState !== FIVE9_CONNECTION_STATES.ACTIVE_CONNECTION;
 
-    // Update overlay visibility (sits on top of call screen)
-    // Only change display if state is actually changing to prevent re-triggering fade-in animation
+    // Update indicator content based on state
     if (elements.five9ConnectionIndicator) {
         const currentDisplay = elements.five9ConnectionIndicator.style.display;
-        const targetDisplay = shouldShowFive9Indicator ? 'flex' : 'none';
+        const targetDisplay = shouldShowIndicator ? 'flex' : 'none';
 
+        // Update message based on connection state
+        if (shouldShowIndicator) {
+            const indicatorHTML = connectionState === FIVE9_CONNECTION_STATES.NO_TAB
+                ? '<i class="fas fa-spinner fa-spin"></i> Awaiting Five9 tab'
+                : '<i class="fas fa-spinner fa-spin"></i> Awaiting agent connection';
+
+            elements.five9ConnectionIndicator.innerHTML = indicatorHTML;
+        }
+
+        // Only change display if state is actually changing to prevent re-triggering fade-in animation
         if (currentDisplay !== targetDisplay) {
             elements.five9ConnectionIndicator.style.display = targetDisplay;
         }
     }
 
     // Log connection state changes
-    if (isFive9Connected !== lastFive9ConnectionState) {
-        lastFive9ConnectionState = isFive9Connected;
-        if (isFive9Connected) {
-            console.log("✅ Five9 connected");
-        } else {
-            console.log("❌ Five9 disconnected");
+    if (connectionState !== lastFive9ConnectionState) {
+        lastFive9ConnectionState = connectionState;
+
+        switch (connectionState) {
+            case FIVE9_CONNECTION_STATES.NO_TAB:
+                console.log("❌ Five9 disconnected - No tab");
+                break;
+            case FIVE9_CONNECTION_STATES.AWAITING_CONNECTION:
+                console.log("⏳ Five9 tab detected - Awaiting agent connection");
+                break;
+            case FIVE9_CONNECTION_STATES.ACTIVE_CONNECTION:
+                console.log("✅ Five9 Active Connection - Agent connected");
+                break;
         }
     }
 }
@@ -86,7 +126,7 @@ export function stopFive9ConnectionMonitor() {
 /**
  * Setup Five9 status listeners from background.js
  */
-export function setupFive9StatusListeners(callManager) {
+export function setupFive9StatusListeners(callManager, getSelectedQueue) {
     chrome.runtime.onMessage.addListener((message, sender) => {
         // Handle Five9 call initiation status
         if (message.type === 'callStatus') {
@@ -107,6 +147,15 @@ export function setupFive9StatusListeners(callManager) {
                 console.log("✓ Five9 call ended successfully");
             } else {
                 console.error("✗ Five9 hangup failed:", message.error);
+            }
+        }
+
+        // Handle Five9 connection state changes from network monitoring
+        if (message.type === 'FIVE9_CONNECTION_STATE_CHANGED') {
+            console.log('Five9 connection state changed:', message.state);
+            // Immediately update the indicator when state changes
+            if (getSelectedQueue) {
+                updateFive9ConnectionIndicator(getSelectedQueue());
             }
         }
     });
