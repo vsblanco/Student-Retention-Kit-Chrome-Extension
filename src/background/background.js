@@ -1,7 +1,7 @@
 // [2025-12-17 01:25 PM]
 // Version: 14.4 - Added Five9 Integration
 import { startLoop, stopLoop, addToFoundUrlCache } from './looper.js';
-import { STORAGE_KEYS, CHECKER_MODES, MESSAGE_TYPES, EXTENSION_STATES, CONNECTION_TYPES } from '../constants/index.js';
+import { STORAGE_KEYS, CHECKER_MODES, MESSAGE_TYPES, EXTENSION_STATES, CONNECTION_TYPES, FIVE9_CONNECTION_STATES } from '../constants/index.js';
 
 let logBuffer = [];
 const MAX_LOG_BUFFER_SIZE = 100;
@@ -9,6 +9,10 @@ const MAX_LOG_BUFFER_SIZE = 100;
 // --- State for collecting missing assignment results ---
 let missingAssignmentsCollector = [];
 let missingCheckStartTime = null;
+
+// --- Five9 Connection State Tracking ---
+let five9ConnectionState = FIVE9_CONNECTION_STATES.NO_TAB;
+let lastAgentConnectionTime = null;
 
 function addToLogBuffer(level, payload) {
     logBuffer.push({ level, payload, timestamp: new Date().toISOString() });
@@ -219,6 +223,39 @@ chrome.webRequest.onErrorOccurred.addListener(
   { urls: ["https://nuc.instructure.com/api/*"] }
 );
 
+// Five9 Network Monitoring - Detect agent connection
+chrome.webRequest.onCompleted.addListener(
+  async (details) => {
+    // Detect successful POST to agent-connection endpoint
+    if (details.method === 'POST' &&
+        details.url.includes('/voice-events/agent-connection') &&
+        details.statusCode === 204) {
+
+      lastAgentConnectionTime = Date.now();
+      const previousState = five9ConnectionState;
+      five9ConnectionState = FIVE9_CONNECTION_STATES.ACTIVE_CONNECTION;
+
+      // Store in chrome.storage for persistence
+      await chrome.storage.local.set({
+        five9ConnectionState: FIVE9_CONNECTION_STATES.ACTIVE_CONNECTION,
+        lastAgentConnectionTime: lastAgentConnectionTime
+      });
+
+      // Log state change
+      if (previousState !== FIVE9_CONNECTION_STATES.ACTIVE_CONNECTION) {
+        console.log('%c [Five9] Agent connection detected - Active Connection', 'color: green; font-weight: bold');
+      }
+
+      // Notify sidepanel of state change
+      chrome.runtime.sendMessage({
+        type: 'FIVE9_CONNECTION_STATE_CHANGED',
+        state: FIVE9_CONNECTION_STATES.ACTIVE_CONNECTION
+      }).catch(() => {}); // Ignore if sidepanel not open
+    }
+  },
+  { urls: ["https://*.five9.net/*"] }
+);
+
 chrome.runtime.onMessage.addListener(async (msg, sender, sendResponse) => {
   if (msg.type === MESSAGE_TYPES.REQUEST_STORED_LOGS) {
       if (logBuffer.length > 0) {
@@ -243,6 +280,13 @@ chrome.runtime.onMessage.addListener(async (msg, sender, sendResponse) => {
       await sendHighlightStudentRowPayload(entry);
     }
     console.log('Resent all highlight pings for', foundEntries.length, 'students');
+  } else if (msg.type === 'GET_FIVE9_CONNECTION_STATE') {
+    // Return current Five9 connection state
+    sendResponse({
+      state: five9ConnectionState,
+      lastAgentConnectionTime: lastAgentConnectionTime
+    });
+    return true; // Keep channel open for async response
   } else if (msg.type === MESSAGE_TYPES.LOG_TO_PANEL) {
       // Re-broadcast logs
   }
@@ -749,6 +793,31 @@ chrome.runtime.onStartup.addListener(async () => {
   const tabs = await chrome.tabs.query({ url: TARGET_URL_PATTERNS });
   for (const tab of tabs) {
     injectScriptIntoTab(tab.id, tab.url);
+  }
+});
+
+// Monitor Five9 tab closes to reset connection state
+chrome.tabs.onRemoved.addListener(async (tabId, removeInfo) => {
+  // Check if any Five9 tabs remain open
+  const five9Tabs = await chrome.tabs.query({ url: "https://app-atl.five9.com/*" });
+
+  if (five9Tabs.length === 0) {
+    // No Five9 tabs left - reset connection state
+    five9ConnectionState = FIVE9_CONNECTION_STATES.NO_TAB;
+    lastAgentConnectionTime = null;
+
+    await chrome.storage.local.set({
+      five9ConnectionState: FIVE9_CONNECTION_STATES.NO_TAB,
+      lastAgentConnectionTime: null
+    });
+
+    console.log('%c [Five9] Tab closed - Connection state reset', 'color: orange; font-weight: bold');
+
+    // Notify sidepanel of state change
+    chrome.runtime.sendMessage({
+      type: 'FIVE9_CONNECTION_STATE_CHANGED',
+      state: FIVE9_CONNECTION_STATES.NO_TAB
+    }).catch(() => {}); // Ignore if sidepanel not open
   }
 });
 

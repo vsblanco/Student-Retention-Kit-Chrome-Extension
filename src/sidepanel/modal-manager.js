@@ -1,5 +1,5 @@
 // Modal Manager - Handles all modal dialogs (scan filter, queue, version history)
-import { STORAGE_KEYS, CANVAS_DOMAIN } from '../constants/index.js';
+import { STORAGE_KEYS, CANVAS_DOMAIN, FIVE9_CONNECTION_STATES } from '../constants/index.js';
 import { elements } from './ui-manager.js';
 import { resolveStudentData } from './student-renderer.js';
 
@@ -827,23 +827,42 @@ export async function updateFive9Status() {
     if (!elements.five9StatusText) return;
 
     try {
-        // Check if user has an active Five9 session by querying for Five9 tabs
-        const five9Tabs = await chrome.tabs.query({ url: "https://*.five9.com/*" });
-        const isConnected = five9Tabs.length > 0;
+        // Check Five9 tab status
+        const five9Tabs = await chrome.tabs.query({ url: "https://app-atl.five9.com/*" });
 
-        if (isConnected) {
-            elements.five9StatusText.textContent = 'Connected';
-            elements.five9StatusText.style.color = 'green';
-            if (elements.five9StatusDot) {
-                elements.five9StatusDot.style.backgroundColor = '#10b981';
-                elements.five9StatusDot.title = 'Connected';
-            }
-        } else {
+        if (five9Tabs.length === 0) {
+            // No tab - Not connected
             elements.five9StatusText.textContent = 'Not connected';
             elements.five9StatusText.style.color = 'var(--text-secondary)';
             if (elements.five9StatusDot) {
                 elements.five9StatusDot.style.backgroundColor = '#9ca3af';
-                elements.five9StatusDot.title = 'Not connected';
+                elements.five9StatusDot.title = 'No Five9 tab detected';
+            }
+            return;
+        }
+
+        // Tab exists - check agent connection state
+        const response = await chrome.runtime.sendMessage({
+            type: 'GET_FIVE9_CONNECTION_STATE'
+        });
+
+        const connectionState = response ? response.state : FIVE9_CONNECTION_STATES.AWAITING_CONNECTION;
+
+        if (connectionState === FIVE9_CONNECTION_STATES.ACTIVE_CONNECTION) {
+            // Active connection
+            elements.five9StatusText.textContent = 'Active Connection';
+            elements.five9StatusText.style.color = 'green';
+            if (elements.five9StatusDot) {
+                elements.five9StatusDot.style.backgroundColor = '#10b981';
+                elements.five9StatusDot.title = 'Agent connected and ready';
+            }
+        } else {
+            // Awaiting connection
+            elements.five9StatusText.textContent = 'Awaiting Agent';
+            elements.five9StatusText.style.color = '#f59e0b'; // Orange/amber color
+            if (elements.five9StatusDot) {
+                elements.five9StatusDot.style.backgroundColor = '#f59e0b';
+                elements.five9StatusDot.title = 'Tab open, waiting for agent connection';
             }
         }
     } catch (error) {
@@ -852,7 +871,7 @@ export async function updateFive9Status() {
         elements.five9StatusText.style.color = 'var(--text-secondary)';
         if (elements.five9StatusDot) {
             elements.five9StatusDot.style.backgroundColor = '#9ca3af';
-            elements.five9StatusDot.title = 'Not connected';
+            elements.five9StatusDot.title = 'Error checking status';
         }
     }
 }
