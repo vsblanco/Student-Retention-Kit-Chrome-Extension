@@ -1,6 +1,7 @@
 // [2025-12-10 11:30 AM]
-// Version: 18.1
+// Version: 18.2 - Organized Storage Structure
 import { STORAGE_KEYS, CHECKER_MODES, ADVANCED_FILTER_REGEX, DEFAULT_SETTINGS, EXTENSION_STATES, MESSAGE_TYPES } from '../constants/index.js';
+import { storageGet, storageSet } from '../utils/storage.js';
 
 let isLooping = false;
 let batchQueue = [];
@@ -235,7 +236,7 @@ async function analyzeSubmissionMode(entry, submissions) {
     // Support both 'url' field and legacy 'Gradebook' field
     const gradebookUrl = entry.url || entry.Gradebook;
 
-    const settings = await chrome.storage.local.get([
+    const settings = await storageGet([
         STORAGE_KEYS.CUSTOM_KEYWORD,
         STORAGE_KEYS.USE_SPECIFIC_DATE,
         STORAGE_KEYS.SPECIFIC_SUBMISSION_DATE
@@ -313,8 +314,8 @@ async function analyzeSubmissionMode(entry, submissions) {
 }
 
 async function loadSettings() {
-    const settings = await chrome.storage.local.get([
-        STORAGE_KEYS.CONCURRENT_TABS, 
+    const settings = await storageGet([
+        STORAGE_KEYS.CONCURRENT_TABS,
         STORAGE_KEYS.CHECKER_MODE
     ]);
     maxConcurrentRequests = settings[STORAGE_KEYS.CONCURRENT_TABS] || 5;
@@ -374,7 +375,7 @@ async function performLoop() {
     console.log(`[LOOPER] Settings loaded - Mode: ${currentCheckerMode}, Concurrent: ${maxConcurrentRequests}`);
 
     // 1. Fetch Fresh Data
-    const data = await chrome.storage.local.get([
+    const data = await storageGet([
         STORAGE_KEYS.MASTER_ENTRIES,
         STORAGE_KEYS.FOUND_ENTRIES,
         STORAGE_KEYS.LOOPER_DAYS_OUT_FILTER,
@@ -443,8 +444,8 @@ async function performLoop() {
         if (currentCheckerMode === CHECKER_MODES.SUBMISSION) {
              console.log("No students to check. Waiting...");
              // Update UI to show 0/0 so user knows it's waiting
-             chrome.storage.local.set({ 
-                [STORAGE_KEYS.LOOP_STATUS]: { current: 0, total: 0 } 
+             storageSet({
+                [STORAGE_KEYS.LOOP_STATUS]: { current: 0, total: 0 }
              });
              // Poll again in 5 seconds (keeps loop alive)
              setTimeout(() => { if (isLooping) performLoop(); }, 5000);
@@ -464,7 +465,7 @@ async function performLoop() {
     console.log('%c ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'color: #00BCD4;');
 
     // Update UI immediately
-    chrome.storage.local.set({
+    storageSet({
         [STORAGE_KEYS.LOOP_STATUS]: { current: 0, total: totalStudents }
     });
 
@@ -489,12 +490,12 @@ async function next() {
     currentLoopIndex++;
 
     processedCount += batch.length;
-    
-    chrome.storage.local.set({ 
-        [STORAGE_KEYS.LOOP_STATUS]: { 
-            current: Math.min(processedCount, totalStudents), 
-            total: totalStudents 
-        } 
+
+    storageSet({
+        [STORAGE_KEYS.LOOP_STATUS]: {
+            current: Math.min(processedCount, totalStudents),
+            total: totalStudents
+        }
     });
 
     activeRequests++;
@@ -514,6 +515,7 @@ function finishLoop() {
     if (currentCheckerMode === CHECKER_MODES.MISSING) {
         isLooping = false;
         console.log('Batch API Check Completed.');
+        // Remove LOOP_STATUS from storage (flat key, use chrome.storage.local directly)
         chrome.storage.local.remove(STORAGE_KEYS.LOOP_STATUS);
         if (onCompleteCallback) onCompleteCallback();
     } else {
@@ -565,5 +567,6 @@ export function stopLoop() {
     onCompleteCallback = null;
     onFoundCallback = null;
     onMissingFoundCallback = null;
+    // Remove LOOP_STATUS from storage (flat key, use chrome.storage.local directly)
     chrome.storage.local.remove(STORAGE_KEYS.LOOP_STATUS);
 }

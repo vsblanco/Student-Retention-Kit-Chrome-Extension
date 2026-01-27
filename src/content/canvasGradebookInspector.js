@@ -1,5 +1,5 @@
 // [2025-10-24 03:00 PM]
-// Version: 18.5
+// Version: 18.6 - Updated for nested storage structure
 // This script is now purely for VISUAL enhancement (Passive Mode).
 // It runs automatically when a user views a Gradebook page.
 
@@ -7,7 +7,8 @@
   // Only run on grades page
   if (!window.location.href.includes('/grades/')) return;
 
-  const INSPECTOR_STORAGE_KEYS = {
+  // Legacy flat keys (for backwards compatibility)
+  const FLAT_KEYS = {
       CUSTOM_KEYWORD: 'customKeyword',
       HIGHLIGHT_COLOR: 'highlightColor',
       EMBED_IN_CANVAS: 'embedInCanvas',
@@ -16,24 +17,45 @@
       SPECIFIC_SUBMISSION_DATE: 'specificSubmissionDate'
   };
 
-  // FETCH SETTINGS
-  const settings = await chrome.storage.local.get(Object.values(INSPECTOR_STORAGE_KEYS));
-  
+  // Helper to get value from nested storage structure
+  // Checks new nested path first, then falls back to legacy flat key
+  function getSettingValue(data, key, defaultValue) {
+      // Check nested paths first
+      if (key === 'embedInCanvas') {
+          if (data.settings?.canvas?.embedInCanvas !== undefined) {
+              return data.settings.canvas.embedInCanvas;
+          }
+      } else if (key === 'highlightColor') {
+          if (data.settings?.canvas?.highlightColor !== undefined) {
+              return data.settings.canvas.highlightColor;
+          }
+      } else if (key === 'extensionState') {
+          if (data.state?.extensionState !== undefined) {
+              return data.state.extensionState;
+          }
+      }
+      // Fall back to legacy flat key
+      return data[key] !== undefined ? data[key] : defaultValue;
+  }
+
+  // FETCH SETTINGS - get both new nested structure and legacy flat keys
+  const data = await chrome.storage.local.get(['settings', 'state', ...Object.values(FLAT_KEYS)]);
+
   // [CRITICAL FIX] Check if Embed In Canvas is enabled.
   // If false or undefined, default to TRUE (or FALSE depending on preference).
   // Assuming default is true based on previous context, but strictly respecting the toggle.
-  const isEnabled = settings[INSPECTOR_STORAGE_KEYS.EMBED_IN_CANVAS];
-  
+  const isEnabled = getSettingValue(data, 'embedInCanvas', true);
+
   // If explicitly set to false, stop execution.
   if (isEnabled === false) {
       console.log("[Visual Inspector] Disabled via settings.");
       return;
   }
 
-  const highlightColor = settings[INSPECTOR_STORAGE_KEYS.HIGHLIGHT_COLOR] || '#ffff00';
-  const customKeyword = settings[INSPECTOR_STORAGE_KEYS.CUSTOM_KEYWORD] || '';
-  const useSpecificDate = settings[INSPECTOR_STORAGE_KEYS.USE_SPECIFIC_DATE] || false;
-  const specificDate = settings[INSPECTOR_STORAGE_KEYS.SPECIFIC_SUBMISSION_DATE] || null;
+  const highlightColor = getSettingValue(data, 'highlightColor', '#ffff00');
+  const customKeyword = getSettingValue(data, 'customKeyword', '');
+  const useSpecificDate = getSettingValue(data, 'useSpecificDate', false);
+  const specificDate = getSettingValue(data, 'specificSubmissionDate', null);
 
   // Determine Keyword
   let searchKeyword;
