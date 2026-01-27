@@ -1,19 +1,39 @@
 /*
 * Timestamp: 2025-10-24 09:00 AM
-* Version: 8.1
+* Version: 8.2 - Updated for nested storage structure
 */
 
 // Note: Cannot use ES6 modules in content scripts directly.
 (function() {
-    // Renamed to avoid collision with other scripts
-    const INJECTOR_STORAGE_KEYS = {
+    // Storage paths - supports both legacy flat keys and new nested structure
+    // New structure: settings.canvas.embedInCanvas
+    // Legacy: embedInCanvas (for backwards compatibility during migration)
+    const FLAT_KEYS = {
         EMBED_IN_CANVAS: 'embedInCanvas',
         MASTER_ENTRIES: 'masterEntries'
     };
 
+    // Helper to get value from nested storage structure
+    function getNestedValue(data, key) {
+        // For embedInCanvas, check new path first, then fallback to legacy
+        if (key === 'embedInCanvas') {
+            if (data.settings?.canvas?.embedInCanvas !== undefined) {
+                return data.settings.canvas.embedInCanvas;
+            }
+            return data.embedInCanvas;
+        }
+        // For masterEntries, it stays flat
+        if (key === 'masterEntries') {
+            return data.masterEntries;
+        }
+        return data[key];
+    }
+
     // Only run this script if the setting is enabled
-    chrome.storage.local.get({ [INJECTOR_STORAGE_KEYS.EMBED_IN_CANVAS]: true }, (settings) => {
-        if (!settings[INJECTOR_STORAGE_KEYS.EMBED_IN_CANVAS]) {
+    chrome.storage.local.get(['settings', FLAT_KEYS.EMBED_IN_CANVAS, FLAT_KEYS.MASTER_ENTRIES], (data) => {
+        const embedEnabled = getNestedValue(data, 'embedInCanvas');
+        // Default to true if not set
+        if (embedEnabled === false) {
             console.log("Embed in Canvas is disabled. Injector will not run.");
             return;
         }
@@ -68,8 +88,8 @@
     }
 
     function addSearchFunctionality(searchInput, dropdown) {
-        chrome.storage.local.get({ [INJECTOR_STORAGE_KEYS.MASTER_ENTRIES]: [] }, (data) => {
-            const masterList = data[INJECTOR_STORAGE_KEYS.MASTER_ENTRIES];
+        chrome.storage.local.get([FLAT_KEYS.MASTER_ENTRIES], (data) => {
+            const masterList = getNestedValue(data, 'masterEntries') || [];
             searchInput.addEventListener('input', () => {
                 const term = searchInput.value.trim();
                 const lowerTerm = term.toLowerCase();

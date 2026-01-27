@@ -88,84 +88,134 @@ export const UI_FEATURES = {
 
 /**
  * Keys for data stored in chrome.storage.local.
+ *
+ * Storage Structure:
+ * - settings: Nested settings organized by feature/integration
+ *   - excelAddIn: Excel add-in related settings
+ *     - highlight: Row highlighting configuration
+ *   - powerAutomate: Power Automate integration settings
+ *   - canvas: Canvas LMS settings
+ *   - five9: Five9 telephony settings
+ *   - submissionChecker: Submission checker filter settings
+ * - state: Extension state information
+ * - timestamps: Various timestamp values
+ * - Flat keys: Frequently written data (foundEntries, masterEntries, canvasApiCache)
  */
 export const STORAGE_KEYS = {
-    EXTENSION_STATE: 'extensionState',
+    // === SETTINGS (nested) ===
+    SETTINGS: 'settings',
+
+    // General settings (settings.*)
+    AUTO_UPDATE_MASTER_LIST: 'settings.autoUpdateMasterList',
+    TUTORIAL_COMPLETED: 'settings.tutorialCompleted',
+
+    // Excel Add-in settings (settings.excelAddIn.*)
+    SEND_MASTER_LIST_TO_EXCEL: 'settings.excelAddIn.sendMasterListToExcel',
+    REFORMAT_NAME_ENABLED: 'settings.excelAddIn.reformatNameEnabled',
+    SYNC_ACTIVE_STUDENT: 'settings.excelAddIn.syncActiveStudent',
+    AUTO_SIDELOAD_MANIFEST: 'settings.excelAddIn.autoSideloadManifest',
+
+    // Excel Add-in Highlight settings (settings.excelAddIn.highlight.*)
+    HIGHLIGHT_STUDENT_ROW_ENABLED: 'settings.excelAddIn.highlight.studentRowEnabled',
+    HIGHLIGHT_ROW_COLOR: 'settings.excelAddIn.highlight.rowColor',
+    HIGHLIGHT_START_COL: 'settings.excelAddIn.highlight.startCol',
+    HIGHLIGHT_END_COL: 'settings.excelAddIn.highlight.endCol',
+    HIGHLIGHT_EDIT_COLUMN: 'settings.excelAddIn.highlight.editColumn',
+    HIGHLIGHT_EDIT_TEXT: 'settings.excelAddIn.highlight.editText',
+    HIGHLIGHT_TARGET_SHEET: 'settings.excelAddIn.highlight.targetSheet',
+
+    // Power Automate settings (settings.powerAutomate.*)
+    POWER_AUTOMATE_URL: 'settings.powerAutomate.url',
+
+    // Canvas settings (settings.canvas.*)
+    EMBED_IN_CANVAS: 'settings.canvas.embedInCanvas',
+    HIGHLIGHT_COLOR: 'settings.canvas.highlightColor',
+
+    // Five9 settings (settings.five9.*)
+    CALL_DEMO: 'settings.five9.callDemo',
+
+    // Submission Checker settings (settings.submissionChecker.*)
+    LOOPER_DAYS_OUT_FILTER: 'settings.submissionChecker.looperDaysOutFilter',
+    SCAN_FILTER_INCLUDE_FAILING: 'settings.submissionChecker.scanFilterIncludeFailing',
+
+    // === STATE (nested) ===
+    STATE: 'state',
+    EXTENSION_STATE: 'state.extensionState',
+    SRK_SESSION_ID: 'state.srkSessionId',
+
+    // === TIMESTAMPS (nested) ===
+    TIMESTAMPS: 'timestamps',
+    LAST_CALL_TIMESTAMP: 'timestamps.lastCallTimestamp',
+    LAST_UPDATED: 'timestamps.lastUpdated',
+    MASTER_LIST_SOURCE_TIMESTAMP: 'timestamps.masterListSourceTimestamp',
+    REFERENCE_DATE: 'timestamps.referenceDate',
+
+    // === FLAT KEYS (frequently written) ===
     FOUND_ENTRIES: 'foundEntries',
     MASTER_ENTRIES: 'masterEntries',
-    LAST_UPDATED: 'lastUpdated',
-    REFERENCE_DATE: 'referenceDate',
+    CANVAS_API_CACHE: 'canvasApiCache',
+
+    // === OTHER (flat for backwards compatibility or misc) ===
     LOOP_STATUS: 'loopStatus',
     CONNECTIONS: 'connections',
-    DEBUG_MODE: 'debugMode',
     LATEST_MISSING_REPORT: 'latestMissingReport',
-    LAST_CALL_TIMESTAMP: 'lastCallTimestamp',
-    // Settings
     CHECKER_MODE: 'checkerMode',
     CONCURRENT_TABS: 'concurrentTabs',
-    HIGHLIGHT_COLOR: 'highlightColor',
     CUSTOM_KEYWORD: 'customKeyword',
-    LOOPER_DAYS_OUT_FILTER: 'looperDaysOutFilter',
-    EMBED_IN_CANVAS: 'embedInCanvas',
     INCLUDE_ALL_ASSIGNMENTS: 'includeAllAssignments',
-    CANVAS_API_CACHE: 'canvasApiCache',
-    // Scan Filter Settings
-    SCAN_FILTER_INCLUDE_FAILING: 'scanFilterIncludeFailing',
-    // Master List Auto-Update Settings
-    AUTO_UPDATE_MASTER_LIST: 'autoUpdateMasterList',
-    // Power Automate Settings
-    POWER_AUTOMATE_URL: 'powerAutomateUrl',
-    // Excel Student Sync Settings
-    SYNC_ACTIVE_STUDENT: 'syncActiveStudent',
-    SEND_MASTER_LIST_TO_EXCEL: 'sendMasterListToExcel',
-    // Highlight Student Row Payload Settings
-    HIGHLIGHT_STUDENT_ROW_ENABLED: 'highlightStudentRowEnabled',
-    HIGHLIGHT_START_COL: 'highlightStartCol',
-    HIGHLIGHT_END_COL: 'highlightEndCol',
-    HIGHLIGHT_EDIT_COLUMN: 'highlightEditColumn',
-    HIGHLIGHT_EDIT_TEXT: 'highlightEditText',
-    HIGHLIGHT_TARGET_SHEET: 'highlightTargetSheet',
-    HIGHLIGHT_COLOR: 'highlightRowColor',
-    // Specific Submission Date Settings
     USE_SPECIFIC_DATE: 'useSpecificDate',
     SPECIFIC_SUBMISSION_DATE: 'specificSubmissionDate',
-    // Office User Info
     OFFICE_USER_INFO: 'officeUserInfo',
-    // Auto-Sideload Manifest Settings
-    AUTO_SIDELOAD_MANIFEST: 'autoSideloadManifest',
-    // Tutorial Settings
-    TUTORIAL_COMPLETED: 'tutorialCompleted'
+
+    // Legacy key aliases (for migration compatibility)
+    // These map old flat keys to new nested paths
+    LEGACY_DEBUG_MODE: 'debugMode' // Now at settings.five9.callDemo
 };
 
 /**
  * Default values for all extension settings.
  */
 export const DEFAULT_SETTINGS = {
-    [STORAGE_KEYS.CHECKER_MODE]: CHECKER_MODES.SUBMISSION,
-    [STORAGE_KEYS.CONCURRENT_TABS]: 5, // Increased default since API is faster
-    [STORAGE_KEYS.HIGHLIGHT_COLOR]: '#ffff00',
-    [STORAGE_KEYS.CUSTOM_KEYWORD]: '',
-    [STORAGE_KEYS.LOOPER_DAYS_OUT_FILTER]: '>=5',
-    [STORAGE_KEYS.DEBUG_MODE]: false,
-    [STORAGE_KEYS.EMBED_IN_CANVAS]: true,
-    [STORAGE_KEYS.INCLUDE_ALL_ASSIGNMENTS]: false,
-    [STORAGE_KEYS.SCAN_FILTER_INCLUDE_FAILING]: false,
+    // General settings
     [STORAGE_KEYS.AUTO_UPDATE_MASTER_LIST]: 'always', // Options: 'always', 'once-daily', 'never'
-    [STORAGE_KEYS.SYNC_ACTIVE_STUDENT]: true, // Enable student sync from Excel add-in by default
-    [STORAGE_KEYS.SEND_MASTER_LIST_TO_EXCEL]: true, // Enable sending master list to Excel by default
-    // Highlight Student Row Payload Defaults
-    [STORAGE_KEYS.HIGHLIGHT_STUDENT_ROW_ENABLED]: true, // Enable student row highlighting by default
+    [STORAGE_KEYS.TUTORIAL_COMPLETED]: false,
+
+    // Excel Add-in settings
+    [STORAGE_KEYS.SEND_MASTER_LIST_TO_EXCEL]: true,
+    [STORAGE_KEYS.REFORMAT_NAME_ENABLED]: true,
+    [STORAGE_KEYS.SYNC_ACTIVE_STUDENT]: true,
+    [STORAGE_KEYS.AUTO_SIDELOAD_MANIFEST]: true,
+
+    // Excel Add-in Highlight settings
+    [STORAGE_KEYS.HIGHLIGHT_STUDENT_ROW_ENABLED]: true,
+    [STORAGE_KEYS.HIGHLIGHT_ROW_COLOR]: '#92d050',
     [STORAGE_KEYS.HIGHLIGHT_START_COL]: 'Student Name',
     [STORAGE_KEYS.HIGHLIGHT_END_COL]: 'Outreach',
     [STORAGE_KEYS.HIGHLIGHT_EDIT_COLUMN]: 'Outreach',
     [STORAGE_KEYS.HIGHLIGHT_EDIT_TEXT]: 'Submitted {assignment}',
     [STORAGE_KEYS.HIGHLIGHT_TARGET_SHEET]: 'LDA MM-DD-YYYY',
-    [STORAGE_KEYS.HIGHLIGHT_COLOR]: '#92d050',
-    // Specific Submission Date Defaults
+
+    // Power Automate settings
+    [STORAGE_KEYS.POWER_AUTOMATE_URL]: '',
+
+    // Canvas settings
+    [STORAGE_KEYS.EMBED_IN_CANVAS]: true,
+    [STORAGE_KEYS.HIGHLIGHT_COLOR]: '#ffff00',
+
+    // Five9 settings
+    [STORAGE_KEYS.CALL_DEMO]: false, // Call demo mode (was debugMode)
+
+    // Submission Checker settings
+    [STORAGE_KEYS.LOOPER_DAYS_OUT_FILTER]: '>=5',
+    [STORAGE_KEYS.SCAN_FILTER_INCLUDE_FAILING]: false,
+
+    // Other flat settings
+    [STORAGE_KEYS.CHECKER_MODE]: CHECKER_MODES.SUBMISSION,
+    [STORAGE_KEYS.CONCURRENT_TABS]: 5,
+    [STORAGE_KEYS.CUSTOM_KEYWORD]: '',
+    [STORAGE_KEYS.INCLUDE_ALL_ASSIGNMENTS]: false,
     [STORAGE_KEYS.USE_SPECIFIC_DATE]: false,
-    [STORAGE_KEYS.SPECIFIC_SUBMISSION_DATE]: null,
-    // Auto-Sideload Manifest Defaults
-    [STORAGE_KEYS.AUTO_SIDELOAD_MANIFEST]: true // Auto-sideload enabled by default
+    [STORAGE_KEYS.SPECIFIC_SUBMISSION_DATE]: null
 };
 
 /**

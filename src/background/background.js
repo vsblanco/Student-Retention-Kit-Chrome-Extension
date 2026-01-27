@@ -1,7 +1,8 @@
 // [2025-12-17 01:25 PM]
-// Version: 14.4 - Added Five9 Integration
+// Version: 14.5 - Organized Storage Structure
 import { startLoop, stopLoop, addToFoundUrlCache } from './looper.js';
 import { STORAGE_KEYS, CHECKER_MODES, MESSAGE_TYPES, EXTENSION_STATES, CONNECTION_TYPES, FIVE9_CONNECTION_STATES } from '../constants/index.js';
+import { storageGet, storageSet, storageGetValue, migrateStorage } from '../utils/storage.js';
 
 let logBuffer = [];
 const MAX_LOG_BUFFER_SIZE = 100;
@@ -578,10 +579,7 @@ async function sendHighlightStudentRowPayload(entry) {
     console.log('%c [SRK] Submission Found - Sending payload to Office Add-in', 'background: #4CAF50; color: white; font-weight: bold; padding: 2px 4px;', entry.name);
 
     // Check if highlight feature is enabled
-    const enabledCheck = await chrome.storage.local.get([STORAGE_KEYS.HIGHLIGHT_STUDENT_ROW_ENABLED]);
-    const isEnabled = enabledCheck[STORAGE_KEYS.HIGHLIGHT_STUDENT_ROW_ENABLED] !== undefined
-        ? enabledCheck[STORAGE_KEYS.HIGHLIGHT_STUDENT_ROW_ENABLED]
-        : true; // Default to enabled for backwards compatibility
+    const isEnabled = await storageGetValue(STORAGE_KEYS.HIGHLIGHT_STUDENT_ROW_ENABLED, true);
 
     if (!isEnabled) {
         console.log('[SRK] Student row highlighting is disabled - skipping highlight payload');
@@ -595,13 +593,13 @@ async function sendHighlightStudentRowPayload(entry) {
     }
 
     // Load highlight settings
-    const settings = await chrome.storage.local.get([
+    const settings = await storageGet([
         STORAGE_KEYS.HIGHLIGHT_START_COL,
         STORAGE_KEYS.HIGHLIGHT_END_COL,
         STORAGE_KEYS.HIGHLIGHT_EDIT_COLUMN,
         STORAGE_KEYS.HIGHLIGHT_EDIT_TEXT,
         STORAGE_KEYS.HIGHLIGHT_TARGET_SHEET,
-        STORAGE_KEYS.HIGHLIGHT_COLOR
+        STORAGE_KEYS.HIGHLIGHT_ROW_COLOR
     ]);
 
     // Process editText to replace {assignment} placeholder
@@ -627,7 +625,7 @@ async function sendHighlightStudentRowPayload(entry) {
             startCol: settings[STORAGE_KEYS.HIGHLIGHT_START_COL] || 'Student Name',
             endCol: settings[STORAGE_KEYS.HIGHLIGHT_END_COL] || 'Outreach',
             targetSheet: targetSheet,
-            color: settings[STORAGE_KEYS.HIGHLIGHT_COLOR] || '#92d050',
+            color: settings[STORAGE_KEYS.HIGHLIGHT_ROW_COLOR] || '#92d050',
             editColumn: settings[STORAGE_KEYS.HIGHLIGHT_EDIT_COLUMN] || 'Outreach',
             editText: editText
         }
@@ -656,11 +654,11 @@ async function sendHighlightStudentRowPayload(entry) {
 
 // --- CONNECTION HANDLING ---
 async function sendConnectionPings(payload) {
-    const data = await chrome.storage.local.get([STORAGE_KEYS.CONNECTIONS, STORAGE_KEYS.DEBUG_MODE]);
+    const data = await storageGet([STORAGE_KEYS.CONNECTIONS, STORAGE_KEYS.CALL_DEMO]);
     const connections = data[STORAGE_KEYS.CONNECTIONS] || [];
-    const debugMode = data[STORAGE_KEYS.DEBUG_MODE] || false;
+    const callDemo = data[STORAGE_KEYS.CALL_DEMO] || false;
     const bodyPayload = { ...payload };
-    if (!bodyPayload.debug && debugMode) {
+    if (!bodyPayload.debug && callDemo) {
       bodyPayload.debug = true;
     }
 
@@ -770,11 +768,16 @@ async function injectScriptIntoTab(tabId, url) {
 
 // 1. On Install / Reload
 chrome.runtime.onInstalled.addListener(async () => {
-  console.log("[SRK] Extension installed/updated. Scanning for open Excel tabs...");
+  console.log("[SRK] Extension installed/updated. Running storage migration...");
+
+  // Run storage migration to convert old flat keys to new nested structure
+  await migrateStorage();
+
+  console.log("[SRK] Scanning for open Excel tabs...");
 
   // Query specifically for our target URLs
   const tabs = await chrome.tabs.query({ url: TARGET_URL_PATTERNS });
-  
+
   console.log(`[SRK] Found ${tabs.length} matching tabs.`);
 
   if (tabs.length === 0) {

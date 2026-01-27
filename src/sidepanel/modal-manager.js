@@ -1,5 +1,6 @@
 // Modal Manager - Handles all modal dialogs (scan filter, queue, version history)
 import { STORAGE_KEYS, CANVAS_DOMAIN, FIVE9_CONNECTION_STATES } from '../constants/index.js';
+import { storageGet, storageSet, storageGetValue } from '../utils/storage.js';
 import { elements } from './ui-manager.js';
 import { resolveStudentData } from './student-renderer.js';
 
@@ -10,7 +11,7 @@ export async function openScanFilterModal() {
     if (!elements.scanFilterModal) return;
 
     // Load current settings
-    const settings = await chrome.storage.local.get([
+    const settings = await storageGet([
         STORAGE_KEYS.LOOPER_DAYS_OUT_FILTER,
         STORAGE_KEYS.SCAN_FILTER_INCLUDE_FAILING
     ]);
@@ -61,7 +62,7 @@ export async function updateScanFilterCount() {
     const value = parseInt(elements.daysOutValue.value, 10);
     const includeFailing = elements.failingToggle.classList.contains('fa-toggle-on');
 
-    const data = await chrome.storage.local.get([STORAGE_KEYS.MASTER_ENTRIES]);
+    const data = await storageGet([STORAGE_KEYS.MASTER_ENTRIES]);
     const masterEntries = data[STORAGE_KEYS.MASTER_ENTRIES] || [];
 
     let filteredCount = 0;
@@ -124,7 +125,7 @@ export async function saveScanFilterSettings() {
     const daysOutFilter = `${operator}${value}`;
     const includeFailing = elements.failingToggle.classList.contains('fa-toggle-on');
 
-    await chrome.storage.local.set({
+    await storageSet({
         [STORAGE_KEYS.LOOPER_DAYS_OUT_FILTER]: daysOutFilter,
         [STORAGE_KEYS.SCAN_FILTER_INCLUDE_FAILING]: includeFailing
     });
@@ -168,8 +169,7 @@ export async function renderQueueModal(selectedQueue, onReorder, onRemove) {
     elements.queueCount.textContent = `${selectedQueue.length} student${selectedQueue.length !== 1 ? 's' : ''}`;
 
     // Get reformat name setting
-    const settings = await chrome.storage.local.get(['reformatNameEnabled']);
-    const reformatEnabled = settings.reformatNameEnabled !== undefined ? settings.reformatNameEnabled : true;
+    const reformatEnabled = await storageGetValue(STORAGE_KEYS.REFORMAT_NAME_ENABLED, true);
 
     selectedQueue.forEach((student, index) => {
         const li = document.createElement('li');
@@ -324,89 +324,89 @@ export function openConnectionsModal(connectionType) {
     }
 
     // Load current settings into modal
-    chrome.storage.local.get([
-        'autoUpdateMasterList',
-        'syncActiveStudent',
-        'sendMasterListToExcel',
-        'reformatNameEnabled',
-        'highlightStudentRowEnabled',
-        'powerAutomateUrl',
-        'embedInCanvas',
-        'highlightColor',
-        'debugMode',
-        'highlightStartCol',
-        'highlightEndCol',
-        'highlightEditColumn',
-        'highlightEditText',
-        'highlightTargetSheet',
-        'highlightRowColor'
-    ], (result) => {
-        // Load auto-update setting
-        const setting = result.autoUpdateMasterList || 'always';
-        if (elements.autoUpdateSelectModal) {
-            elements.autoUpdateSelectModal.value = setting;
-        }
+    const result = await storageGet([
+        STORAGE_KEYS.AUTO_UPDATE_MASTER_LIST,
+        STORAGE_KEYS.SYNC_ACTIVE_STUDENT,
+        STORAGE_KEYS.SEND_MASTER_LIST_TO_EXCEL,
+        STORAGE_KEYS.REFORMAT_NAME_ENABLED,
+        STORAGE_KEYS.HIGHLIGHT_STUDENT_ROW_ENABLED,
+        STORAGE_KEYS.POWER_AUTOMATE_URL,
+        STORAGE_KEYS.EMBED_IN_CANVAS,
+        STORAGE_KEYS.HIGHLIGHT_COLOR,
+        STORAGE_KEYS.CALL_DEMO,
+        STORAGE_KEYS.HIGHLIGHT_START_COL,
+        STORAGE_KEYS.HIGHLIGHT_END_COL,
+        STORAGE_KEYS.HIGHLIGHT_EDIT_COLUMN,
+        STORAGE_KEYS.HIGHLIGHT_EDIT_TEXT,
+        STORAGE_KEYS.HIGHLIGHT_TARGET_SHEET,
+        STORAGE_KEYS.HIGHLIGHT_ROW_COLOR
+    ]);
 
-        // Load sync active student setting
-        const syncActiveStudent = result.syncActiveStudent !== undefined ? result.syncActiveStudent : true;
-        updateSyncActiveStudentModalUI(syncActiveStudent);
+    // Load auto-update setting
+    const setting = result[STORAGE_KEYS.AUTO_UPDATE_MASTER_LIST] || 'always';
+    if (elements.autoUpdateSelectModal) {
+        elements.autoUpdateSelectModal.value = setting;
+    }
 
-        // Load send master list to Excel setting
-        const sendMasterListToExcel = result.sendMasterListToExcel !== undefined ? result.sendMasterListToExcel : true;
-        updateSendMasterListModalUI(sendMasterListToExcel);
+    // Load sync active student setting
+    const syncActiveStudent = result[STORAGE_KEYS.SYNC_ACTIVE_STUDENT] !== undefined ? result[STORAGE_KEYS.SYNC_ACTIVE_STUDENT] : true;
+    updateSyncActiveStudentModalUI(syncActiveStudent);
 
-        // Load reformat name setting
-        const reformatNameEnabled = result.reformatNameEnabled !== undefined ? result.reformatNameEnabled : true;
-        updateReformatNameModalUI(reformatNameEnabled);
+    // Load send master list to Excel setting
+    const sendMasterListToExcel = result[STORAGE_KEYS.SEND_MASTER_LIST_TO_EXCEL] !== undefined ? result[STORAGE_KEYS.SEND_MASTER_LIST_TO_EXCEL] : true;
+    updateSendMasterListModalUI(sendMasterListToExcel);
 
-        // Load highlight student row enabled setting
-        const highlightStudentRowEnabled = result.highlightStudentRowEnabled !== undefined ? result.highlightStudentRowEnabled : true;
-        updateHighlightStudentRowModalUI(highlightStudentRowEnabled);
+    // Load reformat name setting
+    const reformatNameEnabled = result[STORAGE_KEYS.REFORMAT_NAME_ENABLED] !== undefined ? result[STORAGE_KEYS.REFORMAT_NAME_ENABLED] : true;
+    updateReformatNameModalUI(reformatNameEnabled);
 
-        // Load Power Automate URL
-        const paUrl = result.powerAutomateUrl || '';
-        if (elements.powerAutomateUrlInput) {
-            elements.powerAutomateUrlInput.value = paUrl;
-        }
+    // Load highlight student row enabled setting
+    const highlightStudentRowEnabled = result[STORAGE_KEYS.HIGHLIGHT_STUDENT_ROW_ENABLED] !== undefined ? result[STORAGE_KEYS.HIGHLIGHT_STUDENT_ROW_ENABLED] : true;
+    updateHighlightStudentRowModalUI(highlightStudentRowEnabled);
 
-        // Load Canvas settings
-        const embedHelper = result.embedInCanvas !== undefined ? result.embedInCanvas : true;
-        updateEmbedHelperModalUI(embedHelper);
+    // Load Power Automate URL
+    const paUrl = result[STORAGE_KEYS.POWER_AUTOMATE_URL] || '';
+    if (elements.powerAutomateUrlInput) {
+        elements.powerAutomateUrlInput.value = paUrl;
+    }
 
-        const highlightColor = result.highlightColor || '#ffff00';
-        if (elements.highlightColorPickerModal) {
-            elements.highlightColorPickerModal.value = highlightColor;
-        }
+    // Load Canvas settings
+    const embedHelper = result[STORAGE_KEYS.EMBED_IN_CANVAS] !== undefined ? result[STORAGE_KEYS.EMBED_IN_CANVAS] : true;
+    updateEmbedHelperModalUI(embedHelper);
 
-        // Load Five9 settings
-        const debugMode = result.debugMode || false;
-        updateDebugModeModalUI(debugMode);
+    const highlightColor = result[STORAGE_KEYS.HIGHLIGHT_COLOR] || '#ffff00';
+    if (elements.highlightColorPickerModal) {
+        elements.highlightColorPickerModal.value = highlightColor;
+    }
 
-        // Load Highlight Student Row settings
-        if (elements.highlightStartColInput) {
-            elements.highlightStartColInput.value = result.highlightStartCol || 'Student Name';
-        }
-        if (elements.highlightEndColInput) {
-            elements.highlightEndColInput.value = result.highlightEndCol || 'Outreach';
-        }
-        if (elements.highlightEditColumnInput) {
-            elements.highlightEditColumnInput.value = result.highlightEditColumn || 'Outreach';
-        }
-        if (elements.highlightEditTextInput) {
-            elements.highlightEditTextInput.value = result.highlightEditText || 'Submitted {assignment}';
-        }
-        if (elements.highlightTargetSheetInput) {
-            elements.highlightTargetSheetInput.value = result.highlightTargetSheet || 'LDA MM-DD-YYYY';
-        }
-        if (elements.highlightRowColorInput && elements.highlightRowColorTextInput) {
-            const color = result.highlightRowColor || '#92d050';
-            elements.highlightRowColorInput.value = color;
-            elements.highlightRowColorTextInput.value = color;
-        }
+    // Load Five9 settings (Call Demo mode, formerly debugMode)
+    const callDemo = result[STORAGE_KEYS.CALL_DEMO] || false;
+    updateDebugModeModalUI(callDemo);
 
-        // Load cache stats
-        loadCacheStatsForModal();
-    });
+    // Load Highlight Student Row settings
+    if (elements.highlightStartColInput) {
+        elements.highlightStartColInput.value = result[STORAGE_KEYS.HIGHLIGHT_START_COL] || 'Student Name';
+    }
+    if (elements.highlightEndColInput) {
+        elements.highlightEndColInput.value = result[STORAGE_KEYS.HIGHLIGHT_END_COL] || 'Outreach';
+    }
+    if (elements.highlightEditColumnInput) {
+        elements.highlightEditColumnInput.value = result[STORAGE_KEYS.HIGHLIGHT_EDIT_COLUMN] || 'Outreach';
+    }
+    if (elements.highlightEditTextInput) {
+        elements.highlightEditTextInput.value = result[STORAGE_KEYS.HIGHLIGHT_EDIT_TEXT] || 'Submitted {assignment}';
+    }
+    if (elements.highlightTargetSheetInput) {
+        elements.highlightTargetSheetInput.value = result[STORAGE_KEYS.HIGHLIGHT_TARGET_SHEET] || 'LDA MM-DD-YYYY';
+    }
+    if (elements.highlightRowColorInput && elements.highlightRowColorTextInput) {
+        const color = result[STORAGE_KEYS.HIGHLIGHT_ROW_COLOR] || '#92d050';
+        elements.highlightRowColorInput.value = color;
+        elements.highlightRowColorTextInput.value = color;
+    }
+
+    // Load cache stats
+    loadCacheStatsForModal();
 }
 
 /**
@@ -553,42 +553,42 @@ export async function saveConnectionsSettings() {
     // Save auto-update setting
     if (elements.autoUpdateSelectModal) {
         const newSetting = elements.autoUpdateSelectModal.value;
-        settingsToSave.autoUpdateMasterList = newSetting;
+        settingsToSave[STORAGE_KEYS.AUTO_UPDATE_MASTER_LIST] = newSetting;
         console.log(`Auto-update master list setting saved: ${newSetting}`);
     }
 
     // Save sync active student setting
     if (elements.syncActiveStudentToggleModal) {
         const syncEnabled = elements.syncActiveStudentToggleModal.classList.contains('fa-toggle-on');
-        settingsToSave.syncActiveStudent = syncEnabled;
+        settingsToSave[STORAGE_KEYS.SYNC_ACTIVE_STUDENT] = syncEnabled;
         console.log(`Sync Active Student setting saved: ${syncEnabled}`);
     }
 
     // Save send master list to Excel setting
     if (elements.sendMasterListToggleModal) {
         const sendEnabled = elements.sendMasterListToggleModal.classList.contains('fa-toggle-on');
-        settingsToSave.sendMasterListToExcel = sendEnabled;
+        settingsToSave[STORAGE_KEYS.SEND_MASTER_LIST_TO_EXCEL] = sendEnabled;
         console.log(`Send Master List to Excel setting saved: ${sendEnabled}`);
     }
 
     // Save reformat name setting
     if (elements.reformatNameToggleModal) {
         const reformatEnabled = elements.reformatNameToggleModal.classList.contains('fa-toggle-on');
-        settingsToSave.reformatNameEnabled = reformatEnabled;
+        settingsToSave[STORAGE_KEYS.REFORMAT_NAME_ENABLED] = reformatEnabled;
         console.log(`Reformat Name setting saved: ${reformatEnabled}`);
     }
 
     // Save highlight student row enabled setting
     if (elements.highlightStudentRowToggleModal) {
         const highlightEnabled = elements.highlightStudentRowToggleModal.classList.contains('fa-toggle-on');
-        settingsToSave.highlightStudentRowEnabled = highlightEnabled;
+        settingsToSave[STORAGE_KEYS.HIGHLIGHT_STUDENT_ROW_ENABLED] = highlightEnabled;
         console.log(`Highlight Student Row enabled setting saved: ${highlightEnabled}`);
     }
 
     // Save Power Automate URL
     if (elements.powerAutomateUrlInput) {
         const paUrl = elements.powerAutomateUrlInput.value.trim();
-        settingsToSave.powerAutomateUrl = paUrl;
+        settingsToSave[STORAGE_KEYS.POWER_AUTOMATE_URL] = paUrl;
         console.log(`Power Automate URL saved: ${paUrl ? 'URL configured' : 'URL cleared'}`);
 
         // Update status text immediately
@@ -598,45 +598,45 @@ export async function saveConnectionsSettings() {
     // Save Canvas settings
     if (elements.embedHelperToggleModal) {
         const embedEnabled = elements.embedHelperToggleModal.classList.contains('fa-toggle-on');
-        settingsToSave.embedInCanvas = embedEnabled;
+        settingsToSave[STORAGE_KEYS.EMBED_IN_CANVAS] = embedEnabled;
         console.log(`Embed Helper setting saved: ${embedEnabled}`);
     }
 
     if (elements.highlightColorPickerModal) {
         const highlightColor = elements.highlightColorPickerModal.value;
-        settingsToSave.highlightColor = highlightColor;
+        settingsToSave[STORAGE_KEYS.HIGHLIGHT_COLOR] = highlightColor;
         console.log(`Highlight Color saved: ${highlightColor}`);
     }
 
-    // Save Five9 settings
+    // Save Five9 settings (Call Demo mode)
     if (elements.debugModeToggleModal) {
-        const debugEnabled = elements.debugModeToggleModal.classList.contains('fa-toggle-on');
-        settingsToSave.debugMode = debugEnabled;
-        console.log(`Debug Mode setting saved: ${debugEnabled}`);
+        const callDemoEnabled = elements.debugModeToggleModal.classList.contains('fa-toggle-on');
+        settingsToSave[STORAGE_KEYS.CALL_DEMO] = callDemoEnabled;
+        console.log(`Call Demo mode setting saved: ${callDemoEnabled}`);
     }
 
     // Save Highlight Student Row settings
     if (elements.highlightStartColInput) {
-        settingsToSave.highlightStartCol = elements.highlightStartColInput.value || 'Student Name';
+        settingsToSave[STORAGE_KEYS.HIGHLIGHT_START_COL] = elements.highlightStartColInput.value || 'Student Name';
     }
     if (elements.highlightEndColInput) {
-        settingsToSave.highlightEndCol = elements.highlightEndColInput.value || 'Outreach';
+        settingsToSave[STORAGE_KEYS.HIGHLIGHT_END_COL] = elements.highlightEndColInput.value || 'Outreach';
     }
     if (elements.highlightEditColumnInput) {
-        settingsToSave.highlightEditColumn = elements.highlightEditColumnInput.value || 'Outreach';
+        settingsToSave[STORAGE_KEYS.HIGHLIGHT_EDIT_COLUMN] = elements.highlightEditColumnInput.value || 'Outreach';
     }
     if (elements.highlightEditTextInput) {
-        settingsToSave.highlightEditText = elements.highlightEditTextInput.value || 'Submitted {assignment}';
+        settingsToSave[STORAGE_KEYS.HIGHLIGHT_EDIT_TEXT] = elements.highlightEditTextInput.value || 'Submitted {assignment}';
     }
     if (elements.highlightTargetSheetInput) {
-        settingsToSave.highlightTargetSheet = elements.highlightTargetSheetInput.value || 'LDA MM-DD-YYYY';
+        settingsToSave[STORAGE_KEYS.HIGHLIGHT_TARGET_SHEET] = elements.highlightTargetSheetInput.value || 'LDA MM-DD-YYYY';
     }
     if (elements.highlightRowColorTextInput) {
-        settingsToSave.highlightRowColor = elements.highlightRowColorTextInput.value || '#92d050';
+        settingsToSave[STORAGE_KEYS.HIGHLIGHT_ROW_COLOR] = elements.highlightRowColorTextInput.value || '#92d050';
     }
 
     // Save all settings
-    await chrome.storage.local.set(settingsToSave);
+    await storageSet(settingsToSave);
 
     // Close modal after saving
     closeConnectionsModal();
@@ -904,8 +904,7 @@ export async function clearCacheFromModal() {
  * Returns true if the modal should be shown, false otherwise
  */
 export async function shouldShowDailyUpdateModal() {
-    const data = await chrome.storage.local.get([STORAGE_KEYS.LAST_UPDATED]);
-    const lastUpdated = data[STORAGE_KEYS.LAST_UPDATED];
+    const lastUpdated = await storageGetValue(STORAGE_KEYS.LAST_UPDATED);
 
     // If there's no master list yet, don't show the modal
     if (!lastUpdated) {

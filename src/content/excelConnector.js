@@ -1,4 +1,5 @@
 // content/excel_connector.js
+// Version 2.0 - Updated for nested storage structure
 
 // Prevent multiple injections
 if (window.hasSRKConnectorRun) {
@@ -8,6 +9,29 @@ if (window.hasSRKConnectorRun) {
   window.hasSRKConnectorRun = true;
 
   console.log("%c SRK: Excel Connector Script LOADED", "background: #222; color: #bada55; font-size: 14px");
+
+  /**
+   * Helper to get value from nested storage structure.
+   * Checks new nested path first, then falls back to legacy flat key.
+   * @param {Object} data - Storage data object
+   * @param {string} key - The legacy flat key name
+   * @param {*} defaultValue - Default value if not found
+   * @returns {*} The setting value
+   */
+  function getSettingValue(data, key, defaultValue = undefined) {
+      // Check nested paths first based on the key
+      if (key === 'autoUpdateMasterList') {
+          if (data.settings?.autoUpdateMasterList !== undefined) {
+              return data.settings.autoUpdateMasterList;
+          }
+      } else if (key === 'syncActiveStudent') {
+          if (data.settings?.excelAddIn?.syncActiveStudent !== undefined) {
+              return data.settings.excelAddIn.syncActiveStudent;
+          }
+      }
+      // Fall back to legacy flat key
+      return data[key] !== undefined ? data[key] : defaultValue;
+  }
 
   /**
    * Normalizes a field name for comparison by:
@@ -328,8 +352,11 @@ if (window.hasSRKConnectorRun) {
    * @param {MessageEventSource} source - The event source to send response to
    */
   function checkIfShouldAcceptMasterList(source) {
-      chrome.storage.local.get(['autoUpdateMasterList', 'lastUpdated'], (result) => {
-          const setting = result.autoUpdateMasterList || 'always';
+      // Get both nested 'settings' and legacy flat keys, plus 'timestamps' for lastUpdated
+      chrome.storage.local.get(['settings', 'timestamps', 'autoUpdateMasterList', 'lastUpdated'], (result) => {
+          const setting = getSettingValue(result, 'autoUpdateMasterList', 'always');
+          // Check for lastUpdated in nested path first
+          const lastUpdated = result.timestamps?.lastUpdated || result.lastUpdated;
           let wantsData = false;
 
           if (setting === 'never') {
@@ -340,7 +367,6 @@ if (window.hasSRKConnectorRun) {
               wantsData = true;
           } else if (setting === 'once-daily') {
               // Check if last update was today
-              const lastUpdated = result.lastUpdated;
               const isToday = checkIfUpdatedToday(lastUpdated);
 
               if (isToday) {
@@ -567,9 +593,9 @@ if (window.hasSRKConnectorRun) {
               return;
           }
 
-          // Check if sync active student is enabled
-          chrome.storage.local.get(['syncActiveStudent'], (result) => {
-              const syncEnabled = result.syncActiveStudent !== undefined ? result.syncActiveStudent : true;
+          // Check if sync active student is enabled - check both nested and legacy paths
+          chrome.storage.local.get(['settings', 'syncActiveStudent'], (result) => {
+              const syncEnabled = getSettingValue(result, 'syncActiveStudent', true);
 
               if (!syncEnabled) {
                   console.log("%c Sync Active Student is disabled. Skipping student sync.", "color: orange; font-weight: bold");

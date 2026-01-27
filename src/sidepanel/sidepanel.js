@@ -1,5 +1,6 @@
 // Sidepanel Main - Orchestrates all modules and manages app lifecycle
 import { STORAGE_KEYS, EXTENSION_STATES, MESSAGE_TYPES, GUIDES, UI_FEATURES } from '../constants/index.js';
+import { storageGet, storageSet, storageGetValue, migrateStorage } from '../utils/storage.js';
 import { hasDispositionCode } from '../constants/dispositions.js';
 import { getCacheStats, clearAllCache } from '../utils/canvasCache.js';
 import { loadAndRenderMarkdown } from '../utils/markdownRenderer.js';
@@ -112,6 +113,9 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 async function initializeApp() {
+    // Run storage migration if needed
+    await migrateStorage();
+
     // Set version from manifest
     const manifest = chrome.runtime.getManifest();
     if (elements.versionText && manifest.version) {
@@ -138,7 +142,7 @@ async function initializeApp() {
     queueManager = new QueueManager(callManager);
 
     // Ensure checker is stopped when side panel opens
-    await chrome.storage.local.set({ [STORAGE_KEYS.EXTENSION_STATE]: EXTENSION_STATES.OFF });
+    await storageSet({ [STORAGE_KEYS.EXTENSION_STATE]: EXTENSION_STATES.OFF });
 
     setupEventListeners();
     initializeCallControlButtons();
@@ -320,9 +324,9 @@ function setupEventListeners() {
     }
 
     if (elements.clearMasterListBtn) {
-        elements.clearMasterListBtn.addEventListener('click', () => {
+        elements.clearMasterListBtn.addEventListener('click', async () => {
             if (confirm('Are you sure you want to clear the master list? This cannot be undone.')) {
-                chrome.storage.local.set({
+                await storageSet({
                     [STORAGE_KEYS.MASTER_ENTRIES]: [],
                     [STORAGE_KEYS.LAST_UPDATED]: null
                 });
@@ -352,14 +356,14 @@ function setupEventListeners() {
                 if (!currentValue) {
                     const today = new Date().toISOString().split('T')[0];
                     elements.specificDateInput.value = today;
-                    await chrome.storage.local.set({
+                    await storageSet({
                         [STORAGE_KEYS.SPECIFIC_SUBMISSION_DATE]: today
                     });
                 }
             }
 
             // Save toggle state
-            await chrome.storage.local.set({
+            await storageSet({
                 [STORAGE_KEYS.USE_SPECIFIC_DATE]: newState
             });
         });
@@ -369,7 +373,7 @@ function setupEventListeners() {
     if (elements.specificDateInput) {
         elements.specificDateInput.addEventListener('change', async (e) => {
             const selectedDate = e.target.value;
-            await chrome.storage.local.set({
+            await storageSet({
                 [STORAGE_KEYS.SPECIFIC_SUBMISSION_DATE]: selectedDate
             });
         });
@@ -396,7 +400,7 @@ function setupEventListeners() {
             }
 
             // Clear from storage
-            await chrome.storage.local.set({
+            await storageSet({
                 [STORAGE_KEYS.USE_SPECIFIC_DATE]: false,
                 [STORAGE_KEYS.SPECIFIC_SUBMISSION_DATE]: null
             });
@@ -605,8 +609,8 @@ function setupEventListeners() {
     }
 
     if (elements.clearListBtn) {
-        elements.clearListBtn.addEventListener('click', () => {
-            chrome.storage.local.set({ [STORAGE_KEYS.FOUND_ENTRIES]: [] });
+        elements.clearListBtn.addEventListener('click', async () => {
+            await storageSet({ [STORAGE_KEYS.FOUND_ENTRIES]: [] });
         });
     }
 
@@ -935,12 +939,12 @@ async function handleUpdateMasterList() {
  * Loads data from storage and updates UI
  */
 async function loadStorageData() {
-    const data = await chrome.storage.local.get([
+    const data = await storageGet([
         STORAGE_KEYS.FOUND_ENTRIES,
         STORAGE_KEYS.MASTER_ENTRIES,
         STORAGE_KEYS.LAST_UPDATED,
         STORAGE_KEYS.EXTENSION_STATE,
-        STORAGE_KEYS.DEBUG_MODE,
+        STORAGE_KEYS.CALL_DEMO,
         STORAGE_KEYS.EMBED_IN_CANVAS,
         STORAGE_KEYS.HIGHLIGHT_COLOR,
         STORAGE_KEYS.AUTO_UPDATE_MASTER_LIST,
@@ -963,7 +967,8 @@ async function loadStorageData() {
 
     updateButtonVisuals(data[STORAGE_KEYS.EXTENSION_STATE] || EXTENSION_STATES.OFF);
 
-    isDebugMode = data[STORAGE_KEYS.DEBUG_MODE] || false;
+    // Load Call Demo mode (formerly debugMode)
+    isDebugMode = data[STORAGE_KEYS.CALL_DEMO] || false;
     updateDebugModeUI(isDebugMode);
     if (callManager) {
         callManager.setDebugMode(isDebugMode);
@@ -1120,7 +1125,7 @@ chrome.runtime.onMessage.addListener(async (msg, sender, sendResponse) => {
 /**
  * Toggles scanning state
  */
-function toggleScanState() {
+async function toggleScanState() {
     // Don't toggle if button is disabled (no Canvas connection)
     if (elements.startBtn && elements.startBtn.disabled) {
         return;
@@ -1128,15 +1133,15 @@ function toggleScanState() {
 
     isScanning = !isScanning;
     const newState = isScanning ? EXTENSION_STATES.ON : EXTENSION_STATES.OFF;
-    chrome.storage.local.set({ [STORAGE_KEYS.EXTENSION_STATE]: newState });
+    await storageSet({ [STORAGE_KEYS.EXTENSION_STATE]: newState });
 }
 
 /**
- * Toggles debug mode
+ * Toggles debug mode (Call Demo mode)
  */
 async function toggleDebugMode() {
     isDebugMode = !isDebugMode;
-    await chrome.storage.local.set({ [STORAGE_KEYS.DEBUG_MODE]: isDebugMode });
+    await storageSet({ [STORAGE_KEYS.CALL_DEMO]: isDebugMode });
     updateDebugModeUI(isDebugMode);
     if (callManager) {
         callManager.setDebugMode(isDebugMode);
@@ -1173,7 +1178,7 @@ async function updateCacheStats() {
  */
 async function toggleEmbedHelper() {
     embedHelperEnabled = !embedHelperEnabled;
-    await chrome.storage.local.set({ [STORAGE_KEYS.EMBED_IN_CANVAS]: embedHelperEnabled });
+    await storageSet({ [STORAGE_KEYS.EMBED_IN_CANVAS]: embedHelperEnabled });
     updateEmbedHelperUI(embedHelperEnabled);
 }
 
@@ -1182,5 +1187,5 @@ async function toggleEmbedHelper() {
  */
 async function updateHighlightColor(event) {
     highlightColor = event.target.value;
-    await chrome.storage.local.set({ [STORAGE_KEYS.HIGHLIGHT_COLOR]: highlightColor });
+    await storageSet({ [STORAGE_KEYS.HIGHLIGHT_COLOR]: highlightColor });
 }

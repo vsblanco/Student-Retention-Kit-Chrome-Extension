@@ -243,12 +243,15 @@ async function storeSessionId(sessionId) {
 
 /**
  * Retrieves the stored session ID from chrome.storage
+ * Checks nested path first, then falls back to legacy flat key
  * @returns {Promise<string|null>} The stored session ID or null if not found
  */
 async function getStoredSessionId() {
     return new Promise((resolve) => {
-        chrome.storage.local.get(['srkSessionId'], (result) => {
-            resolve(result.srkSessionId || null);
+        chrome.storage.local.get(['state', 'srkSessionId'], (result) => {
+            // Check nested path first (state.srkSessionId)
+            const sessionId = result.state?.srkSessionId || result.srkSessionId || null;
+            resolve(sessionId);
         });
     });
 }
@@ -440,11 +443,25 @@ function injectManifest(SESSION_ID) {
     }
 }
 
+// Helper to get value from nested storage structure
+function getSettingValue(data, key, defaultValue) {
+    // Check nested path first
+    if (key === 'autoSideloadManifest') {
+        if (data.settings?.excelAddIn?.autoSideloadManifest !== undefined) {
+            return data.settings.excelAddIn.autoSideloadManifest;
+        }
+    } else if (key === 'srkSessionId') {
+        if (data.state?.srkSessionId !== undefined) {
+            return data.state.srkSessionId;
+        }
+    }
+    // Fall back to legacy flat key
+    return data[key] !== undefined ? data[key] : defaultValue;
+}
+
 // Check if auto-sideload is enabled and run
-chrome.storage.local.get(['autoSideloadManifest'], async (result) => {
-    const autoSideloadEnabled = result.autoSideloadManifest !== undefined
-        ? result.autoSideloadManifest
-        : true; // Default to enabled
+chrome.storage.local.get(['settings', 'autoSideloadManifest'], async (result) => {
+    const autoSideloadEnabled = getSettingValue(result, 'autoSideloadManifest', true);
 
     if (!autoSideloadEnabled) {
         console.log('%c⚙️  AUTO-SIDELOAD DISABLED', 'background: #757575; color: white; font-weight: bold; padding: 4px 8px; border-radius: 3px;');
