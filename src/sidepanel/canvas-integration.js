@@ -624,8 +624,38 @@ export async function processStep4(students) {
 
         // Dynamically import to avoid circular dependency
         const { sendMasterListWithMissingAssignmentsToExcel } = await import('./file-handler.js');
+        const { getExcelTabs, openExcelInstanceModal } = await import('./modal-manager.js');
 
-        await sendMasterListWithMissingAssignmentsToExcel(students);
+        // Check how many Excel tabs are open
+        const excelTabs = await getExcelTabs();
+
+        let targetTabId = null;
+
+        if (excelTabs.length === 0) {
+            console.log('[Step 4] No Excel tabs detected - sending to all (will be handled when tabs open)');
+            // Continue with null targetTabId - will attempt to send to any matching tabs
+        } else if (excelTabs.length > 1) {
+            // Multiple Excel tabs - show selection modal
+            console.log(`[Step 4] Multiple Excel tabs detected (${excelTabs.length}) - showing selection modal`);
+            targetTabId = await openExcelInstanceModal(excelTabs);
+
+            if (targetTabId === null) {
+                // User cancelled - skip sending but don't fail
+                console.log('[Step 4] User cancelled Excel instance selection - skipping send');
+                const duration = ((Date.now() - startTime) / 1000).toFixed(1);
+                step4.className = 'queue-item completed';
+                step4.querySelector('i').className = 'fas fa-check';
+                step4.querySelector('.queue-content').innerHTML = '<i class="fas fa-check"></i> Sending List to Excel';
+                timeSpan.textContent = `${duration}s (skipped)`;
+                return students;
+            }
+        } else {
+            // Only one tab - use it directly
+            targetTabId = excelTabs[0].id;
+            console.log(`[Step 4] Single Excel tab detected - sending to tab ${targetTabId}`);
+        }
+
+        await sendMasterListWithMissingAssignmentsToExcel(students, targetTabId);
 
         const duration = ((Date.now() - startTime) / 1000).toFixed(1);
         step4.className = 'queue-item completed';

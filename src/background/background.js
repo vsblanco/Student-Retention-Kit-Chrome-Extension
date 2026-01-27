@@ -354,19 +354,33 @@ chrome.runtime.onMessage.addListener(async (msg, sender, sendResponse) => {
   else if (msg.type === 'SRK_SEND_IMPORT_MASTER_LIST') {
       console.log('%c [Background] Forwarding Master List Import to Excel', 'background: #4CAF50; color: white; font-weight: bold; padding: 2px 4px;');
 
-      // Forward the payload to all Excel tabs
+      // Forward the payload to specific tab or all Excel tabs
       (async () => {
           try {
-              const tabs = await chrome.tabs.query({ url: TARGET_URL_PATTERNS });
-              for (const tab of tabs) {
+              // If targetTabId is specified, only send to that tab
+              if (msg.targetTabId) {
                   try {
-                      await chrome.tabs.sendMessage(tab.id, {
+                      await chrome.tabs.sendMessage(msg.targetTabId, {
                           action: 'postToPage',
                           message: msg.payload
                       });
-                      console.log(`[SRK] Sent import payload to tab ${tab.id}`);
+                      console.log(`[SRK] Sent import payload to specific tab ${msg.targetTabId}`);
                   } catch (err) {
-                      console.warn(`[SRK] Failed to send import payload to tab ${tab.id}:`, err.message);
+                      console.warn(`[SRK] Failed to send import payload to tab ${msg.targetTabId}:`, err.message);
+                  }
+              } else {
+                  // Send to all matching tabs
+                  const tabs = await chrome.tabs.query({ url: TARGET_URL_PATTERNS });
+                  for (const tab of tabs) {
+                      try {
+                          await chrome.tabs.sendMessage(tab.id, {
+                              action: 'postToPage',
+                              message: msg.payload
+                          });
+                          console.log(`[SRK] Sent import payload to tab ${tab.id}`);
+                      } catch (err) {
+                          console.warn(`[SRK] Failed to send import payload to tab ${tab.id}:`, err.message);
+                      }
                   }
               }
           } catch (err) {

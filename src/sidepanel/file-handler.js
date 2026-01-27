@@ -17,8 +17,9 @@ import { elements } from './ui-manager.js';
 /**
  * Sends master list data to Excel via SRK_IMPORT_MASTER_LIST payload
  * @param {Array} students - Array of student objects
+ * @param {number|null} targetTabId - Optional specific tab ID to send to (null = send to all)
  */
-export async function sendMasterListToExcel(students) {
+export async function sendMasterListToExcel(students, targetTabId = null) {
     if (!students || students.length === 0) {
         console.log('No students to send to Excel');
         return;
@@ -73,12 +74,13 @@ export async function sendMasterListToExcel(students) {
         // Send message to background script to forward to Excel
         chrome.runtime.sendMessage({
             type: "SRK_SEND_IMPORT_MASTER_LIST",
-            payload: payload
+            payload: payload,
+            targetTabId: targetTabId // Pass specific tab ID if provided
         }).catch(() => {
             console.log('Background script might not be ready');
         });
 
-        console.log(`Sent ${students.length} students to Excel for import with ${headers.length} columns`);
+        console.log(`Sent ${students.length} students to Excel for import with ${headers.length} columns${targetTabId ? ` (tab ${targetTabId})` : ' (all tabs)'}`);
     } catch (error) {
         console.error('Error sending master list to Excel:', error);
     }
@@ -88,8 +90,9 @@ export async function sendMasterListToExcel(students) {
  * Sends master list data with missing assignments to Excel via SRK_IMPORT_MASTER_LIST payload
  * This function includes both the traditional headers/data arrays AND the students array with missingAssignments
  * @param {Array} students - Array of student objects with missingAssignments data
+ * @param {number|null} targetTabId - Optional specific tab ID to send to (null = send to all)
  */
-export async function sendMasterListWithMissingAssignmentsToExcel(students) {
+export async function sendMasterListWithMissingAssignmentsToExcel(students, targetTabId = null) {
     if (!students || students.length === 0) {
         console.log('No students to send to Excel');
         return;
@@ -169,7 +172,8 @@ export async function sendMasterListWithMissingAssignmentsToExcel(students) {
         // Send message to background script to forward to Excel
         chrome.runtime.sendMessage({
             type: "SRK_SEND_IMPORT_MASTER_LIST",
-            payload: payload
+            payload: payload,
+            targetTabId: targetTabId // Pass specific tab ID if provided
         }).catch(() => {
             console.log('Background script might not be ready');
         });
@@ -179,7 +183,7 @@ export async function sendMasterListWithMissingAssignmentsToExcel(students) {
             0
         );
 
-        console.log(`Sent ${students.length} students to Excel for import with ${headers.length} columns`);
+        console.log(`Sent ${students.length} students to Excel for import with ${headers.length} columns${targetTabId ? ` (tab ${targetTabId})` : ' (all tabs)'}`);
         console.log(`Including ${studentsWithMissingAssignments.length} students with ${totalMissingAssignments} total missing assignments`);
     } catch (error) {
         console.error('Error sending master list with missing assignments to Excel:', error);
