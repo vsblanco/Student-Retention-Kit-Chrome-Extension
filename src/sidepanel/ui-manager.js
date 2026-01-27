@@ -184,6 +184,8 @@ export function cacheDomElements() {
     elements.five9StatusDot = document.getElementById('five9StatusDot');
     elements.embedHelperToggleModal = document.getElementById('embedHelperToggleModal');
     elements.highlightColorPickerModal = document.getElementById('highlightColorPickerModal');
+    elements.canvasCacheToggleModal = document.getElementById('canvasCacheToggleModal');
+    elements.cacheSettingsContainer = document.getElementById('cacheSettingsContainer');
     elements.cacheStatsTextModal = document.getElementById('cacheStatsTextModal');
     elements.clearCacheBtnModal = document.getElementById('clearCacheBtnModal');
     elements.debugModeToggleModal = document.getElementById('debugModeToggleModal');

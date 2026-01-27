@@ -1,6 +1,6 @@
 // Canvas Integration - Handles all Canvas API calls for student data and assignments
 import { STORAGE_KEYS, CANVAS_DOMAIN, GENERIC_AVATAR_URL } from '../constants/index.js';
-import { getCachedData, setCachedData, hasCachedData } from '../utils/canvasCache.js';
+import { getCachedData, setCachedData, hasCachedData, getCache } from '../utils/canvasCache.js';
 
 /**
  * Preload image for faster rendering
@@ -13,8 +13,10 @@ function preloadImage(url) {
 
 /**
  * Fetches Canvas details for a student (user data and courses)
+ * @param {Object} student - The student object
+ * @param {boolean} cacheEnabled - Whether to use caching (default: true)
  */
-export async function fetchCanvasDetails(student) {
+export async function fetchCanvasDetails(student, cacheEnabled = true) {
     if (!student.SyStudentId) return student;
 
     try {
@@ -22,7 +24,8 @@ export async function fetchCanvasDetails(student) {
         const syStudentId = String(student.SyStudentId);
         console.log(`[fetchCanvasDetails] Processing student: ${student.name}, SyStudentId: ${syStudentId}`);
 
-        const cachedData = await getCachedData(syStudentId);
+        // Only check cache if caching is enabled
+        const cachedData = cacheEnabled ? await getCachedData(syStudentId) : null;
 
         let userData;
         let courses;
@@ -59,7 +62,10 @@ export async function fetchCanvasDetails(student) {
                     courses = [];
                 }
 
-                await setCachedData(syStudentId, userData, courses);
+                // Only save to cache if caching is enabled
+                if (cacheEnabled) {
+                    await setCachedData(syStudentId, userData, courses);
+                }
             }
         }
 
@@ -163,6 +169,7 @@ export async function fetchCanvasDetails(student) {
 /**
  * Process Step 2: Fetch Canvas IDs, courses, and photos for all students
  * Optimized to process cached students first for faster initial progress
+ * Uses reverse cache lookup: iterates through cache entries and matches to master list
  */
 export async function processStep2(students, renderCallback) {
     const step2 = document.getElementById('step2');
@@ -175,27 +182,63 @@ export async function processStep2(students, renderCallback) {
 
     try {
         console.log(`[Step 2] Pinging Canvas API: ${CANVAS_DOMAIN}`);
-        console.log(`[Step 2] Checking cache status for ${students.length} students...`);
+
+        // Check if cache is enabled
+        const settings = await chrome.storage.local.get([STORAGE_KEYS.CANVAS_CACHE_ENABLED]);
+        const cacheEnabled = settings[STORAGE_KEYS.CANVAS_CACHE_ENABLED] !== undefined
+            ? settings[STORAGE_KEYS.CANVAS_CACHE_ENABLED]
+            : true;
+
+        console.log(`[Step 2] Cache enabled: ${cacheEnabled}`);
 
         // Separate students into cached and uncached groups
         const cachedStudents = [];
         const uncachedStudents = [];
 
-        let checkedCount = 0;
-        for (const student of students) {
-            const syStudentId = student.SyStudentId ? String(student.SyStudentId) : null;
-            console.log(`[Step 2] Checking cache for student: ${student.name}, SyStudentId: ${syStudentId} (type: ${typeof student.SyStudentId})`);
+        if (cacheEnabled) {
+            // REVERSE LOOKUP: Get all cached entries first, then match to master list
+            // This is more efficient when cache is empty (no need to check each student)
+            console.log(`[Step 2] Using reverse cache lookup...`);
 
-            if (syStudentId && await hasCachedData(syStudentId)) {
-                cachedStudents.push(student);
-            } else {
-                uncachedStudents.push(student);
+            const cache = await getCache();
+            const cachedIds = Object.keys(cache);
+            const now = new Date();
+
+            // Filter out expired entries
+            const validCachedIds = cachedIds.filter(id => {
+                const entry = cache[id];
+                if (!entry || !entry.expiresAt) return false;
+                return new Date(entry.expiresAt) > now;
+            });
+
+            console.log(`[Step 2] Found ${validCachedIds.length} valid cached entries`);
+
+            // Create a map of SyStudentId -> student for quick lookup
+            const studentBySyId = new Map();
+            students.forEach(student => {
+                if (student.SyStudentId) {
+                    studentBySyId.set(String(student.SyStudentId), student);
+                }
+            });
+
+            // Match cached entries to students in master list
+            for (const cachedId of validCachedIds) {
+                if (studentBySyId.has(cachedId)) {
+                    cachedStudents.push(studentBySyId.get(cachedId));
+                    studentBySyId.delete(cachedId); // Remove from map so remaining are uncached
+                }
             }
 
-            // Update progress during cache check
-            checkedCount++;
-            const checkProgress = Math.round((checkedCount / students.length) * 15); // Use 15% of progress bar for cache checking
-            timeSpan.textContent = `${checkProgress}%`;
+            // Remaining students in map are uncached
+            uncachedStudents.push(...studentBySyId.values());
+
+            // Update progress for cache check phase (quick since we just read cache once)
+            timeSpan.textContent = `15%`;
+        } else {
+            // Cache disabled - all students are uncached
+            console.log(`[Step 2] Cache disabled - processing all ${students.length} students fresh`);
+            uncachedStudents.push(...students);
+            timeSpan.textContent = `15%`;
         }
 
         console.log(`[Step 2] Found ${cachedStudents.length} cached, ${uncachedStudents.length} uncached`);
@@ -221,7 +264,7 @@ export async function processStep2(students, renderCallback) {
 
             console.log(`[Step 2] Cached batch ${batchNumber}/${totalCachedBatches} (students ${i + 1}-${Math.min(i + BATCH_SIZE, cachedStudents.length)})`);
 
-            const promises = batch.map(student => fetchCanvasDetails(student));
+            const promises = batch.map(student => fetchCanvasDetails(student, cacheEnabled));
             const results = await Promise.all(promises);
 
             results.forEach((updatedStudent, batchIndex) => {
@@ -250,7 +293,7 @@ export async function processStep2(students, renderCallback) {
 
             console.log(`[Step 2] Uncached batch ${batchNumber}/${totalUncachedBatches} (students ${i + 1}-${Math.min(i + BATCH_SIZE, uncachedStudents.length)})`);
 
-            const promises = batch.map(student => fetchCanvasDetails(student));
+            const promises = batch.map(student => fetchCanvasDetails(student, cacheEnabled));
             const results = await Promise.all(promises);
 
             results.forEach((updatedStudent, batchIndex) => {
