@@ -1,6 +1,6 @@
 # Student Retention Kit
 
-**Version 10.1** | Last Updated: January 12th, 2026
+**Version 10.3** | Last Updated: January 27th, 2026
 
 ## Overview
 
