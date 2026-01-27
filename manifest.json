@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Student Retention Kit",
-  "version": "10.1",
+  "version": "10.3",
   "description": "Automated student submission checking via Canvas API.",
   "icons": {
     "16": "icon.png",
@@ -10,6 +10,7 @@
   },
   "permissions": [
     "storage",
+    "unlimitedStorage",
     "tabs",
     "sidePanel",
     "webRequest",
@@ -105,4 +106,5 @@
   },
   "minimum_chrome_version": "109"
 }
+
 
