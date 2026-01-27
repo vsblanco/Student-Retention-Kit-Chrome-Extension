@@ -65,7 +65,10 @@ import {
     clearCacheFromModal,
     shouldShowDailyUpdateModal,
     openDailyUpdateModal,
-    closeDailyUpdateModal
+    closeDailyUpdateModal,
+    getExcelTabs,
+    openExcelInstanceModal,
+    closeExcelInstanceModal
 } from './modal-manager.js';
 
 import { QueueManager } from './queue-manager.js';
@@ -567,6 +570,15 @@ function setupEventListeners() {
         });
     }
 
+    // Excel Instance Modal
+    if (elements.closeExcelInstanceBtn) {
+        elements.closeExcelInstanceBtn.addEventListener('click', () => closeExcelInstanceModal(null));
+    }
+
+    if (elements.cancelExcelInstanceBtn) {
+        elements.cancelExcelInstanceBtn.addEventListener('click', () => closeExcelInstanceModal(null));
+    }
+
     // Modal outside click handlers
     window.addEventListener('click', (e) => {
         if (elements.scanFilterModal && e.target === elements.scanFilterModal) {
@@ -580,6 +592,9 @@ function setupEventListeners() {
         }
         if (elements.dailyUpdateModal && e.target === elements.dailyUpdateModal) {
             closeDailyUpdateModal();
+        }
+        if (elements.excelInstanceModal && e.target === elements.excelInstanceModal) {
+            closeExcelInstanceModal(null);
         }
     });
 
@@ -688,16 +703,40 @@ function setupEventListeners() {
                 return;
             }
 
+            // Check how many Excel tabs are open
+            const excelTabs = await getExcelTabs();
+
+            if (excelTabs.length === 0) {
+                alert('No Excel tabs detected. Please open Excel Online first.');
+                return;
+            }
+
+            let targetTabId = null;
+
+            // If multiple Excel tabs, show selection modal
+            if (excelTabs.length > 1) {
+                targetTabId = await openExcelInstanceModal(excelTabs);
+
+                // User cancelled
+                if (targetTabId === null) {
+                    console.log('User cancelled Excel instance selection');
+                    return;
+                }
+            } else {
+                // Only one tab, use it directly
+                targetTabId = excelTabs[0].id;
+            }
+
             // Check if any students have missing assignments data
             const hasMissingAssignments = students.some(s => s.missingAssignments && s.missingAssignments.length > 0);
 
             // Send to Excel - use the appropriate function based on whether we have missing assignments
             if (hasMissingAssignments) {
-                await sendMasterListWithMissingAssignmentsToExcel(students);
-                console.log('Manually sent master list with missing assignments to Excel');
+                await sendMasterListWithMissingAssignmentsToExcel(students, targetTabId);
+                console.log(`Manually sent master list with missing assignments to Excel tab ${targetTabId}`);
             } else {
-                await sendMasterListToExcel(students);
-                console.log('Manually sent master list to Excel');
+                await sendMasterListToExcel(students, targetTabId);
+                console.log(`Manually sent master list to Excel tab ${targetTabId}`);
             }
         });
     }

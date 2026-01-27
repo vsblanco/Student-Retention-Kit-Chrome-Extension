@@ -150,6 +150,12 @@ export function cacheDomElements() {
     elements.dailyUpdateBtn = document.getElementById('dailyUpdateBtn');
     elements.dailyUpdateLaterBtn = document.getElementById('dailyUpdateLaterBtn');
 
+    // Excel Instance Modal
+    elements.excelInstanceModal = document.getElementById('excelInstanceModal');
+    elements.closeExcelInstanceBtn = document.getElementById('closeExcelInstanceBtn');
+    elements.excelInstanceList = document.getElementById('excelInstanceList');
+    elements.cancelExcelInstanceBtn = document.getElementById('cancelExcelInstanceBtn');
+
     // Connections Modal
     elements.connectionsModal = document.getElementById('connectionsModal');
     elements.closeConnectionsBtn = document.getElementById('closeConnectionsBtn');
