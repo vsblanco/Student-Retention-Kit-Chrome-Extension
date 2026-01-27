@@ -274,7 +274,7 @@ export async function renderFoundList(rawEntries) {
                 <div class="heatmap-indicator heatmap-green"></div>
                 <div style="flex-grow:1; display:flex; justify-content:space-between; align-items:center;">
                     <div style="display:flex; flex-direction:column;">
-                        <span class="student-name" style="font-weight:500; color:var(--primary-color); cursor:pointer;">${resolved.name}</span>
+                        <span class="student-name" style="font-weight:500; color:${resolved.url ? 'var(--primary-color)' : 'var(--text-secondary)'}; cursor:${resolved.url ? 'pointer' : 'default'};" ${resolved.url ? '' : 'title="No gradebook URL available"'}>${resolved.name}</span>
                         <span style="font-size:0.8em; color:var(--text-secondary);">${assignmentTitle}</span>
                     </div>
                     <span class="timestamp-pill">${timeDisplay}</span>
@@ -283,12 +283,14 @@ export async function renderFoundList(rawEntries) {
         `;
 
         const nameLink = li.querySelector('.student-name');
-        nameLink.addEventListener('click', (e) => {
-            e.stopPropagation();
-            if (resolved.url) chrome.tabs.create({ url: resolved.url });
-        });
-        nameLink.addEventListener('mouseenter', () => nameLink.style.textDecoration = 'underline');
-        nameLink.addEventListener('mouseleave', () => nameLink.style.textDecoration = 'none');
+        if (resolved.url) {
+            nameLink.addEventListener('click', (e) => {
+                e.stopPropagation();
+                chrome.tabs.create({ url: resolved.url });
+            });
+            nameLink.addEventListener('mouseenter', () => nameLink.style.textDecoration = 'underline');
+            nameLink.addEventListener('mouseleave', () => nameLink.style.textDecoration = 'none');
+        }
 
         // Store the ORIGINAL raw entry data on the li element for context menu access
         // This ensures all fields like SyStudentId are preserved
@@ -383,7 +385,7 @@ export async function renderMasterList(rawEntries, onStudentClick) {
                 <div style="flex-grow:1;">
                     <div style="display:flex; justify-content:space-between; align-items:center; width:100%;">
                         <div style="display:flex; align-items:center;">
-                            <span class="student-name" style="font-weight: 500; color:var(--text-main); position:relative; z-index:2;">${data.name}</span>
+                            <span class="student-name" style="font-weight: 500; color:${data.url ? 'var(--text-main)' : 'var(--text-secondary)'}; position:relative; z-index:2;${data.url ? '' : ' cursor: default;'}" ${data.url ? '' : 'title="No gradebook URL available"'}>${data.name}</span>
                             ${newTagHtml}
                         </div>
                         ${missingPillHtml}
@@ -405,12 +407,13 @@ export async function renderMasterList(rawEntries, onStudentClick) {
             }
         });
 
-        // Student name click - open gradebook
+        // Student name click - open gradebook (only if URL exists)
         const nameLink = li.querySelector('.student-name');
-        if (nameLink) {
+        if (nameLink && data.url) {
+            nameLink.style.cursor = 'pointer';
             nameLink.addEventListener('click', (e) => {
                 e.stopPropagation();
-                if (data.url) chrome.tabs.create({ url: data.url });
+                chrome.tabs.create({ url: data.url });
             });
             nameLink.addEventListener('mouseenter', () => {
                 nameLink.style.textDecoration = 'underline';

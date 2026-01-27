@@ -630,20 +630,25 @@
 
                 <!-- Canvas API Cache -->
                 <div style="margin-bottom: 20px;">
-                    <label style="font-size:0.95em; font-weight:500; color:var(--text-main); display:block; margin-bottom:12px;">
-                        <i class="fas fa-database" style="color:var(--primary-color);"></i> Canvas API Cache
-                    </label>
-                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px; background: rgba(0,0,0,0.02); border-radius: 6px; margin-bottom: 8px;">
-                        <span style="font-size:0.9em;">Cached Entries</span>
-                        <span id="cacheStatsTextModal" style="font-size:0.9em; color:var(--text-secondary);">Loading...</span>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                        <label style="font-size:0.95em; font-weight:500; color:var(--text-main);">
+                            <i class="fas fa-database" style="color:var(--primary-color);"></i> Canvas API Cache
+                        </label>
+                        <i id="canvasCacheToggleModal" class="fas fa-toggle-on" style="color:var(--primary-color); font-size:2em; cursor: pointer;"></i>
                     </div>
                     <div style="font-size:0.8em; color:var(--text-secondary); margin-bottom: 12px;">
-                        Canvas API responses are cached until course end dates to reduce API calls.
+                        When enabled, Canvas API responses are cached until course end dates to reduce API calls. Disable to always fetch fresh data.
                     </div>
-                    <button id="clearCacheBtnModal" class="btn-secondary" style="width:100%;">
-                        <i class="fas fa-trash-alt" style="margin-right: 5px;"></i>
-                        Clear Cache
-                    </button>
+                    <div id="cacheSettingsContainer">
+                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px; background: rgba(0,0,0,0.02); border-radius: 6px; margin-bottom: 8px;">
+                            <span style="font-size:0.9em;">Cached Entries</span>
+                            <span id="cacheStatsTextModal" style="font-size:0.9em; color:var(--text-secondary);">Loading...</span>
+                        </div>
+                        <button id="clearCacheBtnModal" class="btn-secondary" style="width:100%;">
+                            <i class="fas fa-trash-alt" style="margin-right: 5px;"></i>
+                            Clear Cache
+                        </button>
+                    </div>
                 </div>
             </div>
 

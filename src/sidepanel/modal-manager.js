@@ -333,6 +333,7 @@ export async function openConnectionsModal(connectionType) {
         STORAGE_KEYS.POWER_AUTOMATE_URL,
         STORAGE_KEYS.EMBED_IN_CANVAS,
         STORAGE_KEYS.HIGHLIGHT_COLOR,
+        STORAGE_KEYS.CANVAS_CACHE_ENABLED,
         STORAGE_KEYS.CALL_DEMO,
         STORAGE_KEYS.HIGHLIGHT_START_COL,
         STORAGE_KEYS.HIGHLIGHT_END_COL,
@@ -379,6 +380,9 @@ export async function openConnectionsModal(connectionType) {
         elements.highlightColorPickerModal.value = highlightColor;
     }
 
+    const canvasCacheEnabled = result[STORAGE_KEYS.CANVAS_CACHE_ENABLED] !== undefined ? result[STORAGE_KEYS.CANVAS_CACHE_ENABLED] : true;
+    updateCanvasCacheModalUI(canvasCacheEnabled);
+
     // Load Five9 settings (Call Demo mode, formerly debugMode)
     const callDemo = result[STORAGE_KEYS.CALL_DEMO] || false;
     updateDebugModeModalUI(callDemo);
@@ -422,6 +426,33 @@ function updateEmbedHelperModalUI(isEnabled) {
     } else {
         elements.embedHelperToggleModal.className = 'fas fa-toggle-off';
         elements.embedHelperToggleModal.style.color = 'gray';
+    }
+}
+
+/**
+ * Updates the canvas cache toggle UI in the modal
+ * @param {boolean} isEnabled - Whether canvas cache is enabled
+ */
+function updateCanvasCacheModalUI(isEnabled) {
+    if (!elements.canvasCacheToggleModal) return;
+
+    if (isEnabled) {
+        elements.canvasCacheToggleModal.className = 'fas fa-toggle-on';
+        elements.canvasCacheToggleModal.style.color = 'var(--primary-color)';
+    } else {
+        elements.canvasCacheToggleModal.className = 'fas fa-toggle-off';
+        elements.canvasCacheToggleModal.style.color = 'gray';
+    }
+
+    // Enable/disable the cache settings container
+    if (elements.cacheSettingsContainer) {
+        if (isEnabled) {
+            elements.cacheSettingsContainer.style.opacity = '1';
+            elements.cacheSettingsContainer.style.pointerEvents = 'auto';
+        } else {
+            elements.cacheSettingsContainer.style.opacity = '0.4';
+            elements.cacheSettingsContainer.style.pointerEvents = 'none';
+        }
     }
 }
 
@@ -608,6 +639,12 @@ export async function saveConnectionsSettings() {
         console.log(`Highlight Color saved: ${highlightColor}`);
     }
 
+    if (elements.canvasCacheToggleModal) {
+        const cacheEnabled = elements.canvasCacheToggleModal.classList.contains('fa-toggle-on');
+        settingsToSave[STORAGE_KEYS.CANVAS_CACHE_ENABLED] = cacheEnabled;
+        console.log(`Canvas Cache setting saved: ${cacheEnabled}`);
+    }
+
     // Save Five9 settings (Call Demo mode)
     if (elements.debugModeToggleModal) {
         const callDemoEnabled = elements.debugModeToggleModal.classList.contains('fa-toggle-on');
@@ -768,6 +805,16 @@ export function toggleEmbedHelperModal() {
 
     const isCurrentlyOn = elements.embedHelperToggleModal.classList.contains('fa-toggle-on');
     updateEmbedHelperModalUI(!isCurrentlyOn);
+}
+
+/**
+ * Toggles the canvas cache setting in the modal
+ */
+export function toggleCanvasCacheModal() {
+    if (!elements.canvasCacheToggleModal) return;
+
+    const isCurrentlyOn = elements.canvasCacheToggleModal.classList.contains('fa-toggle-on');
+    updateCanvasCacheModalUI(!isCurrentlyOn);
 }
 
 /**

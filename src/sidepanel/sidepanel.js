@@ -56,6 +56,7 @@ import {
     updateCanvasStatus,
     updateFive9Status,
     toggleEmbedHelperModal,
+    toggleCanvasCacheModal,
     toggleDebugModeModal,
     toggleSyncActiveStudentModal,
     toggleSendMasterListModal,
@@ -447,6 +448,10 @@ function setupEventListeners() {
     // Canvas Modal Settings
     if (elements.embedHelperToggleModal) {
         elements.embedHelperToggleModal.addEventListener('click', toggleEmbedHelperModal);
+    }
+
+    if (elements.canvasCacheToggleModal) {
+        elements.canvasCacheToggleModal.addEventListener('click', toggleCanvasCacheModal);
     }
 
     if (elements.clearCacheBtnModal) {

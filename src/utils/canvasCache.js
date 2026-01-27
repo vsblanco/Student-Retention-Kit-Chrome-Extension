@@ -26,7 +26,7 @@ const CANVAS_CACHE_KEY = 'canvasApiCache';
  * Retrieves the entire cache from Chrome storage
  * @returns {Promise<Object>} The cache object
  */
-async function getCache() {
+export async function getCache() {
     try {
         const result = await chrome.storage.local.get(CANVAS_CACHE_KEY);
         return result[CANVAS_CACHE_KEY] || {};
