@@ -270,7 +270,7 @@ function handleDrop(e, onReorder) {
  * Opens the connections modal for a specific connection type
  * @param {string} connectionType - 'excel', 'powerAutomate', or 'canvas'
  */
-export function openConnectionsModal(connectionType) {
+export async function openConnectionsModal(connectionType) {
     if (!elements.connectionsModal) return;
 
     // Show the modal
