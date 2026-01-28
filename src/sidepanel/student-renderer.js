@@ -1,6 +1,7 @@
 // Student Renderer - Handles rendering of student lists and active student display
 import { elements } from './ui-manager.js';
-import { GENERIC_AVATAR_URL } from '../constants/index.js';
+import { GENERIC_AVATAR_URL, STORAGE_KEYS } from '../constants/index.js';
+import { updateCallTabDisplay } from './call-tab-placeholder.js';
 
 /**
  * Converts student name from "Last, First" format to "First Last" format if a comma is present.
@@ -100,29 +101,30 @@ export async function setActiveStudent(rawEntry, callManager) {
         }
     }
 
-    // 1. Handle "No Student Selected" State
+    // 1. Handle "No Student Selected" State - use unified placeholder system
     if (!rawEntry) {
-        Array.from(contactTab.children).forEach(child => {
-            if (child.id === 'contactPlaceholder') {
-                child.style.display = 'flex';
-            } else if (child.id === 'five9ConnectionIndicator') {
-                // Five9 indicator managed separately
-            } else {
-                child.style.display = 'none';
-            }
+        // Get debug mode from storage
+        const debugData = await chrome.storage.local.get(STORAGE_KEYS.CALL_DEMO);
+        const debugMode = debugData[STORAGE_KEYS.CALL_DEMO] || false;
+
+        // Update the call tab display with no student selected
+        await updateCallTabDisplay({
+            selectedQueue: [],
+            debugMode: debugMode
         });
         return;
     }
 
-    // 2. Handle "Student Selected" State
-    Array.from(contactTab.children).forEach(child => {
-        if (child.id === 'contactPlaceholder') {
-            child.style.display = 'none';
-        } else if (child.id === 'five9ConnectionIndicator') {
-            // Five9 indicator managed separately
-        } else {
-            child.style.display = '';
-        }
+    // 2. Handle "Student Selected" State - use unified placeholder system
+    // Get debug mode from storage
+    const debugData = await chrome.storage.local.get(STORAGE_KEYS.CALL_DEMO);
+    const debugMode = debugData[STORAGE_KEYS.CALL_DEMO] || false;
+
+    // Update the call tab display with the selected student
+    // This will check Five9 status and show appropriate message or call section
+    await updateCallTabDisplay({
+        selectedQueue: [rawEntry],
+        debugMode: debugMode
     });
 
     // Get reformat name setting
@@ -187,9 +189,9 @@ export function setAutomationModeUI(queueLength) {
 
     // Ensure content is visible (hide placeholder)
     Array.from(contactTab.children).forEach(child => {
-        if (child.id === 'contactPlaceholder') {
+        if (child.id === 'callTabPlaceholder') {
             child.style.display = 'none';
-        } else {
+        } else if (child.classList.contains('section')) {
             child.style.display = '';
         }
     });
