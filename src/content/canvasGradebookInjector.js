@@ -73,6 +73,7 @@
         targetElement.parentNode.insertBefore(searchWrapper, targetElement.nextSibling);
 
         const styles = `
+            #print-grades-container { margin-bottom: 0 !important; }
             #student-search-wrapper { position: relative; margin: 15px 0; width: 100%; max-width: 400px; }
             #student-search-input { width: 100%; padding: 10px; font-size: 16px; border: 1px solid #ccc; border-radius: 8px; }
             #student-search-dropdown { display: none; position: absolute; top: 100%; left: 0; right: 0; background-color: white; border: 1px solid #ccc; border-top: none; border-radius: 0 0 8px 8px; max-height: 300px; overflow-y: auto; z-index: 1000; }

@@ -89,6 +89,7 @@ if (window.hasSRKConnectorRun) {
     StudentNumber: ['studentid', 'sisid'],
     SyStudentId: ['studentsis'],
     daysOut: ['daysinactive', 'days'],
+    url: ['gradebook', 'gradebookurl', 'canvasurl', 'studenturl'],
     lda: ['lastdayofattendance', 'lastattendance', 'lastdateofattendance', 'lastdayattended']
   };
 
