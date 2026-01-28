@@ -737,7 +737,7 @@ export function updatePowerAutomateStatus(url, enabled = null) {
 }
 
 /**
- * Updates the Power Automate enabled toggle UI
+ * Updates the Power Automate enabled toggle UI and greys out settings when disabled
  * @param {boolean} isEnabled - Whether Power Automate is enabled
  */
 function updatePowerAutomateEnabledUI(isEnabled) {
@@ -749,6 +749,16 @@ function updatePowerAutomateEnabledUI(isEnabled) {
     } else {
         elements.powerAutomateEnabledToggle.className = 'fas fa-toggle-off';
         elements.powerAutomateEnabledToggle.style.color = 'gray';
+    }
+
+    // Grey out settings when disabled
+    if (elements.powerAutomateSettingsContainer) {
+        elements.powerAutomateSettingsContainer.style.opacity = isEnabled ? '1' : '0.5';
+        elements.powerAutomateSettingsContainer.style.pointerEvents = isEnabled ? 'auto' : 'none';
+    }
+    if (elements.powerAutomateDebugContainer) {
+        elements.powerAutomateDebugContainer.style.opacity = isEnabled ? '1' : '0.5';
+        elements.powerAutomateDebugContainer.style.pointerEvents = isEnabled ? 'auto' : 'none';
     }
 }
 
