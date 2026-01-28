@@ -3,6 +3,7 @@
 import { startLoop, stopLoop, addToFoundUrlCache } from './looper.js';
 import { STORAGE_KEYS, CHECKER_MODES, MESSAGE_TYPES, EXTENSION_STATES, CONNECTION_TYPES, FIVE9_CONNECTION_STATES } from '../constants/index.js';
 import { storageGet, storageSet, storageGetValue, migrateStorage, sessionGet, sessionSet, sessionGetValue } from '../utils/storage.js';
+import { decrypt } from '../utils/encryption.js';
 
 let logBuffer = [];
 const MAX_LOG_BUFFER_SIZE = 100;
@@ -114,14 +115,17 @@ async function sendPowerAutomateRequest(entry) {
             STORAGE_KEYS.POWER_AUTOMATE_DEBUG
         ]);
 
-        const url = settings[STORAGE_KEYS.POWER_AUTOMATE_URL];
+        const encryptedUrl = settings[STORAGE_KEYS.POWER_AUTOMATE_URL];
         const enabled = settings[STORAGE_KEYS.POWER_AUTOMATE_ENABLED];
         const debug = settings[STORAGE_KEYS.POWER_AUTOMATE_DEBUG];
 
         // Skip if not enabled or no URL configured
-        if (!enabled || !url || !url.trim()) {
+        if (!enabled || !encryptedUrl || !encryptedUrl.trim()) {
             return;
         }
+
+        // Decrypt the URL
+        const url = await decrypt(encryptedUrl);
 
         // Build payload - convert name to "First Last" format
         const payload = {

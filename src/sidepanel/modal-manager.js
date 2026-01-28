@@ -1,6 +1,7 @@
 // Modal Manager - Handles all modal dialogs (scan filter, queue, version history)
 import { STORAGE_KEYS, CANVAS_DOMAIN, FIVE9_CONNECTION_STATES, EXTENSION_STATES } from '../constants/index.js';
 import { storageGet, storageSet, storageGetValue, sessionGetValue } from '../utils/storage.js';
+import { encrypt, decrypt } from '../utils/encryption.js';
 import { elements } from './ui-manager.js';
 import { resolveStudentData } from './student-renderer.js';
 
@@ -367,8 +368,9 @@ export async function openConnectionsModal(connectionType) {
     const highlightStudentRowEnabled = result[STORAGE_KEYS.HIGHLIGHT_STUDENT_ROW_ENABLED] !== undefined ? result[STORAGE_KEYS.HIGHLIGHT_STUDENT_ROW_ENABLED] : true;
     updateHighlightStudentRowModalUI(highlightStudentRowEnabled);
 
-    // Load Power Automate settings
-    const paUrl = result[STORAGE_KEYS.POWER_AUTOMATE_URL] || '';
+    // Load Power Automate settings (decrypt the URL)
+    const encryptedPaUrl = result[STORAGE_KEYS.POWER_AUTOMATE_URL] || '';
+    const paUrl = await decrypt(encryptedPaUrl);
     if (elements.powerAutomateUrlInput) {
         elements.powerAutomateUrlInput.value = paUrl;
     }
@@ -624,11 +626,12 @@ export async function saveConnectionsSettings() {
         console.log(`Highlight Student Row enabled setting saved: ${highlightEnabled}`);
     }
 
-    // Save Power Automate settings
+    // Save Power Automate settings (encrypt the URL)
     if (elements.powerAutomateUrlInput) {
         const paUrl = elements.powerAutomateUrlInput.value.trim();
-        settingsToSave[STORAGE_KEYS.POWER_AUTOMATE_URL] = paUrl;
-        console.log(`Power Automate URL saved: ${paUrl ? 'URL configured' : 'URL cleared'}`);
+        const encryptedPaUrl = paUrl ? await encrypt(paUrl) : '';
+        settingsToSave[STORAGE_KEYS.POWER_AUTOMATE_URL] = encryptedPaUrl;
+        console.log(`Power Automate URL saved: ${paUrl ? 'URL configured (encrypted)' : 'URL cleared'}`);
     }
 
     let paEnabled = false;

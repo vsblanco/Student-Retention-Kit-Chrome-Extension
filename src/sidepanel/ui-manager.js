@@ -180,6 +180,7 @@ export function cacheDomElements() {
     elements.highlightRowColorInput = document.getElementById('highlightRowColorInput');
     elements.highlightRowColorTextInput = document.getElementById('highlightRowColorTextInput');
     elements.powerAutomateUrlInput = document.getElementById('powerAutomateUrlInput');
+    elements.toggleUrlVisibility = document.getElementById('toggleUrlVisibility');
     elements.powerAutomateStatusText = document.getElementById('powerAutomateStatusText');
     elements.powerAutomateStatusDot = document.getElementById('powerAutomateStatusDot');
     elements.powerAutomateEnabledToggle = document.getElementById('powerAutomateEnabledToggle');
