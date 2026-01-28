@@ -575,10 +575,6 @@ function setupEventListeners() {
         elements.closeExcelInstanceBtn.addEventListener('click', () => closeExcelInstanceModal(null));
     }
 
-    if (elements.cancelExcelInstanceBtn) {
-        elements.cancelExcelInstanceBtn.addEventListener('click', () => closeExcelInstanceModal(null));
-    }
-
     // Modal outside click handlers
     window.addEventListener('click', (e) => {
         if (elements.scanFilterModal && e.target === elements.scanFilterModal) {

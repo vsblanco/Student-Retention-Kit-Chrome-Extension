@@ -154,7 +154,6 @@ export function cacheDomElements() {
     elements.excelInstanceModal = document.getElementById('excelInstanceModal');
     elements.closeExcelInstanceBtn = document.getElementById('closeExcelInstanceBtn');
     elements.excelInstanceList = document.getElementById('excelInstanceList');
-    elements.cancelExcelInstanceBtn = document.getElementById('cancelExcelInstanceBtn');
 
     // Connections Modal
     elements.connectionsModal = document.getElementById('connectionsModal');
