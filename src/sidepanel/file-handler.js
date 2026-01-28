@@ -494,6 +494,65 @@ export function parseFileWithSheetJS(data, isCSV, fileModifiedTime = null) {
 }
 
 /**
+ * Updates the campus filter dropdown based on student data
+ * @param {Array} students - Array of student objects
+ */
+export function updateCampusFilter(students) {
+    const container = elements.campusFilterContainer;
+    const select = elements.campusFilter;
+
+    if (!container || !select) return;
+
+    // Extract unique campus values (filter out empty/null values)
+    const campuses = [...new Set(
+        students
+            .map(s => s.campus)
+            .filter(c => c && c.trim() !== '')
+    )].sort();
+
+    // If no campuses found, hide the filter
+    if (campuses.length === 0) {
+        container.style.display = 'none';
+        select.value = ''; // Reset selection
+        return;
+    }
+
+    // Store campus list in storage for persistence
+    chrome.storage.local.set({ [STORAGE_KEYS.CAMPUS_LIST]: campuses });
+
+    // Populate dropdown options
+    select.innerHTML = '<option value="">All Campuses</option>';
+    campuses.forEach(campus => {
+        const option = document.createElement('option');
+        option.value = campus;
+        option.textContent = campus;
+        select.appendChild(option);
+    });
+
+    // Show the filter
+    container.style.display = 'block';
+}
+
+/**
+ * Hides and resets the campus filter dropdown
+ */
+export function hideCampusFilter() {
+    const container = elements.campusFilterContainer;
+    const select = elements.campusFilter;
+
+    if (container) {
+        container.style.display = 'none';
+    }
+    if (select) {
+        select.innerHTML = '<option value="">All Campuses</option>';
+        select.value = '';
+    }
+
+    // Clear stored campus list
+    chrome.storage.local.remove(STORAGE_KEYS.CAMPUS_LIST);
+}
+
+/**
  * Handles CSV/Excel file import
  * @param {File} file - The uploaded file
  * @param {Function} onSuccess - Callback after successful import
@@ -542,6 +601,9 @@ export function handleFileImport(file, onSuccess) {
             if (students.length === 0) {
                 throw new Error("No valid student data found (Check header row).");
             }
+
+            // Update campus filter dropdown based on imported data
+            updateCampusFilter(students);
 
             const lastUpdated = new Date().toLocaleString('en-US', {
                 year: 'numeric',

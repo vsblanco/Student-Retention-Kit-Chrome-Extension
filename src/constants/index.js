@@ -156,6 +156,7 @@ export const STORAGE_KEYS = {
     // === FLAT KEYS (frequently written) ===
     FOUND_ENTRIES: 'foundEntries',
     MASTER_ENTRIES: 'masterEntries',
+    CAMPUS_LIST: 'campusList',
     CANVAS_API_CACHE: 'canvasApiCache',
 
     // === OTHER (flat for backwards compatibility or misc) ===
@@ -464,7 +465,8 @@ export const FIELD_ALIASES = {
     url: ['gradebook', 'gradeBookUrl', 'canvasUrl', 'studentUrl'],
 	studentEmail: ['email', 'studentsemail', 'studentemails', 'studentsemails'],
 	personalEmail: ['otheremail', 'studentspersonalemail', 'personalstudentemail', 'othermemails'],
-	lda: ['lastdayofattendance', 'lastattendance', 'lastdateofattendance', 'lastdayattended']
+	lda: ['lastdayofattendance', 'lastattendance', 'lastdateofattendance', 'lastdayattended'],
+	campus: ['location', 'site', 'school', 'campusname']
 };
 
 /**
@@ -500,7 +502,8 @@ export const MASTER_LIST_COLUMNS = [
     { header: 'AmRep', field: 'amRep', width: 15 },
     { header: 'Hold', field: 'hold', width: 10 },
     { header: 'Photo', field: 'photo', hidden: true, width: 4 },
-    { header: 'AdSAPStatus', field: 'adSAPStatus', width: 8 }
+    { header: 'AdSAPStatus', field: 'adSAPStatus', width: 8 },
+    { header: 'Campus', field: 'campus', width: 15 }
 ];
 
 /**
