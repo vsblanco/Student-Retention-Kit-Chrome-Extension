@@ -290,6 +290,7 @@ async function analyzeSubmissionMode(entry, submissions) {
 
                 foundDetails = {
                     name: entry.name,
+                    sortable_name: entry.sortable_name || null,
                     time: subDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
                     url: gradebookUrl,
                     timestamp: sub.submitted_at,
