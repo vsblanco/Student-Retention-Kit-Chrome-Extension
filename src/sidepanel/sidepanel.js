@@ -481,6 +481,19 @@ function setupEventListeners() {
         elements.powerAutomateDebugToggle.addEventListener('click', togglePowerAutomateDebug);
     }
 
+    // Power Automate URL visibility toggle
+    if (elements.toggleUrlVisibility) {
+        elements.toggleUrlVisibility.addEventListener('click', () => {
+            const input = elements.powerAutomateUrlInput;
+            const icon = elements.toggleUrlVisibility.querySelector('i');
+            if (input && icon) {
+                const isPassword = input.type === 'password';
+                input.type = isPassword ? 'text' : 'password';
+                icon.className = isPassword ? 'fas fa-eye-slash' : 'fas fa-eye';
+            }
+        });
+    }
+
     // Five9 Modal Settings
     if (elements.debugModeToggleModal) {
         elements.debugModeToggleModal.addEventListener('click', toggleDebugModeModal);
