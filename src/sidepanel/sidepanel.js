@@ -1188,6 +1188,47 @@ async function toggleScanState() {
         return;
     }
 
+    // If turning ON, check if we need to select an Excel tab for highlights
+    if (!isScanning) {
+        // Check if highlight feature is enabled
+        const highlightEnabled = await storageGetValue(STORAGE_KEYS.HIGHLIGHT_STUDENT_ROW_ENABLED, true);
+
+        if (highlightEnabled) {
+            // Get Excel tabs
+            const excelTabs = await getExcelTabs();
+
+            // If multiple Excel tabs, show selection modal
+            if (excelTabs.length > 1) {
+                const selectedTabId = await openExcelInstanceModal(
+                    excelTabs,
+                    'Multiple Excel instances detected. Select which one to send submission highlights to:'
+                );
+
+                // User cancelled - don't start the scanner
+                if (selectedTabId === null) {
+                    console.log('User cancelled Excel instance selection for highlights');
+                    return;
+                }
+
+                // Store the selected tab ID for highlight pings
+                await storageSet({ [STORAGE_KEYS.HIGHLIGHT_TARGET_TAB_ID]: selectedTabId });
+                console.log(`Selected Excel tab ${selectedTabId} for submission highlights`);
+            } else if (excelTabs.length === 1) {
+                // Only one tab, use it directly
+                await storageSet({ [STORAGE_KEYS.HIGHLIGHT_TARGET_TAB_ID]: excelTabs[0].id });
+            } else {
+                // No Excel tabs - clear the target tab ID
+                await storageSet({ [STORAGE_KEYS.HIGHLIGHT_TARGET_TAB_ID]: null });
+            }
+        } else {
+            // Highlight disabled - clear the target tab ID
+            await storageSet({ [STORAGE_KEYS.HIGHLIGHT_TARGET_TAB_ID]: null });
+        }
+    } else {
+        // Turning OFF - clear the target tab ID
+        await storageSet({ [STORAGE_KEYS.HIGHLIGHT_TARGET_TAB_ID]: null });
+    }
+
     isScanning = !isScanning;
     const newState = isScanning ? EXTENSION_STATES.ON : EXTENSION_STATES.OFF;
     await storageSet({ [STORAGE_KEYS.EXTENSION_STATE]: newState });

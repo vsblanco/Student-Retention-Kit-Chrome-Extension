@@ -1120,9 +1120,10 @@ export async function getExcelTabs() {
 /**
  * Opens the Excel Instance selection modal and returns a promise that resolves with the selected tab ID
  * @param {Array} excelTabs - Array of Excel tab objects
+ * @param {string} [customMessage] - Optional custom message to display in the modal
  * @returns {Promise<number|null>} Promise that resolves with selected tab ID or null if cancelled
  */
-export function openExcelInstanceModal(excelTabs) {
+export function openExcelInstanceModal(excelTabs, customMessage = null) {
     return new Promise((resolve) => {
         if (!elements.excelInstanceModal || !elements.excelInstanceList) {
             resolve(null);
@@ -1131,6 +1132,12 @@ export function openExcelInstanceModal(excelTabs) {
 
         // Store resolve function for later
         excelInstanceResolve = resolve;
+
+        // Update message if custom message provided
+        if (elements.excelInstanceMessage) {
+            elements.excelInstanceMessage.textContent = customMessage ||
+                'Multiple Excel instances detected. Select which one to send the master list to:';
+        }
 
         // Clear existing buttons
         elements.excelInstanceList.innerHTML = '';
