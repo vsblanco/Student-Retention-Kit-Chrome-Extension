@@ -331,6 +331,8 @@ export async function openConnectionsModal(connectionType) {
         STORAGE_KEYS.REFORMAT_NAME_ENABLED,
         STORAGE_KEYS.HIGHLIGHT_STUDENT_ROW_ENABLED,
         STORAGE_KEYS.POWER_AUTOMATE_URL,
+        STORAGE_KEYS.POWER_AUTOMATE_ENABLED,
+        STORAGE_KEYS.POWER_AUTOMATE_DEBUG,
         STORAGE_KEYS.EMBED_IN_CANVAS,
         STORAGE_KEYS.HIGHLIGHT_COLOR,
         STORAGE_KEYS.CANVAS_CACHE_ENABLED,
@@ -365,11 +367,17 @@ export async function openConnectionsModal(connectionType) {
     const highlightStudentRowEnabled = result[STORAGE_KEYS.HIGHLIGHT_STUDENT_ROW_ENABLED] !== undefined ? result[STORAGE_KEYS.HIGHLIGHT_STUDENT_ROW_ENABLED] : true;
     updateHighlightStudentRowModalUI(highlightStudentRowEnabled);
 
-    // Load Power Automate URL
+    // Load Power Automate settings
     const paUrl = result[STORAGE_KEYS.POWER_AUTOMATE_URL] || '';
     if (elements.powerAutomateUrlInput) {
         elements.powerAutomateUrlInput.value = paUrl;
     }
+
+    const paEnabled = result[STORAGE_KEYS.POWER_AUTOMATE_ENABLED] || false;
+    updatePowerAutomateEnabledUI(paEnabled);
+
+    const paDebug = result[STORAGE_KEYS.POWER_AUTOMATE_DEBUG] || false;
+    updatePowerAutomateDebugUI(paDebug);
 
     // Load Canvas settings
     const embedHelper = result[STORAGE_KEYS.EMBED_IN_CANVAS] !== undefined ? result[STORAGE_KEYS.EMBED_IN_CANVAS] : true;
@@ -616,14 +624,29 @@ export async function saveConnectionsSettings() {
         console.log(`Highlight Student Row enabled setting saved: ${highlightEnabled}`);
     }
 
-    // Save Power Automate URL
+    // Save Power Automate settings
     if (elements.powerAutomateUrlInput) {
         const paUrl = elements.powerAutomateUrlInput.value.trim();
         settingsToSave[STORAGE_KEYS.POWER_AUTOMATE_URL] = paUrl;
         console.log(`Power Automate URL saved: ${paUrl ? 'URL configured' : 'URL cleared'}`);
+    }
 
-        // Update status text immediately
-        updatePowerAutomateStatus(paUrl);
+    let paEnabled = false;
+    if (elements.powerAutomateEnabledToggle) {
+        paEnabled = elements.powerAutomateEnabledToggle.classList.contains('fa-toggle-on');
+        settingsToSave[STORAGE_KEYS.POWER_AUTOMATE_ENABLED] = paEnabled;
+        console.log(`Power Automate Enabled saved: ${paEnabled}`);
+    }
+
+    if (elements.powerAutomateDebugToggle) {
+        const paDebug = elements.powerAutomateDebugToggle.classList.contains('fa-toggle-on');
+        settingsToSave[STORAGE_KEYS.POWER_AUTOMATE_DEBUG] = paDebug;
+        console.log(`Power Automate Debug saved: ${paDebug}`);
+    }
+
+    // Update status text immediately with enabled state
+    if (elements.powerAutomateUrlInput) {
+        updatePowerAutomateStatus(elements.powerAutomateUrlInput.value.trim(), paEnabled);
     }
 
     // Save Canvas settings
@@ -682,16 +705,26 @@ export async function saveConnectionsSettings() {
 /**
  * Updates the Power Automate connection status text
  * @param {string} url - The Power Automate URL (empty if not configured)
+ * @param {boolean} enabled - Whether Power Automate is enabled (optional)
  */
-export function updatePowerAutomateStatus(url) {
+export function updatePowerAutomateStatus(url, enabled = null) {
     if (!elements.powerAutomateStatusText) return;
 
     if (url && url.trim()) {
-        elements.powerAutomateStatusText.textContent = 'Connected';
-        elements.powerAutomateStatusText.style.color = 'green';
-        if (elements.powerAutomateStatusDot) {
-            elements.powerAutomateStatusDot.style.backgroundColor = '#10b981';
-            elements.powerAutomateStatusDot.title = 'Connected';
+        if (enabled === false) {
+            elements.powerAutomateStatusText.textContent = 'Disabled';
+            elements.powerAutomateStatusText.style.color = 'var(--text-secondary)';
+            if (elements.powerAutomateStatusDot) {
+                elements.powerAutomateStatusDot.style.backgroundColor = '#9ca3af';
+                elements.powerAutomateStatusDot.title = 'Disabled';
+            }
+        } else {
+            elements.powerAutomateStatusText.textContent = 'Connected';
+            elements.powerAutomateStatusText.style.color = 'green';
+            if (elements.powerAutomateStatusDot) {
+                elements.powerAutomateStatusDot.style.backgroundColor = '#10b981';
+                elements.powerAutomateStatusDot.title = 'Connected';
+            }
         }
     } else {
         elements.powerAutomateStatusText.textContent = 'Not configured';
@@ -700,6 +733,38 @@ export function updatePowerAutomateStatus(url) {
             elements.powerAutomateStatusDot.style.backgroundColor = '#9ca3af';
             elements.powerAutomateStatusDot.title = 'Not configured';
         }
+    }
+}
+
+/**
+ * Updates the Power Automate enabled toggle UI
+ * @param {boolean} isEnabled - Whether Power Automate is enabled
+ */
+function updatePowerAutomateEnabledUI(isEnabled) {
+    if (!elements.powerAutomateEnabledToggle) return;
+
+    if (isEnabled) {
+        elements.powerAutomateEnabledToggle.className = 'fas fa-toggle-on';
+        elements.powerAutomateEnabledToggle.style.color = 'var(--primary-color)';
+    } else {
+        elements.powerAutomateEnabledToggle.className = 'fas fa-toggle-off';
+        elements.powerAutomateEnabledToggle.style.color = 'gray';
+    }
+}
+
+/**
+ * Updates the Power Automate debug toggle UI
+ * @param {boolean} isEnabled - Whether debug mode is enabled
+ */
+function updatePowerAutomateDebugUI(isEnabled) {
+    if (!elements.powerAutomateDebugToggle) return;
+
+    if (isEnabled) {
+        elements.powerAutomateDebugToggle.className = 'fas fa-toggle-on';
+        elements.powerAutomateDebugToggle.style.color = 'var(--primary-color)';
+    } else {
+        elements.powerAutomateDebugToggle.className = 'fas fa-toggle-off';
+        elements.powerAutomateDebugToggle.style.color = 'gray';
     }
 }
 
@@ -815,6 +880,26 @@ export function toggleCanvasCacheModal() {
 
     const isCurrentlyOn = elements.canvasCacheToggleModal.classList.contains('fa-toggle-on');
     updateCanvasCacheModalUI(!isCurrentlyOn);
+}
+
+/**
+ * Toggles the Power Automate enabled setting in the modal
+ */
+export function togglePowerAutomateEnabled() {
+    if (!elements.powerAutomateEnabledToggle) return;
+
+    const isCurrentlyOn = elements.powerAutomateEnabledToggle.classList.contains('fa-toggle-on');
+    updatePowerAutomateEnabledUI(!isCurrentlyOn);
+}
+
+/**
+ * Toggles the Power Automate debug setting in the modal
+ */
+export function togglePowerAutomateDebug() {
+    if (!elements.powerAutomateDebugToggle) return;
+
+    const isCurrentlyOn = elements.powerAutomateDebugToggle.classList.contains('fa-toggle-on');
+    updatePowerAutomateDebugUI(!isCurrentlyOn);
 }
 
 /**

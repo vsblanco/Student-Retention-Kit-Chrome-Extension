@@ -126,6 +126,8 @@ export const STORAGE_KEYS = {
 
     // Power Automate settings (settings.powerAutomate.*)
     POWER_AUTOMATE_URL: 'settings.powerAutomate.url',
+    POWER_AUTOMATE_ENABLED: 'settings.powerAutomate.enabled',
+    POWER_AUTOMATE_DEBUG: 'settings.powerAutomate.debug',
 
     // Canvas settings (settings.canvas.*)
     EMBED_IN_CANVAS: 'settings.canvas.embedInCanvas',
@@ -198,6 +200,8 @@ export const DEFAULT_SETTINGS = {
 
     // Power Automate settings
     [STORAGE_KEYS.POWER_AUTOMATE_URL]: '',
+    [STORAGE_KEYS.POWER_AUTOMATE_ENABLED]: false,
+    [STORAGE_KEYS.POWER_AUTOMATE_DEBUG]: false,
 
     // Canvas settings
     [STORAGE_KEYS.EMBED_IN_CANVAS]: true,

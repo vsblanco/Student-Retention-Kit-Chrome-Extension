@@ -57,6 +57,8 @@ import {
     updateFive9Status,
     toggleEmbedHelperModal,
     toggleCanvasCacheModal,
+    togglePowerAutomateEnabled,
+    togglePowerAutomateDebug,
     toggleDebugModeModal,
     toggleSyncActiveStudentModal,
     toggleSendMasterListModal,
@@ -461,6 +463,15 @@ function setupEventListeners() {
         elements.clearCacheBtnModal.addEventListener('click', clearCacheFromModal);
     }
 
+    // Power Automate Modal Settings
+    if (elements.powerAutomateEnabledToggle) {
+        elements.powerAutomateEnabledToggle.addEventListener('click', togglePowerAutomateEnabled);
+    }
+
+    if (elements.powerAutomateDebugToggle) {
+        elements.powerAutomateDebugToggle.addEventListener('click', togglePowerAutomateDebug);
+    }
+
     // Five9 Modal Settings
     if (elements.debugModeToggleModal) {
         elements.debugModeToggleModal.addEventListener('click', toggleDebugModeModal);
@@ -573,10 +584,6 @@ function setupEventListeners() {
     // Excel Instance Modal
     if (elements.closeExcelInstanceBtn) {
         elements.closeExcelInstanceBtn.addEventListener('click', () => closeExcelInstanceModal(null));
-    }
-
-    if (elements.cancelExcelInstanceBtn) {
-        elements.cancelExcelInstanceBtn.addEventListener('click', () => closeExcelInstanceModal(null));
     }
 
     // Modal outside click handlers
