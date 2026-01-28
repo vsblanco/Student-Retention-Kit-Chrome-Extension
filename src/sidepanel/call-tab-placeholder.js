@@ -36,6 +36,9 @@ export const PLACEHOLDER_MESSAGES = {
 // Track current placeholder state to avoid unnecessary re-renders
 let currentPlaceholderMessage = null;
 
+// Track if user has bypassed the Five9 awaiting check
+let five9BypassActive = false;
+
 /**
  * Checks Five9 connection status (duplicated here to avoid circular dependency)
  * @returns {Promise<string>} One of FIVE9_CONNECTION_STATES
@@ -74,11 +77,27 @@ function renderPlaceholder(messageConfig) {
     if (currentPlaceholderMessage === messageConfig.id) return;
     currentPlaceholderMessage = messageConfig.id;
 
+    // Add "Continue Anyways" button for awaiting agent message
+    const continueButton = messageConfig.id === 'five9_awaiting'
+        ? `<button id="continueAnywaysBtn" style="margin-top:15px; background:none; border:none; color:#3b82f6; cursor:pointer; font-size:0.85em; text-decoration:underline;">Continue Anyways</button>`
+        : '';
+
     elements.callTabPlaceholder.innerHTML = `
         <i class="fas ${messageConfig.icon}" style="${messageConfig.iconStyle}"></i>
         <span style="font-size:1.1em; font-weight:500;">${messageConfig.header}</span>
         <span style="font-size:0.9em; margin-top:5px; color:#6b7280;">${messageConfig.message}</span>
+        ${continueButton}
     `;
+
+    // Add click handler for continue button
+    if (messageConfig.id === 'five9_awaiting') {
+        const btn = document.getElementById('continueAnywaysBtn');
+        if (btn) {
+            btn.addEventListener('click', () => {
+                bypassFive9Check();
+            });
+        }
+    }
 }
 
 /**
@@ -96,6 +115,24 @@ function hidePlaceholder() {
     if (!elements.callTabPlaceholder) return;
     elements.callTabPlaceholder.style.display = 'none';
     currentPlaceholderMessage = null;
+}
+
+/**
+ * Bypasses the Five9 awaiting connection check
+ * Allows user to continue to call section even without agent connection
+ */
+function bypassFive9Check() {
+    five9BypassActive = true;
+    hidePlaceholder();
+    showCallSection();
+}
+
+/**
+ * Resets the Five9 bypass state
+ * Called when student selection changes or Five9 connection state changes
+ */
+export function resetFive9Bypass() {
+    five9BypassActive = false;
 }
 
 /**
@@ -133,8 +170,9 @@ function hideCallSection() {
 /**
  * Determines which placeholder message should be shown based on current state
  * Priority order (highest to lowest):
- * 1. Five9 connection issues (when student is selected and debug mode is OFF)
+ * 1. Five9 NO_TAB - always shows first regardless of student selection
  * 2. No student selected
+ * 3. Five9 AWAITING_CONNECTION - only when student is selected
  *
  * @param {Object} state - Current state object
  * @param {Array} state.selectedQueue - Currently selected students
@@ -145,29 +183,40 @@ export async function determineCallTabState(state = {}) {
     const { selectedQueue = [], debugMode = false } = state;
     const hasStudentSelected = selectedQueue && selectedQueue.length > 0;
 
-    // If no student is selected, show that message (lowest priority check first)
-    if (!hasStudentSelected) {
-        return {
-            showPlaceholder: true,
-            message: PLACEHOLDER_MESSAGES.NO_STUDENT_SELECTED
-        };
-    }
-
-    // Student is selected - check Five9 status (unless in debug mode)
+    // Check Five9 NO_TAB first - highest priority, shows regardless of student selection
     if (!debugMode) {
         const connectionState = await checkFive9ConnectionState();
 
         if (connectionState === FIVE9_CONNECTION_STATES.NO_TAB) {
+            // Reset bypass when Five9 tab is closed
+            five9BypassActive = false;
             return {
                 showPlaceholder: true,
                 message: PLACEHOLDER_MESSAGES.FIVE9_NO_TAB
             };
         }
 
-        if (connectionState === FIVE9_CONNECTION_STATES.AWAITING_CONNECTION) {
+        // If no student is selected, show that message (second priority)
+        if (!hasStudentSelected) {
+            return {
+                showPlaceholder: true,
+                message: PLACEHOLDER_MESSAGES.NO_STUDENT_SELECTED
+            };
+        }
+
+        // Student is selected, check if awaiting connection (unless bypassed)
+        if (connectionState === FIVE9_CONNECTION_STATES.AWAITING_CONNECTION && !five9BypassActive) {
             return {
                 showPlaceholder: true,
                 message: PLACEHOLDER_MESSAGES.FIVE9_AWAITING_AGENT
+            };
+        }
+    } else {
+        // Debug mode - only check student selection
+        if (!hasStudentSelected) {
+            return {
+                showPlaceholder: true,
+                message: PLACEHOLDER_MESSAGES.NO_STUDENT_SELECTED
             };
         }
     }

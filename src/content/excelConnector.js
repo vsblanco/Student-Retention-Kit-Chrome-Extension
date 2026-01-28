@@ -11,6 +11,33 @@ if (window.hasSRKConnectorRun) {
   console.log("%c SRK: Excel Connector Script LOADED", "background: #222; color: #bada55; font-size: 14px");
 
   /**
+   * Checks if the extension context is still valid.
+   * Returns false if the extension has been reloaded/updated.
+   */
+  function isExtensionContextValid() {
+      try {
+          return !!chrome.runtime.id;
+      } catch (e) {
+          return false;
+      }
+  }
+
+  /**
+   * Safely sends a message to the extension.
+   * Silently fails if the extension context is invalidated.
+   * @param {Object} message - The message to send
+   * @returns {Promise} - Resolves with response or undefined if context invalid
+   */
+  function safeSendMessage(message) {
+      if (!isExtensionContextValid()) {
+          return Promise.resolve(undefined);
+      }
+      return chrome.runtime.sendMessage(message).catch(() => {
+          // Extension might not be ready or context invalidated
+      });
+  }
+
+  /**
    * Helper to get value from nested storage structure.
    * Checks new nested path first, then falls back to legacy flat key.
    * @param {Object} data - Storage data object
@@ -62,6 +89,7 @@ if (window.hasSRKConnectorRun) {
     StudentNumber: ['studentid', 'sisid'],
     SyStudentId: ['studentsis'],
     daysOut: ['daysinactive', 'days'],
+    url: ['gradebook', 'gradebookurl', 'canvasurl', 'studenturl'],
     lda: ['lastdayofattendance', 'lastattendance', 'lastdateofattendance', 'lastdayattended']
   };
 
@@ -234,11 +262,9 @@ if (window.hasSRKConnectorRun) {
   }
 
   // Notify extension that connector is active
-  chrome.runtime.sendMessage({
+  safeSendMessage({
       type: "SRK_CONNECTOR_ACTIVE",
       timestamp: Date.now()
-  }).catch(() => {
-      // Extension might not be ready yet, that's ok
   });
 
   window.addEventListener("message", (event) => {
@@ -254,11 +280,9 @@ if (window.hasSRKConnectorRun) {
           }
 
           // Notify extension that Office Add-in is connected
-          chrome.runtime.sendMessage({
+          safeSendMessage({
               type: "SRK_OFFICE_ADDIN_CONNECTED",
               timestamp: Date.now()
-          }).catch(() => {
-              // Extension might not be ready, that's ok
           });
       }
 
@@ -267,11 +291,9 @@ if (window.hasSRKConnectorRun) {
           console.log("%c SRK Connector: Pong received from Office Add-in, forwarding to extension", "color: green; font-weight: bold");
 
           // Notify extension that we received a pong
-          chrome.runtime.sendMessage({
+          safeSendMessage({
               type: "SRK_TASKPANE_PONG",
               timestamp: Date.now()
-          }).catch(() => {
-              // Extension might not be ready, that's ok
           });
       }
 
@@ -282,12 +304,10 @@ if (window.hasSRKConnectorRun) {
           console.log("   Source:", event.data.source);
 
           // Forward SRK_PONG to extension with all payload data
-          chrome.runtime.sendMessage({
+          safeSendMessage({
               type: "SRK_PONG",
               timestamp: event.data.timestamp,
               source: event.data.source
-          }).catch(() => {
-              // Extension might not be ready, that's ok
           });
       }
 
@@ -324,11 +344,9 @@ if (window.hasSRKConnectorRun) {
           console.log("   Sheets:", event.data.sheets);
 
           // Forward sheet list to extension
-          chrome.runtime.sendMessage({
+          safeSendMessage({
               type: "SRK_SHEET_LIST_RESPONSE",
               sheets: event.data.sheets
-          }).catch(() => {
-              // Extension might not be ready, that's ok
           });
       }
 
@@ -338,11 +356,9 @@ if (window.hasSRKConnectorRun) {
           console.log("   Links count:", event.data.links?.length || 0);
 
           // Forward links to extension to open
-          chrome.runtime.sendMessage({
+          safeSendMessage({
               type: "SRK_LINKS",
               links: event.data.links
-          }).catch(() => {
-              // Extension might not be ready, that's ok
           });
       }
   });
@@ -556,13 +572,11 @@ if (window.hasSRKConnectorRun) {
               console.log(`   Updated: ${lastUpdated}`);
 
               // Notify the extension that master list has been updated
-              chrome.runtime.sendMessage({
+              safeSendMessage({
                   type: "SRK_MASTER_LIST_UPDATED",
                   timestamp: Date.now(),
                   studentCount: transformedStudents.length,
                   sourceTimestamp: data.timestamp
-              }).catch(() => {
-                  // Extension might not be ready, that's ok
               });
           });
 
@@ -570,11 +584,11 @@ if (window.hasSRKConnectorRun) {
           console.error("%c Error processing Master List data:", "color: red; font-weight: bold", error);
 
           // Notify extension of error
-          chrome.runtime.sendMessage({
+          safeSendMessage({
               type: "SRK_MASTER_LIST_ERROR",
               error: error.message,
               timestamp: Date.now()
-          }).catch(() => {});
+          });
       }
   }
 
@@ -627,14 +641,12 @@ if (window.hasSRKConnectorRun) {
               }
 
               // Send to extension (works for both single and multiple)
-              chrome.runtime.sendMessage({
+              safeSendMessage({
                   type: "SRK_SELECTED_STUDENTS",
                   students: transformedStudents,
                   count: data.count,
                   timestamp: Date.now(),
                   sourceTimestamp: data.timestamp
-              }).catch(() => {
-                  // Extension might not be ready, that's ok
               });
           });
 
@@ -681,12 +693,10 @@ if (window.hasSRKConnectorRun) {
               console.log(`   Email: ${userInfo.email}`);
 
               // Notify the extension that user info has been updated
-              chrome.runtime.sendMessage({
+              safeSendMessage({
                   type: "SRK_OFFICE_USER_INFO",
                   userInfo: userInfo,
                   timestamp: Date.now()
-              }).catch(() => {
-                  // Extension might not be ready, that's ok
               });
           });
 
@@ -694,33 +704,46 @@ if (window.hasSRKConnectorRun) {
           console.error("%c Error processing Office User Info:", "color: red; font-weight: bold", error);
 
           // Notify extension of error
-          chrome.runtime.sendMessage({
+          safeSendMessage({
               type: "SRK_OFFICE_USER_INFO_ERROR",
               error: error.message,
               timestamp: Date.now()
-          }).catch(() => {});
+          });
       }
   }
 
   // Listen for messages from extension (e.g., highlight student row requests, ping checks)
-  chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-      if (request.action === "postToPage" && request.message) {
-          console.log("%c SRK Connector: Forwarding message to page", "color: blue; font-weight: bold", request.message);
-          window.postMessage(request.message, "*");
-          sendResponse({ success: true });
+  // Wrap in try-catch in case extension context is already invalid
+  try {
+      if (isExtensionContextValid()) {
+          chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+              // Check context validity at the start of each message
+              if (!isExtensionContextValid()) {
+                  return;
+              }
+
+              if (request.action === "postToPage" && request.message) {
+                  console.log("%c SRK Connector: Forwarding message to page", "color: blue; font-weight: bold", request.message);
+                  window.postMessage(request.message, "*");
+                  sendResponse({ success: true });
+              }
+              // Handle taskpane ping from extension - forward to Office Add-in
+              else if (request.type === "SRK_TASKPANE_PING") {
+                  console.log("%c SRK Connector: Ping request from taskpane, forwarding to Office Add-in", "color: blue; font-weight: bold");
+                  window.postMessage({ type: "SRK_TASKPANE_PING", timestamp: request.timestamp }, "*");
+                  sendResponse({ success: true });
+              }
+              // Handle SRK_PING from extension - forward to Office Add-in
+              else if (request.type === "SRK_PING") {
+                  console.log("%c SRK Connector: SRK_PING request from side panel, forwarding to Office Add-in", "color: blue; font-weight: bold");
+                  window.postMessage({ type: "SRK_PING" }, "*");
+                  sendResponse({ success: true });
+              }
+              return true; // Keep channel open for async response
+          });
       }
-      // Handle taskpane ping from extension - forward to Office Add-in
-      else if (request.type === "SRK_TASKPANE_PING") {
-          console.log("%c SRK Connector: Ping request from taskpane, forwarding to Office Add-in", "color: blue; font-weight: bold");
-          window.postMessage({ type: "SRK_TASKPANE_PING", timestamp: request.timestamp }, "*");
-          sendResponse({ success: true });
-      }
-      // Handle SRK_PING from extension - forward to Office Add-in
-      else if (request.type === "SRK_PING") {
-          console.log("%c SRK Connector: SRK_PING request from side panel, forwarding to Office Add-in", "color: blue; font-weight: bold");
-          window.postMessage({ type: "SRK_PING" }, "*");
-          sendResponse({ success: true });
-      }
-      return true; // Keep channel open for async response
-  });
+  } catch (e) {
+      // Extension context invalidated, script will stop processing extension messages
+      console.log("SRK Connector: Extension context invalidated, message listener not registered");
+  }
 }
