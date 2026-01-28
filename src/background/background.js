@@ -193,7 +193,7 @@ async function onMissingCheckCompleted() {
         payload: finalPayload
     }).catch(() => {});
     
-    chrome.storage.local.set({ [STORAGE_KEYS.EXTENSION_STATE]: EXTENSION_STATES.OFF });
+    await storageSet({ [STORAGE_KEYS.EXTENSION_STATE]: EXTENSION_STATES.OFF });
 }
 
 // --- CORE LISTENERS ---
@@ -202,15 +202,24 @@ chrome.action.onClicked.addListener((tab) => chrome.sidePanel.open({ tabId: tab.
 chrome.commands.onCommand.addListener((command, tab) => {
   if (command === '_execute_action') chrome.sidePanel.open({ tabId: tab.id });
 });
-chrome.runtime.onStartup.addListener(() => {
+chrome.runtime.onStartup.addListener(async () => {
   updateBadge();
-  chrome.storage.local.get(STORAGE_KEYS.EXTENSION_STATE, data => handleStateChange(data[STORAGE_KEYS.EXTENSION_STATE]));
+  const state = await storageGetValue(STORAGE_KEYS.EXTENSION_STATE);
+  handleStateChange(state);
 });
 chrome.storage.onChanged.addListener((changes) => {
-  if (changes[STORAGE_KEYS.EXTENSION_STATE]) {
-    handleStateChange(changes[STORAGE_KEYS.EXTENSION_STATE].newValue, changes[STORAGE_KEYS.EXTENSION_STATE].oldValue);
+  // Handle nested storage structure for EXTENSION_STATE (stored under 'state.extensionState')
+  // The change event reports changes by root key ('state'), not the full nested path
+  if (changes.state) {
+    const oldState = changes.state.oldValue?.extensionState;
+    const newState = changes.state.newValue?.extensionState;
+    if (newState !== undefined && newState !== oldState) {
+      handleStateChange(newState, oldState);
+    }
   }
-  if (changes[STORAGE_KEYS.EXTENSION_STATE] || changes[STORAGE_KEYS.FOUND_ENTRIES]) {
+
+  // Handle nested storage structure for FOUND_ENTRIES (stored under 'data.foundEntries')
+  if (changes.state || changes.data) {
     updateBadge();
   }
 });
@@ -703,21 +712,20 @@ async function triggerPowerAutomate(connection, payload) {
 }
 
 // --- STATE & DATA MANAGEMENT ---
-function updateBadge() {
-  chrome.storage.local.get([STORAGE_KEYS.EXTENSION_STATE, STORAGE_KEYS.FOUND_ENTRIES], (data) => {
-    const state = data[STORAGE_KEYS.EXTENSION_STATE];
-    const foundCount = data[STORAGE_KEYS.FOUND_ENTRIES]?.length || 0;
-    
-    if (state === EXTENSION_STATES.ON) {
-      chrome.action.setBadgeBackgroundColor({ color: '#0052cc' });
-      chrome.action.setBadgeText({ text: foundCount > 0 ? foundCount.toString() : 'API' });
-    } else if (state === EXTENSION_STATES.PAUSED) {
-      chrome.action.setBadgeBackgroundColor({ color: '#f5a623' });
-      chrome.action.setBadgeText({ text: 'WAIT' });
-    } else {
-      chrome.action.setBadgeText({ text: '' });
-    }
-  });
+async function updateBadge() {
+  const data = await storageGet([STORAGE_KEYS.EXTENSION_STATE, STORAGE_KEYS.FOUND_ENTRIES]);
+  const state = data[STORAGE_KEYS.EXTENSION_STATE];
+  const foundCount = data[STORAGE_KEYS.FOUND_ENTRIES]?.length || 0;
+
+  if (state === EXTENSION_STATES.ON) {
+    chrome.action.setBadgeBackgroundColor({ color: '#0052cc' });
+    chrome.action.setBadgeText({ text: foundCount > 0 ? foundCount.toString() : 'API' });
+  } else if (state === EXTENSION_STATES.PAUSED) {
+    chrome.action.setBadgeBackgroundColor({ color: '#f5a623' });
+    chrome.action.setBadgeText({ text: 'WAIT' });
+  } else {
+    chrome.action.setBadgeText({ text: '' });
+  }
 }
 
 async function handleStateChange(newState, oldState) {
@@ -839,7 +847,8 @@ chrome.tabs.onRemoved.addListener(async (tabId, removeInfo) => {
 });
 
 // --- INITIALIZATION ---
-updateBadge();
-chrome.storage.local.get(STORAGE_KEYS.EXTENSION_STATE, data => {
-    handleStateChange(data[STORAGE_KEYS.EXTENSION_STATE]);
-});
+(async () => {
+    await updateBadge();
+    const state = await storageGetValue(STORAGE_KEYS.EXTENSION_STATE);
+    handleStateChange(state);
+})();
