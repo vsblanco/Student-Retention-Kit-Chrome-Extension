@@ -76,6 +76,32 @@ async function onSubmissionFound(entry) {
 }
 
 /**
+ * Converts student name from "Last, First" format to "First Last" format
+ * @param {string} name - The student name to convert
+ * @returns {string} The converted name in "First Last" format
+ */
+function convertNameToFirstLast(name) {
+    if (!name || typeof name !== 'string') return name || '';
+
+    // Check if the name contains a comma (Last, First format)
+    if (!name.includes(',')) {
+        return name.trim();
+    }
+
+    // Split by comma and trim whitespace
+    const parts = name.split(',').map(part => part.trim());
+
+    // If we don't have exactly 2 parts, return the original name
+    if (parts.length !== 2) {
+        return name.trim();
+    }
+
+    // Convert from "Last, First" to "First Last"
+    const [lastName, firstName] = parts;
+    return `${firstName} ${lastName}`;
+}
+
+/**
  * Sends HTTP request to Power Automate when a submission is found
  * @param {Object} entry - The found submission entry
  */
@@ -97,9 +123,9 @@ async function sendPowerAutomateRequest(entry) {
             return;
         }
 
-        // Build payload - use name (First Last format)
+        // Build payload - convert name to "First Last" format
         const payload = {
-            name: entry.name || '',
+            name: convertNameToFirstLast(entry.name),
             assignment: entry.assignment || '',
             url: entry.url || ''
         };
