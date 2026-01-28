@@ -97,9 +97,9 @@ async function sendPowerAutomateRequest(entry) {
             return;
         }
 
-        // Build payload - use sortable_name (Last, First) if available, fallback to name
+        // Build payload - use name (First Last format)
         const payload = {
-            name: entry.sortable_name || entry.name || '',
+            name: entry.name || '',
             assignment: entry.assignment || '',
             url: entry.url || ''
         };
