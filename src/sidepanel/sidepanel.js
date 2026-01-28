@@ -26,6 +26,7 @@ import {
     filterFoundList,
     renderMasterList,
     filterMasterList,
+    filterByCampus,
     sortMasterList
 } from './student-renderer.js';
 
@@ -35,7 +36,9 @@ import {
     restoreDefaultQueueUI,
     exportMasterListCSV,
     sendMasterListToExcel,
-    sendMasterListWithMissingAssignmentsToExcel
+    sendMasterListWithMissingAssignmentsToExcel,
+    updateCampusFilter,
+    hideCampusFilter
 } from './file-handler.js';
 
 import { processStep2, processStep3, processStep4 } from './canvas-integration.js';
@@ -337,6 +340,8 @@ function setupEventListeners() {
                     [STORAGE_KEYS.MASTER_ENTRIES]: [],
                     [STORAGE_KEYS.LAST_UPDATED]: null
                 });
+                // Hide the campus filter when master list is cleared
+                hideCampusFilter();
             }
         });
     }
@@ -899,6 +904,10 @@ function setupEventListeners() {
         elements.sortSelect.addEventListener('change', sortMasterList);
     }
 
+    if (elements.campusFilter) {
+        elements.campusFilter.addEventListener('change', filterByCampus);
+    }
+
     if (elements.downloadMasterBtn) {
         elements.downloadMasterBtn.addEventListener('click', exportMasterListCSV);
     }
@@ -1009,9 +1018,13 @@ async function loadStorageData() {
     renderFoundList(foundEntries);
     updateTabBadge('checker', foundEntries.length);
 
-    renderMasterList(data[STORAGE_KEYS.MASTER_ENTRIES] || [], (entry, li, evt) => {
+    const masterEntries = data[STORAGE_KEYS.MASTER_ENTRIES] || [];
+    renderMasterList(masterEntries, (entry, li, evt) => {
         queueManager.handleStudentClick(entry, li, evt);
     });
+
+    // Restore campus filter if master list has campus data
+    updateCampusFilter(masterEntries);
 
     if (elements.lastUpdatedText && data[STORAGE_KEYS.LAST_UPDATED]) {
         elements.lastUpdatedText.textContent = data[STORAGE_KEYS.LAST_UPDATED];
@@ -1072,9 +1085,12 @@ chrome.storage.onChanged.addListener((changes) => {
         updateTabBadge('checker', (changes[STORAGE_KEYS.FOUND_ENTRIES].newValue || []).length);
     }
     if (changes[STORAGE_KEYS.MASTER_ENTRIES]) {
-        renderMasterList(changes[STORAGE_KEYS.MASTER_ENTRIES].newValue, (entry, li, evt) => {
+        const newMasterEntries = changes[STORAGE_KEYS.MASTER_ENTRIES].newValue || [];
+        renderMasterList(newMasterEntries, (entry, li, evt) => {
             queueManager.handleStudentClick(entry, li, evt);
         });
+        // Update campus filter when master list changes
+        updateCampusFilter(newMasterEntries);
     }
     // Handle nested storage structure for EXTENSION_STATE (stored under 'state.extensionState')
     if (changes.state) {

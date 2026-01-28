@@ -89,6 +89,8 @@ export function cacheDomElements() {
     elements.masterList = document.getElementById('masterList');
     elements.masterSearch = document.getElementById('masterSearch');
     elements.sortSelect = document.getElementById('sortSelect');
+    elements.campusFilter = document.getElementById('campusFilter');
+    elements.campusFilterContainer = document.getElementById('campusFilterContainer');
     elements.updateMasterBtn = document.getElementById('updateMasterBtn');
     elements.downloadMasterBtn = document.getElementById('downloadMasterBtn');
     elements.updateMasterContextMenu = document.getElementById('updateMasterContextMenu');

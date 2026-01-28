@@ -13,6 +13,7 @@ import {
     formatDateToMMDDYY
 } from '../constants/index.js';
 import { elements } from './ui-manager.js';
+import { formatDuration, updateTotalTime } from './canvas-integration.js';
 
 /**
  * Sends master list data to Excel via SRK_IMPORT_MASTER_LIST payload
@@ -493,6 +494,65 @@ export function parseFileWithSheetJS(data, isCSV, fileModifiedTime = null) {
 }
 
 /**
+ * Updates the campus filter dropdown based on student data
+ * @param {Array} students - Array of student objects
+ */
+export function updateCampusFilter(students) {
+    const container = elements.campusFilterContainer;
+    const select = elements.campusFilter;
+
+    if (!container || !select) return;
+
+    // Extract unique campus values (filter out empty/null values)
+    const campuses = [...new Set(
+        students
+            .map(s => s.campus)
+            .filter(c => c && c.trim() !== '')
+    )].sort();
+
+    // If no campuses found, hide the filter
+    if (campuses.length === 0) {
+        container.style.display = 'none';
+        select.value = ''; // Reset selection
+        return;
+    }
+
+    // Store campus list in storage for persistence
+    chrome.storage.local.set({ [STORAGE_KEYS.CAMPUS_LIST]: campuses });
+
+    // Populate dropdown options
+    select.innerHTML = '<option value="">All Campuses</option>';
+    campuses.forEach(campus => {
+        const option = document.createElement('option');
+        option.value = campus;
+        option.textContent = campus;
+        select.appendChild(option);
+    });
+
+    // Show the filter
+    container.style.display = 'block';
+}
+
+/**
+ * Hides and resets the campus filter dropdown
+ */
+export function hideCampusFilter() {
+    const container = elements.campusFilterContainer;
+    const select = elements.campusFilter;
+
+    if (container) {
+        container.style.display = 'none';
+    }
+    if (select) {
+        select.innerHTML = '<option value="">All Campuses</option>';
+        select.value = '';
+    }
+
+    // Clear stored campus list
+    chrome.storage.local.remove(STORAGE_KEYS.CAMPUS_LIST);
+}
+
+/**
  * Handles CSV/Excel file import
  * @param {File} file - The uploaded file
  * @param {Function} onSuccess - Callback after successful import
@@ -508,10 +568,12 @@ export function handleFileImport(file, onSuccess) {
     const startTime = Date.now();
 
     // Store the overall process start time for total time calculation
+    // Show total time from the start so user can track overall progress
     const queueTotalTimeDiv = document.getElementById('queueTotalTime');
     if (queueTotalTimeDiv) {
         queueTotalTimeDiv.dataset.processStartTime = startTime;
-        queueTotalTimeDiv.style.display = 'none'; // Hide until complete
+        queueTotalTimeDiv.textContent = 'Total Time: 0.0s';
+        queueTotalTimeDiv.style.display = 'block';
     }
 
     const isCSV = file.name.toLowerCase().endsWith('.csv');
@@ -540,6 +602,9 @@ export function handleFileImport(file, onSuccess) {
                 throw new Error("No valid student data found (Check header row).");
             }
 
+            // Update campus filter dropdown based on imported data
+            updateCampusFilter(students);
+
             const lastUpdated = new Date().toLocaleString('en-US', {
                 year: 'numeric',
                 month: 'numeric',
@@ -553,10 +618,13 @@ export function handleFileImport(file, onSuccess) {
                 [STORAGE_KEYS.LAST_UPDATED]: lastUpdated,
                 [STORAGE_KEYS.REFERENCE_DATE]: referenceDate ? referenceDate.toISOString() : null
             }, async () => {
-                const duration = ((Date.now() - startTime) / 1000).toFixed(1);
+                const durationSeconds = (Date.now() - startTime) / 1000;
                 step1.className = 'queue-item completed';
                 step1.querySelector('i').className = 'fas fa-check';
-                timeSpan.textContent = `${duration}s`;
+                timeSpan.textContent = formatDuration(durationSeconds);
+
+                // Update total time counter
+                updateTotalTime();
 
                 if (elements.lastUpdatedText) {
                     elements.lastUpdatedText.textContent = lastUpdated;

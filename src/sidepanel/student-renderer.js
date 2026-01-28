@@ -350,6 +350,7 @@ export async function renderMasterList(rawEntries, onStudentClick) {
         li.setAttribute('data-missing', data.missing);
         li.setAttribute('data-days', data.daysOut);
         li.setAttribute('data-created', data.created_at || '');
+        li.setAttribute('data-campus', rawEntry.campus || '');
 
         let heatmapClass = data.daysOut > 10 ? 'heatmap-red' : (data.daysOut > 5 ? 'heatmap-orange' : (data.daysOut > 2 ? 'heatmap-yellow' : 'heatmap-green'));
 
@@ -455,16 +456,51 @@ export async function renderMasterList(rawEntries, onStudentClick) {
 }
 
 /**
+ * Applies all filters (search term and campus) to the master list
+ * This unified function ensures both filters work together
+ */
+export function applyMasterListFilters() {
+    const searchTerm = (elements.masterSearch?.value || '').toLowerCase();
+    const selectedCampus = elements.campusFilter?.value || '';
+    const listItems = elements.masterList.querySelectorAll('li.expandable');
+
+    let visibleCount = 0;
+    listItems.forEach(li => {
+        const name = li.getAttribute('data-name').toLowerCase();
+        const campus = li.getAttribute('data-campus') || '';
+
+        const matchesSearch = name.includes(searchTerm);
+        const matchesCampus = !selectedCampus || campus === selectedCampus;
+
+        const isVisible = matchesSearch && matchesCampus;
+        li.style.display = isVisible ? 'flex' : 'none';
+        if (isVisible) visibleCount++;
+    });
+
+    // Update the displayed count to show filtered count
+    if (elements.totalCountText) {
+        const totalCount = listItems.length;
+        if (searchTerm || selectedCampus) {
+            elements.totalCountText.textContent = `Showing ${visibleCount} of ${totalCount} Students`;
+        } else {
+            elements.totalCountText.textContent = `Total Students: ${totalCount}`;
+        }
+    }
+}
+
+/**
  * Filters the master list based on search term
  * @param {Event} e - Input event
  */
 export function filterMasterList(e) {
-    const term = e.target.value.toLowerCase();
-    const listItems = elements.masterList.querySelectorAll('li.expandable');
-    listItems.forEach(li => {
-        const name = li.getAttribute('data-name').toLowerCase();
-        li.style.display = name.includes(term) ? 'flex' : 'none';
-    });
+    applyMasterListFilters();
+}
+
+/**
+ * Filters the master list based on campus selection
+ */
+export function filterByCampus() {
+    applyMasterListFilters();
 }
 
 /**
