@@ -256,7 +256,8 @@ function addConsoleMessage(type, args) {
     if (!elements.consoleContent) return;
 
     const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-    const message = Array.from(args).map(arg => {
+    const argsArray = args ? (Array.isArray(args) ? args : [args]) : [];
+    const message = argsArray.map(arg => {
         if (typeof arg === 'object') {
             try {
                 return JSON.stringify(arg, null, 2);
