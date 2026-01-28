@@ -1,6 +1,6 @@
 // Modal Manager - Handles all modal dialogs (scan filter, queue, version history)
 import { STORAGE_KEYS, CANVAS_DOMAIN, FIVE9_CONNECTION_STATES, EXTENSION_STATES } from '../constants/index.js';
-import { storageGet, storageSet, storageGetValue } from '../utils/storage.js';
+import { storageGet, storageSet, storageGetValue, sessionGetValue } from '../utils/storage.js';
 import { elements } from './ui-manager.js';
 import { resolveStudentData } from './student-renderer.js';
 
@@ -807,8 +807,8 @@ export async function updateCanvasStatus() {
                 elements.startBtn.style.cursor = 'pointer';
             }
             if (elements.statusText) {
-                // Check if scanner is currently running before overwriting status
-                const currentState = await storageGetValue(STORAGE_KEYS.EXTENSION_STATE, EXTENSION_STATES.OFF);
+                // Check if scanner is currently running before overwriting status (use session storage)
+                const currentState = await sessionGetValue(STORAGE_KEYS.EXTENSION_STATE, EXTENSION_STATES.OFF);
                 const isCurrentlyScanning = currentState === EXTENSION_STATES.ON;
 
                 // Remove link styling

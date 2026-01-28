@@ -1,6 +1,6 @@
 // Sidepanel Main - Orchestrates all modules and manages app lifecycle
 import { STORAGE_KEYS, EXTENSION_STATES, MESSAGE_TYPES, GUIDES, UI_FEATURES } from '../constants/index.js';
-import { storageGet, storageSet, storageGetValue, migrateStorage } from '../utils/storage.js';
+import { storageGet, storageSet, storageGetValue, migrateStorage, sessionGet, sessionSet, sessionGetValue } from '../utils/storage.js';
 import { hasDispositionCode } from '../constants/dispositions.js';
 import { getCacheStats, clearAllCache } from '../utils/canvasCache.js';
 import { loadAndRenderMarkdown } from '../utils/markdownRenderer.js';
@@ -153,8 +153,8 @@ async function initializeApp() {
     // Initialize queue manager
     queueManager = new QueueManager(callManager);
 
-    // Ensure checker is stopped when side panel opens
-    await storageSet({ [STORAGE_KEYS.EXTENSION_STATE]: EXTENSION_STATES.OFF });
+    // Ensure checker is stopped when side panel opens (use session storage)
+    await sessionSet({ [STORAGE_KEYS.EXTENSION_STATE]: EXTENSION_STATES.OFF });
 
     setupEventListeners();
     initializeCallControlButtons();
@@ -1031,11 +1031,11 @@ async function handleUpdateMasterList() {
  * Loads data from storage and updates UI
  */
 async function loadStorageData() {
+    // Load from local storage (persistent settings)
     const data = await storageGet([
         STORAGE_KEYS.FOUND_ENTRIES,
         STORAGE_KEYS.MASTER_ENTRIES,
         STORAGE_KEYS.LAST_UPDATED,
-        STORAGE_KEYS.EXTENSION_STATE,
         STORAGE_KEYS.CALL_DEMO,
         STORAGE_KEYS.EMBED_IN_CANVAS,
         STORAGE_KEYS.HIGHLIGHT_COLOR,
@@ -1044,6 +1044,9 @@ async function loadStorageData() {
         STORAGE_KEYS.USE_SPECIFIC_DATE,
         STORAGE_KEYS.SPECIFIC_SUBMISSION_DATE
     ]);
+
+    // Load extension state from session storage (temporary, resets on browser restart)
+    const extensionState = await sessionGetValue(STORAGE_KEYS.EXTENSION_STATE, EXTENSION_STATES.OFF);
 
     const foundEntries = data[STORAGE_KEYS.FOUND_ENTRIES] || [];
     renderFoundList(foundEntries);
@@ -1061,7 +1064,7 @@ async function loadStorageData() {
         elements.lastUpdatedText.textContent = data[STORAGE_KEYS.LAST_UPDATED];
     }
 
-    updateButtonVisuals(data[STORAGE_KEYS.EXTENSION_STATE] || EXTENSION_STATES.OFF);
+    updateButtonVisuals(extensionState);
 
     // Load Call Demo mode (formerly debugMode)
     isDebugMode = data[STORAGE_KEYS.CALL_DEMO] || false;
@@ -1109,27 +1112,20 @@ async function loadStorageData() {
     }
 }
 
-// Storage change listener
-chrome.storage.onChanged.addListener((changes) => {
-    if (changes[STORAGE_KEYS.FOUND_ENTRIES]) {
-        renderFoundList(changes[STORAGE_KEYS.FOUND_ENTRIES].newValue);
-        updateTabBadge('checker', (changes[STORAGE_KEYS.FOUND_ENTRIES].newValue || []).length);
+// Local storage change listener (for persistent data like found/master entries)
+chrome.storage.local.onChanged.addListener((changes) => {
+    if (changes[STORAGE_KEYS.FOUND_ENTRIES] || changes.foundEntries) {
+        const newValue = changes[STORAGE_KEYS.FOUND_ENTRIES]?.newValue || changes.foundEntries?.newValue;
+        renderFoundList(newValue);
+        updateTabBadge('checker', (newValue || []).length);
     }
-    if (changes[STORAGE_KEYS.MASTER_ENTRIES]) {
-        const newMasterEntries = changes[STORAGE_KEYS.MASTER_ENTRIES].newValue || [];
+    if (changes[STORAGE_KEYS.MASTER_ENTRIES] || changes.masterEntries) {
+        const newMasterEntries = changes[STORAGE_KEYS.MASTER_ENTRIES]?.newValue || changes.masterEntries?.newValue || [];
         renderMasterList(newMasterEntries, (entry, li, evt) => {
             queueManager.handleStudentClick(entry, li, evt);
         });
         // Update campus filter when master list changes
         updateCampusFilter(newMasterEntries);
-    }
-    // Handle nested storage structure for EXTENSION_STATE (stored under 'state.extensionState')
-    if (changes.state) {
-        const newState = changes.state.newValue?.extensionState;
-        const oldState = changes.state.oldValue?.extensionState;
-        if (newState !== undefined && newState !== oldState) {
-            updateButtonVisuals(newState);
-        }
     }
 
     // Handle name format toggle changes - re-render all displays
@@ -1158,6 +1154,18 @@ chrome.storage.onChanged.addListener((changes) => {
         // Re-render queue modal if it's open
         if (elements.queueModal && elements.queueModal.style.display !== 'none') {
             queueManager.renderQueue();
+        }
+    }
+});
+
+// Session storage change listener (for EXTENSION_STATE - resets on browser restart)
+chrome.storage.session.onChanged.addListener((changes) => {
+    // Handle nested storage structure for EXTENSION_STATE (stored under 'state.extensionState')
+    if (changes.state) {
+        const newState = changes.state.newValue?.extensionState;
+        const oldState = changes.state.oldValue?.extensionState;
+        if (newState !== undefined && newState !== oldState) {
+            updateButtonVisuals(newState);
         }
     }
 });
@@ -1278,7 +1286,7 @@ async function toggleScanState() {
 
     isScanning = !isScanning;
     const newState = isScanning ? EXTENSION_STATES.ON : EXTENSION_STATES.OFF;
-    await storageSet({ [STORAGE_KEYS.EXTENSION_STATE]: newState });
+    await sessionSet({ [STORAGE_KEYS.EXTENSION_STATE]: newState });
 }
 
 /**

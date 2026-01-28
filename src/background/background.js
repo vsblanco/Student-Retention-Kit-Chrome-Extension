@@ -2,7 +2,7 @@
 // Version: 14.5 - Organized Storage Structure
 import { startLoop, stopLoop, addToFoundUrlCache } from './looper.js';
 import { STORAGE_KEYS, CHECKER_MODES, MESSAGE_TYPES, EXTENSION_STATES, CONNECTION_TYPES, FIVE9_CONNECTION_STATES } from '../constants/index.js';
-import { storageGet, storageSet, storageGetValue, migrateStorage } from '../utils/storage.js';
+import { storageGet, storageSet, storageGetValue, migrateStorage, sessionGet, sessionSet, sessionGetValue } from '../utils/storage.js';
 
 let logBuffer = [];
 const MAX_LOG_BUFFER_SIZE = 100;
@@ -275,7 +275,7 @@ async function onMissingCheckCompleted() {
         payload: finalPayload
     }).catch(() => {});
     
-    await storageSet({ [STORAGE_KEYS.EXTENSION_STATE]: EXTENSION_STATES.OFF });
+    await sessionSet({ [STORAGE_KEYS.EXTENSION_STATE]: EXTENSION_STATES.OFF });
 }
 
 // --- CORE LISTENERS ---
@@ -286,10 +286,13 @@ chrome.commands.onCommand.addListener((command, tab) => {
 });
 chrome.runtime.onStartup.addListener(async () => {
   updateBadge();
-  const state = await storageGetValue(STORAGE_KEYS.EXTENSION_STATE);
+  // Extension state is now in session storage - starts fresh on browser restart
+  const state = await sessionGetValue(STORAGE_KEYS.EXTENSION_STATE, EXTENSION_STATES.OFF);
   handleStateChange(state);
 });
-chrome.storage.onChanged.addListener((changes) => {
+
+// Listen for session storage changes (for EXTENSION_STATE)
+chrome.storage.session.onChanged.addListener((changes) => {
   // Handle nested storage structure for EXTENSION_STATE (stored under 'state.extensionState')
   // The change event reports changes by root key ('state'), not the full nested path
   if (changes.state) {
@@ -299,9 +302,12 @@ chrome.storage.onChanged.addListener((changes) => {
       handleStateChange(newState, oldState);
     }
   }
+});
 
-  // Handle nested storage structure for FOUND_ENTRIES (stored under 'data.foundEntries')
-  if (changes.state || changes.data) {
+// Listen for local storage changes (for FOUND_ENTRIES badge updates)
+chrome.storage.local.onChanged.addListener((changes) => {
+  // Update badge when found entries change
+  if (changes.foundEntries || changes.data) {
     updateBadge();
   }
 });
@@ -825,9 +831,11 @@ async function triggerPowerAutomate(connection, payload) {
 
 // --- STATE & DATA MANAGEMENT ---
 async function updateBadge() {
-  const data = await storageGet([STORAGE_KEYS.EXTENSION_STATE, STORAGE_KEYS.FOUND_ENTRIES]);
-  const state = data[STORAGE_KEYS.EXTENSION_STATE];
-  const foundCount = data[STORAGE_KEYS.FOUND_ENTRIES]?.length || 0;
+  // Get extension state from session storage, found entries from local storage
+  const stateData = await sessionGet([STORAGE_KEYS.EXTENSION_STATE]);
+  const localData = await storageGet([STORAGE_KEYS.FOUND_ENTRIES]);
+  const state = stateData[STORAGE_KEYS.EXTENSION_STATE];
+  const foundCount = localData[STORAGE_KEYS.FOUND_ENTRIES]?.length || 0;
 
   if (state === EXTENSION_STATES.ON) {
     chrome.action.setBadgeBackgroundColor({ color: '#0052cc' });
@@ -961,6 +969,7 @@ chrome.tabs.onRemoved.addListener(async (tabId, removeInfo) => {
 // --- INITIALIZATION ---
 (async () => {
     await updateBadge();
-    const state = await storageGetValue(STORAGE_KEYS.EXTENSION_STATE);
+    // Extension state is now in session storage - will be OFF on fresh browser start
+    const state = await sessionGetValue(STORAGE_KEYS.EXTENSION_STATE, EXTENSION_STATES.OFF);
     handleStateChange(state);
 })();
