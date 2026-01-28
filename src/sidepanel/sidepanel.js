@@ -57,6 +57,8 @@ import {
     updateFive9Status,
     toggleEmbedHelperModal,
     toggleCanvasCacheModal,
+    togglePowerAutomateEnabled,
+    togglePowerAutomateDebug,
     toggleDebugModeModal,
     toggleSyncActiveStudentModal,
     toggleSendMasterListModal,
@@ -459,6 +461,15 @@ function setupEventListeners() {
 
     if (elements.clearCacheBtnModal) {
         elements.clearCacheBtnModal.addEventListener('click', clearCacheFromModal);
+    }
+
+    // Power Automate Modal Settings
+    if (elements.powerAutomateEnabledToggle) {
+        elements.powerAutomateEnabledToggle.addEventListener('click', togglePowerAutomateEnabled);
+    }
+
+    if (elements.powerAutomateDebugToggle) {
+        elements.powerAutomateDebugToggle.addEventListener('click', togglePowerAutomateDebug);
     }
 
     // Five9 Modal Settings

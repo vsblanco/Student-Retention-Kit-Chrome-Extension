@@ -183,6 +183,8 @@ export function cacheDomElements() {
     elements.powerAutomateUrlInput = document.getElementById('powerAutomateUrlInput');
     elements.powerAutomateStatusText = document.getElementById('powerAutomateStatusText');
     elements.powerAutomateStatusDot = document.getElementById('powerAutomateStatusDot');
+    elements.powerAutomateEnabledToggle = document.getElementById('powerAutomateEnabledToggle');
+    elements.powerAutomateDebugToggle = document.getElementById('powerAutomateDebugToggle');
     elements.canvasStatusText = document.getElementById('canvasStatusText');
     elements.canvasStatusDot = document.getElementById('canvasStatusDot');
     elements.five9StatusText = document.getElementById('five9StatusText');

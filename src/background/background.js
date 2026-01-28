@@ -68,10 +68,66 @@ async function onSubmissionFound(entry) {
     await addStudentToFoundList(entry);
     await sendConnectionPings(entry);
     await sendHighlightStudentRowPayload(entry);
+    await sendPowerAutomateRequest(entry);
 
     const logPayload = { type: 'SUBMISSION', ...entry };
     addToLogBuffer('log', logPayload);
     chrome.runtime.sendMessage({ type: MESSAGE_TYPES.LOG_TO_PANEL, level: 'log', payload: logPayload }).catch(() => {});
+}
+
+/**
+ * Sends HTTP request to Power Automate when a submission is found
+ * @param {Object} entry - The found submission entry
+ */
+async function sendPowerAutomateRequest(entry) {
+    try {
+        // Get Power Automate settings
+        const settings = await storageGet([
+            STORAGE_KEYS.POWER_AUTOMATE_URL,
+            STORAGE_KEYS.POWER_AUTOMATE_ENABLED,
+            STORAGE_KEYS.POWER_AUTOMATE_DEBUG
+        ]);
+
+        const url = settings[STORAGE_KEYS.POWER_AUTOMATE_URL];
+        const enabled = settings[STORAGE_KEYS.POWER_AUTOMATE_ENABLED];
+        const debug = settings[STORAGE_KEYS.POWER_AUTOMATE_DEBUG];
+
+        // Skip if not enabled or no URL configured
+        if (!enabled || !url || !url.trim()) {
+            return;
+        }
+
+        // Build payload
+        const payload = {
+            name: entry.name || '',
+            assignment: entry.assignment || '',
+            url: entry.url || ''
+        };
+
+        // Add debug flag if debug mode is enabled
+        if (debug) {
+            payload.debug = true;
+        }
+
+        console.log('%c [Power Automate] Sending HTTP request', 'background: #0078D4; color: white; font-weight: bold; padding: 2px 4px;', payload);
+
+        // Send HTTP request
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(payload)
+        });
+
+        if (response.ok || response.status === 202) {
+            console.log('%c [Power Automate] Request successful', 'background: #107C10; color: white; font-weight: bold; padding: 2px 4px;');
+        } else {
+            console.warn(`[Power Automate] Request failed with status: ${response.status}`);
+        }
+    } catch (error) {
+        console.error('[Power Automate] Error sending request:', error);
+    }
 }
 
 // Handle found missing assignments (Missing Mode)
