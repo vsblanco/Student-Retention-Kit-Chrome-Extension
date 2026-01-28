@@ -3,6 +3,31 @@ import { STORAGE_KEYS, CANVAS_DOMAIN, GENERIC_AVATAR_URL } from '../constants/in
 import { getCachedData, setCachedData, hasCachedData, getCache } from '../utils/canvasCache.js';
 
 /**
+ * Formats duration - shows minutes when >= 60 seconds
+ * @param {number} seconds - Duration in seconds
+ * @returns {string} Formatted duration string
+ */
+export function formatDuration(seconds) {
+    if (seconds >= 60) {
+        const mins = (seconds / 60).toFixed(1);
+        return `${mins}m`;
+    }
+    return `${seconds.toFixed(1)}s`;
+}
+
+/**
+ * Updates the total time display with current elapsed time
+ */
+export function updateTotalTime() {
+    const queueTotalTimeDiv = document.getElementById('queueTotalTime');
+    if (queueTotalTimeDiv && queueTotalTimeDiv.dataset.processStartTime) {
+        const totalSeconds = (Date.now() - parseInt(queueTotalTimeDiv.dataset.processStartTime)) / 1000;
+        queueTotalTimeDiv.textContent = `Total Time: ${formatDuration(totalSeconds)}`;
+        queueTotalTimeDiv.style.display = 'block';
+    }
+}
+
+/**
  * Preload image for faster rendering
  */
 function preloadImage(url) {
@@ -314,12 +339,15 @@ export async function processStep2(students, renderCallback) {
 
         await chrome.storage.local.set({ [STORAGE_KEYS.MASTER_ENTRIES]: updatedStudents });
 
-        const duration = ((Date.now() - startTime) / 1000).toFixed(1);
+        const durationSeconds = (Date.now() - startTime) / 1000;
         step2.className = 'queue-item completed';
         step2.querySelector('i').className = 'fas fa-check';
-        timeSpan.textContent = `${duration}s`;
+        timeSpan.textContent = formatDuration(durationSeconds);
 
-        console.log(`[Step 2] ✓ Complete in ${duration}s - ${students.length} students processed`);
+        // Update total time counter
+        updateTotalTime();
+
+        console.log(`[Step 2] ✓ Complete in ${formatDuration(durationSeconds)} - ${students.length} students processed`);
 
         if (renderCallback) {
             renderCallback(updatedStudents);
@@ -581,13 +609,16 @@ export async function processStep3(students, renderCallback) {
 
         await chrome.storage.local.set({ [STORAGE_KEYS.MASTER_ENTRIES]: updatedStudents });
 
-        const duration = ((Date.now() - startTime) / 1000).toFixed(1);
+        const durationSeconds = (Date.now() - startTime) / 1000;
         step3.className = 'queue-item completed';
         step3.querySelector('i').className = 'fas fa-check';
-        timeSpan.textContent = `${duration}s`;
+        timeSpan.textContent = formatDuration(durationSeconds);
+
+        // Update total time counter
+        updateTotalTime();
 
         const totalMissing = updatedStudents.reduce((sum, s) => sum + (s.missingCount || 0), 0);
-        console.log(`[Step 3] ✓ Complete in ${duration}s - Found ${totalMissing} total missing assignments`);
+        console.log(`[Step 3] ✓ Complete in ${formatDuration(durationSeconds)} - Found ${totalMissing} total missing assignments`);
 
         if (renderCallback) {
             renderCallback(updatedStudents);
@@ -642,11 +673,13 @@ export async function processStep4(students) {
             if (targetTabId === null) {
                 // User cancelled - skip sending but don't fail
                 console.log('[Step 4] User cancelled Excel instance selection - skipping send');
-                const duration = ((Date.now() - startTime) / 1000).toFixed(1);
+                const durationSeconds = (Date.now() - startTime) / 1000;
                 step4.className = 'queue-item completed';
                 step4.querySelector('i').className = 'fas fa-check';
                 step4.querySelector('.queue-content').innerHTML = '<i class="fas fa-check"></i> Sending List to Excel';
-                timeSpan.textContent = `${duration}s (skipped)`;
+                timeSpan.textContent = `${formatDuration(durationSeconds)} (skipped)`;
+                // Update total time counter
+                updateTotalTime();
                 return students;
             }
         } else {
@@ -657,21 +690,16 @@ export async function processStep4(students) {
 
         await sendMasterListWithMissingAssignmentsToExcel(students, targetTabId);
 
-        const duration = ((Date.now() - startTime) / 1000).toFixed(1);
+        const durationSeconds = (Date.now() - startTime) / 1000;
         step4.className = 'queue-item completed';
         step4.querySelector('i').className = 'fas fa-check';
         step4.querySelector('.queue-content').innerHTML = '<i class="fas fa-check"></i> Sending List to Excel';
-        timeSpan.textContent = `${duration}s`;
+        timeSpan.textContent = formatDuration(durationSeconds);
 
-        console.log(`[Step 4] ✓ Complete in ${duration}s`);
+        console.log(`[Step 4] ✓ Complete in ${formatDuration(durationSeconds)}`);
 
-        // Calculate and display total completion time
-        const queueTotalTimeDiv = document.getElementById('queueTotalTime');
-        if (queueTotalTimeDiv && queueTotalTimeDiv.dataset.processStartTime) {
-            const totalDuration = ((Date.now() - parseInt(queueTotalTimeDiv.dataset.processStartTime)) / 1000).toFixed(1);
-            queueTotalTimeDiv.textContent = `Total Time: ${totalDuration}s`;
-            queueTotalTimeDiv.style.display = 'block';
-        }
+        // Update total time counter (final update)
+        updateTotalTime();
 
         return students;
 

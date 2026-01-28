@@ -13,6 +13,7 @@ import {
     formatDateToMMDDYY
 } from '../constants/index.js';
 import { elements } from './ui-manager.js';
+import { formatDuration, updateTotalTime } from './canvas-integration.js';
 
 /**
  * Sends master list data to Excel via SRK_IMPORT_MASTER_LIST payload
@@ -508,10 +509,12 @@ export function handleFileImport(file, onSuccess) {
     const startTime = Date.now();
 
     // Store the overall process start time for total time calculation
+    // Show total time from the start so user can track overall progress
     const queueTotalTimeDiv = document.getElementById('queueTotalTime');
     if (queueTotalTimeDiv) {
         queueTotalTimeDiv.dataset.processStartTime = startTime;
-        queueTotalTimeDiv.style.display = 'none'; // Hide until complete
+        queueTotalTimeDiv.textContent = 'Total Time: 0.0s';
+        queueTotalTimeDiv.style.display = 'block';
     }
 
     const isCSV = file.name.toLowerCase().endsWith('.csv');
@@ -553,10 +556,13 @@ export function handleFileImport(file, onSuccess) {
                 [STORAGE_KEYS.LAST_UPDATED]: lastUpdated,
                 [STORAGE_KEYS.REFERENCE_DATE]: referenceDate ? referenceDate.toISOString() : null
             }, async () => {
-                const duration = ((Date.now() - startTime) / 1000).toFixed(1);
+                const durationSeconds = (Date.now() - startTime) / 1000;
                 step1.className = 'queue-item completed';
                 step1.querySelector('i').className = 'fas fa-check';
-                timeSpan.textContent = `${duration}s`;
+                timeSpan.textContent = formatDuration(durationSeconds);
+
+                // Update total time counter
+                updateTotalTime();
 
                 if (elements.lastUpdatedText) {
                     elements.lastUpdatedText.textContent = lastUpdated;
