@@ -723,14 +723,4 @@ if (window.hasSRKConnectorRun) {
       }
       return true; // Keep channel open for async response
   });
-
-  // Periodically announce presence to extension
-  setInterval(() => {
-      chrome.runtime.sendMessage({
-          type: "SRK_CONNECTOR_HEARTBEAT",
-          timestamp: Date.now()
-      }).catch(() => {
-          // Silently fail if extension is not available
-      });
-  }, 5000); // Every 5 seconds
 }

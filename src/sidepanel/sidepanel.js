@@ -256,7 +256,8 @@ function addConsoleMessage(type, args) {
     if (!elements.consoleContent) return;
 
     const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-    const message = Array.from(args).map(arg => {
+    const argsArray = args ? (Array.isArray(args) ? args : [args]) : [];
+    const message = argsArray.map(arg => {
         if (typeof arg === 'object') {
             try {
                 return JSON.stringify(arg, null, 2);
@@ -1075,8 +1076,13 @@ chrome.storage.onChanged.addListener((changes) => {
             queueManager.handleStudentClick(entry, li, evt);
         });
     }
-    if (changes[STORAGE_KEYS.EXTENSION_STATE]) {
-        updateButtonVisuals(changes[STORAGE_KEYS.EXTENSION_STATE].newValue);
+    // Handle nested storage structure for EXTENSION_STATE (stored under 'state.extensionState')
+    if (changes.state) {
+        const newState = changes.state.newValue?.extensionState;
+        const oldState = changes.state.oldValue?.extensionState;
+        if (newState !== undefined && newState !== oldState) {
+            updateButtonVisuals(newState);
+        }
     }
 
     // Handle name format toggle changes - re-render all displays

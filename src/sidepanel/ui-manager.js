@@ -185,6 +185,8 @@ export function cacheDomElements() {
     elements.powerAutomateStatusDot = document.getElementById('powerAutomateStatusDot');
     elements.powerAutomateEnabledToggle = document.getElementById('powerAutomateEnabledToggle');
     elements.powerAutomateDebugToggle = document.getElementById('powerAutomateDebugToggle');
+    elements.powerAutomateSettingsContainer = document.getElementById('powerAutomateSettingsContainer');
+    elements.powerAutomateDebugContainer = document.getElementById('powerAutomateDebugContainer');
     elements.canvasStatusText = document.getElementById('canvasStatusText');
     elements.canvasStatusDot = document.getElementById('canvasStatusDot');
     elements.five9StatusText = document.getElementById('five9StatusText');
