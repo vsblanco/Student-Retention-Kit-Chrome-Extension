@@ -655,7 +655,36 @@ export async function processStep4(students) {
 
         // Dynamically import to avoid circular dependency
         const { sendMasterListWithMissingAssignmentsToExcel } = await import('./file-handler.js');
-        const { getExcelTabs, openExcelInstanceModal } = await import('./modal-manager.js');
+        const { getExcelTabs, openExcelInstanceModal, getCampusesFromStudents, openCampusSelectionModal } = await import('./modal-manager.js');
+
+        // Check if there are multiple campuses - if so, show campus selection modal
+        let studentsToSend = students;
+        const campuses = getCampusesFromStudents(students);
+
+        if (campuses.length > 1) {
+            console.log(`[Step 4] Multiple campuses detected (${campuses.length}) - showing selection modal`);
+            const selectedCampus = await openCampusSelectionModal(campuses);
+
+            if (selectedCampus === null) {
+                // User cancelled - skip sending but don't fail
+                console.log('[Step 4] User cancelled campus selection - skipping send');
+                const durationSeconds = (Date.now() - startTime) / 1000;
+                step4.className = 'queue-item completed';
+                step4.querySelector('i').className = 'fas fa-check';
+                step4.querySelector('.queue-content').innerHTML = '<i class="fas fa-check"></i> Sending List to Excel';
+                timeSpan.textContent = `${formatDuration(durationSeconds)} (skipped)`;
+                updateTotalTime();
+                return students;
+            }
+
+            // Filter students by selected campus (empty string means all)
+            if (selectedCampus !== '') {
+                studentsToSend = students.filter(s => s.campus === selectedCampus);
+                console.log(`[Step 4] Filtered to ${studentsToSend.length} students from campus: ${selectedCampus}`);
+            } else {
+                console.log(`[Step 4] Sending all ${students.length} students from all campuses`);
+            }
+        }
 
         // Check how many Excel tabs are open
         const excelTabs = await getExcelTabs();
@@ -688,7 +717,7 @@ export async function processStep4(students) {
             console.log(`[Step 4] Single Excel tab detected - sending to tab ${targetTabId}`);
         }
 
-        await sendMasterListWithMissingAssignmentsToExcel(students, targetTabId);
+        await sendMasterListWithMissingAssignmentsToExcel(studentsToSend, targetTabId);
 
         const durationSeconds = (Date.now() - startTime) / 1000;
         step4.className = 'queue-item completed';
