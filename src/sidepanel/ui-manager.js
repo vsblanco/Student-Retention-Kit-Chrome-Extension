@@ -148,6 +148,12 @@ export function cacheDomElements() {
     elements.excelInstanceList = document.getElementById('excelInstanceList');
     elements.excelInstanceMessage = document.getElementById('excelInstanceMessage');
 
+    // Campus Selection Modal
+    elements.campusSelectionModal = document.getElementById('campusSelectionModal');
+    elements.closeCampusSelectionBtn = document.getElementById('closeCampusSelectionBtn');
+    elements.campusSelectionList = document.getElementById('campusSelectionList');
+    elements.campusSelectionMessage = document.getElementById('campusSelectionMessage');
+
     // Connections Modal
     elements.connectionsModal = document.getElementById('connectionsModal');
     elements.closeConnectionsBtn = document.getElementById('closeConnectionsBtn');

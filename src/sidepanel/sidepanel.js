@@ -73,7 +73,10 @@ import {
     closeDailyUpdateModal,
     getExcelTabs,
     openExcelInstanceModal,
-    closeExcelInstanceModal
+    closeExcelInstanceModal,
+    getCampusesFromStudents,
+    openCampusSelectionModal,
+    closeCampusSelectionModal
 } from './modal-manager.js';
 
 import { QueueManager } from './queue-manager.js';
@@ -592,6 +595,11 @@ function setupEventListeners() {
         elements.closeExcelInstanceBtn.addEventListener('click', () => closeExcelInstanceModal(null));
     }
 
+    // Campus Selection Modal
+    if (elements.closeCampusSelectionBtn) {
+        elements.closeCampusSelectionBtn.addEventListener('click', () => closeCampusSelectionModal(null));
+    }
+
     // Modal outside click handlers
     window.addEventListener('click', (e) => {
         if (elements.scanFilterModal && e.target === elements.scanFilterModal) {
@@ -608,6 +616,9 @@ function setupEventListeners() {
         }
         if (elements.excelInstanceModal && e.target === elements.excelInstanceModal) {
             closeExcelInstanceModal(null);
+        }
+        if (elements.campusSelectionModal && e.target === elements.campusSelectionModal) {
+            closeCampusSelectionModal(null);
         }
     });
 
@@ -716,6 +727,26 @@ function setupEventListeners() {
                 return;
             }
 
+            // Check if there are multiple campuses - if so, show campus selection modal
+            let studentsToSend = students;
+            const campuses = getCampusesFromStudents(students);
+
+            if (campuses.length > 1) {
+                const selectedCampus = await openCampusSelectionModal(campuses);
+
+                // User cancelled
+                if (selectedCampus === null) {
+                    console.log('User cancelled campus selection');
+                    return;
+                }
+
+                // Filter students by selected campus (empty string means all)
+                if (selectedCampus !== '') {
+                    studentsToSend = students.filter(s => s.campus === selectedCampus);
+                    console.log(`Filtered to ${studentsToSend.length} students from campus: ${selectedCampus}`);
+                }
+            }
+
             // Check how many Excel tabs are open
             const excelTabs = await getExcelTabs();
 
@@ -741,14 +772,14 @@ function setupEventListeners() {
             }
 
             // Check if any students have missing assignments data
-            const hasMissingAssignments = students.some(s => s.missingAssignments && s.missingAssignments.length > 0);
+            const hasMissingAssignments = studentsToSend.some(s => s.missingAssignments && s.missingAssignments.length > 0);
 
             // Send to Excel - use the appropriate function based on whether we have missing assignments
             if (hasMissingAssignments) {
-                await sendMasterListWithMissingAssignmentsToExcel(students, targetTabId);
+                await sendMasterListWithMissingAssignmentsToExcel(studentsToSend, targetTabId);
                 console.log(`Manually sent master list with missing assignments to Excel tab ${targetTabId}`);
             } else {
-                await sendMasterListToExcel(students, targetTabId);
+                await sendMasterListToExcel(studentsToSend, targetTabId);
                 console.log(`Manually sent master list to Excel tab ${targetTabId}`);
             }
         });
