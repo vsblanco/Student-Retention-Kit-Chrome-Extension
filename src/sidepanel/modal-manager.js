@@ -698,6 +698,9 @@ export async function saveConnectionsSettings() {
     // Save all settings
     await storageSet(settingsToSave);
 
+    // Update Five9 status to reflect Call Demo mode change
+    updateFive9Status();
+
     // Close modal after saving
     closeConnectionsModal();
 }
@@ -978,6 +981,20 @@ export async function updateFive9Status() {
     if (!elements.five9StatusText) return;
 
     try {
+        // Check if Call Demo mode is enabled
+        const callDemoEnabled = await storageGetValue(STORAGE_KEYS.CALL_DEMO, false);
+
+        if (callDemoEnabled) {
+            // Demo mode - show demo status instead of Five9 connection
+            elements.five9StatusText.textContent = 'Demo Mode';
+            elements.five9StatusText.style.color = '#8b5cf6'; // Purple for demo
+            if (elements.five9StatusDot) {
+                elements.five9StatusDot.style.backgroundColor = '#8b5cf6';
+                elements.five9StatusDot.title = 'Call Demo mode is active - Five9 connection not required';
+            }
+            return;
+        }
+
         // Check Five9 tab status
         const five9Tabs = await chrome.tabs.query({ url: "https://app-atl.five9.com/*" });
 
