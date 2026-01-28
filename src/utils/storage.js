@@ -339,3 +339,110 @@ export async function resetMigration() {
 
 // Export legacy key map for reference
 export { LEGACY_KEY_MAP };
+
+// ============================================================================
+// SESSION STORAGE FUNCTIONS
+// For temporary state that should not persist across browser restarts
+// Used primarily for EXTENSION_STATE to prevent "stuck on" state after crash
+// ============================================================================
+
+/**
+ * Reads values from session storage, handling nested paths.
+ * @param {string|string[]} keys - Storage key(s) to read (can be nested paths)
+ * @returns {Promise<object>} Object with values keyed by the original paths
+ */
+export async function sessionGet(keys) {
+    const keyArray = Array.isArray(keys) ? keys : [keys];
+
+    // Group keys by their root
+    const rootKeys = new Set();
+    const flatKeys = [];
+
+    for (const key of keyArray) {
+        if (isNestedPath(key)) {
+            rootKeys.add(getRootKey(key));
+        } else {
+            flatKeys.push(key);
+        }
+    }
+
+    // Fetch all root keys and flat keys from session storage
+    const allKeys = [...rootKeys, ...flatKeys];
+    const rawData = await chrome.storage.session.get(allKeys);
+
+    // Build result object with values at original paths
+    const result = {};
+
+    for (const key of keyArray) {
+        if (isNestedPath(key)) {
+            const rootKey = getRootKey(key);
+            const pathWithinRoot = key.substring(rootKey.length + 1);
+            const value = getNestedValue(rawData[rootKey], pathWithinRoot);
+            result[key] = value;
+        } else {
+            result[key] = rawData[key];
+        }
+    }
+
+    return result;
+}
+
+/**
+ * Writes values to session storage, handling nested paths.
+ * @param {object} data - Object with keys as storage paths and values to set
+ * @returns {Promise<void>}
+ */
+export async function sessionSet(data) {
+    // Group by root key to batch nested updates
+    const rootUpdates = {};
+    const flatUpdates = {};
+
+    for (const [key, value] of Object.entries(data)) {
+        if (isNestedPath(key)) {
+            const rootKey = getRootKey(key);
+            if (!rootUpdates[rootKey]) {
+                rootUpdates[rootKey] = [];
+            }
+            rootUpdates[rootKey].push({ path: key, value });
+        } else {
+            flatUpdates[key] = value;
+        }
+    }
+
+    // For nested updates, fetch current root objects, update them, and write back
+    if (Object.keys(rootUpdates).length > 0) {
+        const rootKeys = Object.keys(rootUpdates);
+        const currentRoots = await chrome.storage.session.get(rootKeys);
+
+        for (const rootKey of rootKeys) {
+            const rootObj = currentRoots[rootKey] || {};
+
+            for (const { path, value } of rootUpdates[rootKey]) {
+                const pathWithinRoot = path.substring(rootKey.length + 1);
+                setNestedValue(rootObj, pathWithinRoot, value);
+            }
+
+            flatUpdates[rootKey] = rootObj;
+        }
+    }
+
+    // Write all updates to session storage
+    if (Object.keys(flatUpdates).length > 0) {
+        await chrome.storage.session.set(flatUpdates);
+    }
+}
+
+/**
+ * Gets a single value from session storage with a default fallback.
+ * @param {string} key - Storage key (can be nested path)
+ * @param {*} defaultValue - Default value if key doesn't exist
+ * @returns {Promise<*>} The stored value or default
+ */
+export async function sessionGetValue(key, defaultValue = undefined) {
+    const result = await sessionGet([key]);
+    const value = result[key];
+    if (value === undefined) {
+        return defaultValue;
+    }
+    return value;
+}

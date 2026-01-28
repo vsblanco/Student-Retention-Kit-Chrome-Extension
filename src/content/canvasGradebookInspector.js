@@ -19,32 +19,36 @@
 
   // Helper to get value from nested storage structure
   // Checks new nested path first, then falls back to legacy flat key
-  function getSettingValue(data, key, defaultValue) {
+  // Note: extensionState is now stored in session storage (resets on browser restart)
+  function getSettingValue(localData, sessionData, key, defaultValue) {
       // Check nested paths first
       if (key === 'embedInCanvas') {
-          if (data.settings?.canvas?.embedInCanvas !== undefined) {
-              return data.settings.canvas.embedInCanvas;
+          if (localData.settings?.canvas?.embedInCanvas !== undefined) {
+              return localData.settings.canvas.embedInCanvas;
           }
       } else if (key === 'highlightColor') {
-          if (data.settings?.canvas?.highlightColor !== undefined) {
-              return data.settings.canvas.highlightColor;
+          if (localData.settings?.canvas?.highlightColor !== undefined) {
+              return localData.settings.canvas.highlightColor;
           }
       } else if (key === 'extensionState') {
-          if (data.state?.extensionState !== undefined) {
-              return data.state.extensionState;
+          // Extension state is in session storage
+          if (sessionData?.state?.extensionState !== undefined) {
+              return sessionData.state.extensionState;
           }
       }
-      // Fall back to legacy flat key
-      return data[key] !== undefined ? data[key] : defaultValue;
+      // Fall back to legacy flat key in local storage
+      return localData[key] !== undefined ? localData[key] : defaultValue;
   }
 
-  // FETCH SETTINGS - get both new nested structure and legacy flat keys
-  const data = await chrome.storage.local.get(['settings', 'state', ...Object.values(FLAT_KEYS)]);
+  // FETCH SETTINGS - get from local storage (persistent settings)
+  const localData = await chrome.storage.local.get(['settings', ...Object.values(FLAT_KEYS)]);
+  // FETCH STATE - get from session storage (temporary, resets on browser restart)
+  const sessionData = await chrome.storage.session.get(['state']);
 
   // [CRITICAL FIX] Check if Embed In Canvas is enabled.
   // If false or undefined, default to TRUE (or FALSE depending on preference).
   // Assuming default is true based on previous context, but strictly respecting the toggle.
-  const isEnabled = getSettingValue(data, 'embedInCanvas', true);
+  const isEnabled = getSettingValue(localData, sessionData, 'embedInCanvas', true);
 
   // If explicitly set to false, stop execution.
   if (isEnabled === false) {
@@ -52,10 +56,10 @@
       return;
   }
 
-  const highlightColor = getSettingValue(data, 'highlightColor', '#ffff00');
-  const customKeyword = getSettingValue(data, 'customKeyword', '');
-  const useSpecificDate = getSettingValue(data, 'useSpecificDate', false);
-  const specificDate = getSettingValue(data, 'specificSubmissionDate', null);
+  const highlightColor = getSettingValue(localData, sessionData, 'highlightColor', '#ffff00');
+  const customKeyword = getSettingValue(localData, sessionData, 'customKeyword', '');
+  const useSpecificDate = getSettingValue(localData, sessionData, 'useSpecificDate', false);
+  const specificDate = getSettingValue(localData, sessionData, 'specificSubmissionDate', null);
 
   // Determine Keyword
   let searchKeyword;
