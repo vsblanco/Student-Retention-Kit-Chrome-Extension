@@ -1075,8 +1075,13 @@ chrome.storage.onChanged.addListener((changes) => {
             queueManager.handleStudentClick(entry, li, evt);
         });
     }
-    if (changes[STORAGE_KEYS.EXTENSION_STATE]) {
-        updateButtonVisuals(changes[STORAGE_KEYS.EXTENSION_STATE].newValue);
+    // Handle nested storage structure for EXTENSION_STATE (stored under 'state.extensionState')
+    if (changes.state) {
+        const newState = changes.state.newValue?.extensionState;
+        const oldState = changes.state.oldValue?.extensionState;
+        if (newState !== undefined && newState !== oldState) {
+            updateButtonVisuals(newState);
+        }
     }
 
     // Handle name format toggle changes - re-render all displays
