@@ -1,6 +1,13 @@
 # Student Retention Kit
 
-**Version 10.3** | Last Updated: January 27th, 2026
+**Version 10.3** | Last Updated: January 28th, 2026
+
+## Latest Updates
+
+- Optimized storage handling with over 6k students
+- Integrated Power Automate HTTP Request Feature
+- Organized chrome local storage for better debugging
+- Minor UI Improvements
 
 ## Overview
 
