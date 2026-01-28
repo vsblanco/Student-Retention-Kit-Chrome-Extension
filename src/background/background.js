@@ -738,18 +738,48 @@ async function sendHighlightStudentRowPayload(entry) {
 
     console.log('[SRK] Sending highlight student row payload:', payload);
 
-    // Send to all Excel tabs
+    // Check if a specific target tab was selected
+    const targetTabId = await storageGetValue(STORAGE_KEYS.HIGHLIGHT_TARGET_TAB_ID, null);
+
     try {
-        const tabs = await chrome.tabs.query({ url: TARGET_URL_PATTERNS });
-        for (const tab of tabs) {
+        if (targetTabId) {
+            // Send to specific selected tab
             try {
-                await chrome.tabs.sendMessage(tab.id, {
+                await chrome.tabs.sendMessage(targetTabId, {
                     action: 'postToPage',
                     message: payload
                 });
-                console.log(`[SRK] Sent highlight payload to tab ${tab.id}`);
+                console.log(`[SRK] Sent highlight payload to selected tab ${targetTabId}`);
             } catch (err) {
-                console.warn(`[SRK] Failed to send highlight payload to tab ${tab.id}:`, err.message);
+                console.warn(`[SRK] Failed to send highlight payload to selected tab ${targetTabId}:`, err.message);
+                // Fallback: try sending to all tabs if the selected tab fails
+                console.log('[SRK] Falling back to all Excel tabs...');
+                const tabs = await chrome.tabs.query({ url: TARGET_URL_PATTERNS });
+                for (const tab of tabs) {
+                    try {
+                        await chrome.tabs.sendMessage(tab.id, {
+                            action: 'postToPage',
+                            message: payload
+                        });
+                        console.log(`[SRK] Sent highlight payload to tab ${tab.id}`);
+                    } catch (tabErr) {
+                        console.warn(`[SRK] Failed to send highlight payload to tab ${tab.id}:`, tabErr.message);
+                    }
+                }
+            }
+        } else {
+            // No specific tab selected, send to all Excel tabs
+            const tabs = await chrome.tabs.query({ url: TARGET_URL_PATTERNS });
+            for (const tab of tabs) {
+                try {
+                    await chrome.tabs.sendMessage(tab.id, {
+                        action: 'postToPage',
+                        message: payload
+                    });
+                    console.log(`[SRK] Sent highlight payload to tab ${tab.id}`);
+                } catch (err) {
+                    console.warn(`[SRK] Failed to send highlight payload to tab ${tab.id}:`, err.message);
+                }
             }
         }
     } catch (err) {

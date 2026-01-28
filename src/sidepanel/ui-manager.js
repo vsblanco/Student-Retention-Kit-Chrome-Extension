@@ -47,38 +47,28 @@ export function cacheDomElements() {
     if (contactTab) {
         elements.contactCard = contactTab.querySelector('.setting-card');
 
-        // --- INJECT PLACEHOLDER ---
-        let placeholder = document.getElementById('contactPlaceholder');
-        if (!placeholder) {
-            placeholder = document.createElement('div');
-            placeholder.id = 'contactPlaceholder';
-            placeholder.style.cssText = 'display:none; flex-direction:column; align-items:center; justify-content:flex-start; padding-top:80px; height:100%; min-height:400px; color:#9ca3af; text-align:center; padding-left:20px; padding-right:20px;';
-            placeholder.innerHTML = `
+        // --- INJECT UNIFIED PLACEHOLDER ---
+        // This placeholder shows different messages based on state priority:
+        // 1. Five9 connection issues (highest priority when student is selected)
+        // 2. No student selected (lowest priority)
+        let callTabPlaceholder = document.getElementById('callTabPlaceholder');
+        if (!callTabPlaceholder) {
+            callTabPlaceholder = document.createElement('div');
+            callTabPlaceholder.id = 'callTabPlaceholder';
+            callTabPlaceholder.style.cssText = 'display:none; flex-direction:column; align-items:center; justify-content:flex-start; padding-top:80px; height:100%; min-height:400px; color:#9ca3af; text-align:center; padding-left:20px; padding-right:20px;';
+            // Default content - will be updated dynamically
+            callTabPlaceholder.innerHTML = `
                 <i class="fas fa-user-graduate" style="font-size:3em; margin-bottom:15px; opacity:0.5;"></i>
                 <span style="font-size:1.1em; font-weight:500;">No Student Selected</span>
                 <span style="font-size:0.9em; margin-top:5px; color:#6b7280;">Select a student from the Master List<br>to view details and make calls.</span>
             `;
-            contactTab.insertBefore(placeholder, contactTab.firstChild);
+            contactTab.insertBefore(callTabPlaceholder, contactTab.firstChild);
         }
-        elements.contactPlaceholder = placeholder;
+        elements.callTabPlaceholder = callTabPlaceholder;
 
-        // --- INJECT FIVE9 CONNECTION INDICATOR ---
-        // Ensure contact tab has position:relative for absolute positioning of overlay
-        contactTab.style.position = 'relative';
-
-        let five9Indicator = document.getElementById('five9ConnectionIndicator');
-        if (!five9Indicator) {
-            five9Indicator = document.createElement('div');
-            five9Indicator.id = 'five9ConnectionIndicator';
-            five9Indicator.style.cssText = 'display:none; position:absolute; top:0; left:0; right:0; bottom:0; flex-direction:column; align-items:center; justify-content:flex-start; padding-top:80px; background-color:rgba(255,255,255,0.98); color:#6b7280; text-align:center; padding-left:20px; padding-right:20px; z-index:100; backdrop-filter:blur(2px); animation:fadeIn 0.3s ease;';
-            five9Indicator.innerHTML = `
-                <i class="fas fa-spinner fa-spin" style="font-size:3em; margin-bottom:15px; opacity:0.4;"></i>
-                <span style="font-size:1.1em; font-weight:500; color:#374151;">Awaiting Five9 tab</span>
-                <span style="font-size:0.9em; margin-top:5px; color:#6b7280;">Please open Five9 in a new tab to continue</span>
-            `;
-            contactTab.insertBefore(five9Indicator, contactTab.firstChild);
-        }
-        elements.five9ConnectionIndicator = five9Indicator;
+        // Legacy references for backwards compatibility
+        elements.contactPlaceholder = callTabPlaceholder;
+        elements.five9ConnectionIndicator = callTabPlaceholder;
 
         // Cache Card Details
         if (elements.contactCard) {
@@ -154,6 +144,7 @@ export function cacheDomElements() {
     elements.excelInstanceModal = document.getElementById('excelInstanceModal');
     elements.closeExcelInstanceBtn = document.getElementById('closeExcelInstanceBtn');
     elements.excelInstanceList = document.getElementById('excelInstanceList');
+    elements.excelInstanceMessage = document.getElementById('excelInstanceMessage');
 
     // Connections Modal
     elements.connectionsModal = document.getElementById('connectionsModal');

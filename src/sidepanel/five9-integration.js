@@ -1,6 +1,7 @@
 // Five9 Integration - Monitors Five9 connection status
 import { STORAGE_KEYS, FIVE9_CONNECTION_STATES } from '../constants/index.js';
 import { elements } from './ui-manager.js';
+import { updateCallTabDisplay } from './call-tab-placeholder.js';
 
 let five9ConnectionCheckInterval = null;
 let lastFive9ConnectionState = FIVE9_CONNECTION_STATES.NO_TAB;
@@ -40,45 +41,21 @@ export async function checkFive9Connection() {
 }
 
 /**
- * Updates the Five9 connection indicator based on connection state
- * Shows different messages for NO_TAB, AWAITING_CONNECTION, and ACTIVE_CONNECTION states
- * Only shows when debug mode is OFF and student is selected
+ * Updates the Call tab display based on Five9 connection state
+ * Uses the unified call-tab-placeholder system for displaying messages
+ * @param {Array} selectedQueue - Currently selected students
+ * @param {boolean} [debugModeOverride] - Optional debug mode override (if not provided, fetches from storage)
  */
-export async function updateFive9ConnectionIndicator(selectedQueue) {
-    if (!elements.five9ConnectionIndicator) return;
-
-    const isDebugMode = await chrome.storage.local.get(STORAGE_KEYS.DEBUG_MODE)
-        .then(data => data[STORAGE_KEYS.DEBUG_MODE] || false);
-
-    const connectionState = await checkFive9Connection();
-    const hasStudentSelected = selectedQueue && selectedQueue.length > 0;
-
-    // Show indicator when debug mode is OFF, student is selected, and connection is not active
-    const shouldShowIndicator = !isDebugMode &&
-                                 hasStudentSelected &&
-                                 connectionState !== FIVE9_CONNECTION_STATES.ACTIVE_CONNECTION;
-
-    // Update indicator content based on state
-    if (elements.five9ConnectionIndicator) {
-        const currentDisplay = elements.five9ConnectionIndicator.style.display;
-        const targetDisplay = shouldShowIndicator ? 'flex' : 'none';
-
-        // Update message based on connection state
-        if (shouldShowIndicator) {
-            const indicatorHTML = connectionState === FIVE9_CONNECTION_STATES.NO_TAB
-                ? '<i class="fas fa-spinner fa-spin"></i> Awaiting Five9 tab'
-                : '<i class="fas fa-spinner fa-spin"></i> Awaiting agent connection';
-
-            elements.five9ConnectionIndicator.innerHTML = indicatorHTML;
-        }
-
-        // Only change display if state is actually changing to prevent re-triggering fade-in animation
-        if (currentDisplay !== targetDisplay) {
-            elements.five9ConnectionIndicator.style.display = targetDisplay;
-        }
+export async function updateFive9ConnectionIndicator(selectedQueue, debugModeOverride = null) {
+    // Get debug mode from storage if not provided
+    let isDebugMode = debugModeOverride;
+    if (isDebugMode === null) {
+        const data = await chrome.storage.local.get(STORAGE_KEYS.CALL_DEMO);
+        isDebugMode = data[STORAGE_KEYS.CALL_DEMO] || false;
     }
 
     // Log connection state changes
+    const connectionState = await checkFive9Connection();
     if (connectionState !== lastFive9ConnectionState) {
         lastFive9ConnectionState = connectionState;
 
@@ -94,6 +71,12 @@ export async function updateFive9ConnectionIndicator(selectedQueue) {
                 break;
         }
     }
+
+    // Use the unified placeholder system to update the display
+    await updateCallTabDisplay({
+        selectedQueue: selectedQueue || [],
+        debugMode: isDebugMode
+    });
 }
 
 /**

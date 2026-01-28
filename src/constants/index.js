@@ -122,6 +122,7 @@ export const STORAGE_KEYS = {
     HIGHLIGHT_EDIT_COLUMN: 'settings.excelAddIn.highlight.editColumn',
     HIGHLIGHT_EDIT_TEXT: 'settings.excelAddIn.highlight.editText',
     HIGHLIGHT_TARGET_SHEET: 'settings.excelAddIn.highlight.targetSheet',
+    HIGHLIGHT_TARGET_TAB_ID: 'highlightTargetTabId', // Selected Excel tab ID for highlight pings
 
     // Power Automate settings (settings.powerAutomate.*)
     POWER_AUTOMATE_URL: 'settings.powerAutomate.url',
