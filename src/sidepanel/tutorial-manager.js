@@ -80,7 +80,6 @@ class TutorialManager {
 
             // Check for Excel connection related messages
             if (message.type === MESSAGE_TYPES.SRK_OFFICE_ADDIN_CONNECTED ||
-                message.type === MESSAGE_TYPES.SRK_CONNECTOR_HEARTBEAT ||
                 message.type === MESSAGE_TYPES.SRK_TASKPANE_PONG) {
 
                 // If we're on the Initial Setup page, update the connection status

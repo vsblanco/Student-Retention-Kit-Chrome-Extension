@@ -86,10 +86,6 @@ function handleConnectorMessage(message) {
             console.log('📊 Excel connector activated');
             break;
 
-        case MESSAGE_TYPES.SRK_CONNECTOR_HEARTBEAT:
-            lastConnectorHeartbeat = now;
-            break;
-
         case MESSAGE_TYPES.SRK_OFFICE_ADDIN_CONNECTED:
             lastOfficeAddinPing = now;
             lastConnectorHeartbeat = now;
