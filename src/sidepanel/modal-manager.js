@@ -1,5 +1,5 @@
 // Modal Manager - Handles all modal dialogs (scan filter, queue, version history)
-import { STORAGE_KEYS, CANVAS_DOMAIN, FIVE9_CONNECTION_STATES } from '../constants/index.js';
+import { STORAGE_KEYS, CANVAS_DOMAIN, FIVE9_CONNECTION_STATES, EXTENSION_STATES } from '../constants/index.js';
 import { storageGet, storageSet, storageGetValue } from '../utils/storage.js';
 import { elements } from './ui-manager.js';
 import { resolveStudentData } from './student-renderer.js';
@@ -807,10 +807,19 @@ export async function updateCanvasStatus() {
                 elements.startBtn.style.cursor = 'pointer';
             }
             if (elements.statusText) {
-                // Remove link styling and restore normal text
-                elements.statusText.textContent = 'Ready to Scan';
+                // Check if scanner is currently running before overwriting status
+                const currentState = await storageGetValue(STORAGE_KEYS.EXTENSION_STATE, EXTENSION_STATES.OFF);
+                const isCurrentlyScanning = currentState === EXTENSION_STATES.ON;
+
+                // Remove link styling
                 elements.statusText.style.textDecoration = 'none';
                 elements.statusText.style.color = '';
+
+                // Only update text if not currently scanning
+                if (!isCurrentlyScanning) {
+                    elements.statusText.textContent = 'Ready to Scan';
+                }
+
                 // Set onclick to toggle mini console when connected
                 elements.statusText.onclick = () => {
                     if (elements.miniConsole) {
