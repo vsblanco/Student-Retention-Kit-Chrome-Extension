@@ -81,3 +81,18 @@ export function getAllVersionsWithNotes() {
         return 0;
     });
 }
+
+/**
+ * Gets the latest release notes entry (most recent version)
+ * @returns {{ version: string, notes: Object } | null} The latest version and its notes, or null if none exist
+ */
+export function getLatestReleaseNotes() {
+    const versions = getAllVersionsWithNotes();
+    if (versions.length === 0) return null;
+
+    const latestVersion = versions[0];
+    return {
+        version: latestVersion,
+        notes: RELEASE_NOTES[latestVersion]
+    };
+}
