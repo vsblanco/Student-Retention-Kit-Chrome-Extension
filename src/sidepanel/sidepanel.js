@@ -347,10 +347,18 @@ function setupEventListeners() {
         elements.headerSettingsBtn.addEventListener('click', () => switchTab('settings'));
     }
 
-    if (elements.versionText) {
-        elements.versionText.addEventListener('click', () => {
+    // Title opens README/About page
+    if (elements.headerTitle) {
+        elements.headerTitle.addEventListener('click', () => {
             switchTab('about');
             loadAboutContent();
+        });
+    }
+
+    // Version text opens Latest Updates modal
+    if (elements.versionText) {
+        elements.versionText.addEventListener('click', () => {
+            openLatestUpdatesModal();
         });
     }
 
