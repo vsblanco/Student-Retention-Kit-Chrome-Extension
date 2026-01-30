@@ -29,6 +29,7 @@ export const RELEASE_NOTES = {
         updates: [
             'Added numerous bug fixes and stababilty',
             'Added support for Power Automate integration',
+			'Created an Excel Instance Modal in case you have multiple Excel tabs open',
             'Included a non api feature for users without API permissions.',
             'Adjusted UI for a more professional and polished look',
             'Improved data management handling with 6k students',
