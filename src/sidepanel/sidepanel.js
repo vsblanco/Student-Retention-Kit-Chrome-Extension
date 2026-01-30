@@ -72,6 +72,9 @@ import {
     shouldShowDailyUpdateModal,
     openDailyUpdateModal,
     closeDailyUpdateModal,
+    shouldShowLatestUpdatesModal,
+    openLatestUpdatesModal,
+    closeLatestUpdatesModal,
     getExcelTabs,
     openExcelInstanceModal,
     closeExcelInstanceModal,
@@ -188,14 +191,24 @@ async function initializeApp() {
     // Send simple SRK_PING to instantly test connection when side panel opens
     await sendConnectionPing();
 
-    // Initialize tutorial manager (must be done before daily update modal)
+    // Initialize tutorial manager (must be done before other modals)
     await tutorialManager.init();
 
-    // Check if daily update modal should be shown (only if tutorial is not active)
+    // Modal priority order (highest to lowest):
+    // 1. Tutorial (blocks all other modals when active)
+    // 2. Latest Updates Modal (shows on version change)
+    // 3. Daily Update Modal (shows once per day)
     if (!tutorialManager.isActiveTutorial()) {
-        const showModal = await shouldShowDailyUpdateModal();
-        if (showModal) {
-            openDailyUpdateModal();
+        // Check for Latest Updates modal first (highest priority after tutorial)
+        const showLatestUpdates = await shouldShowLatestUpdatesModal();
+        if (showLatestUpdates) {
+            openLatestUpdatesModal();
+        } else {
+            // Only show daily update modal if latest updates modal is not shown
+            const showDailyUpdate = await shouldShowDailyUpdateModal();
+            if (showDailyUpdate) {
+                openDailyUpdateModal();
+            }
         }
     }
 
@@ -612,6 +625,15 @@ function setupEventListeners() {
         });
     }
 
+    // Latest Updates Modal
+    if (elements.closeLatestUpdatesBtn) {
+        elements.closeLatestUpdatesBtn.addEventListener('click', closeLatestUpdatesModal);
+    }
+
+    if (elements.latestUpdatesGotItBtn) {
+        elements.latestUpdatesGotItBtn.addEventListener('click', closeLatestUpdatesModal);
+    }
+
     // Excel Instance Modal
     if (elements.closeExcelInstanceBtn) {
         elements.closeExcelInstanceBtn.addEventListener('click', () => closeExcelInstanceModal(null));
@@ -646,6 +668,9 @@ function setupEventListeners() {
         }
         if (elements.dailyUpdateModal && e.target === elements.dailyUpdateModal) {
             closeDailyUpdateModal();
+        }
+        if (elements.latestUpdatesModal && e.target === elements.latestUpdatesModal) {
+            closeLatestUpdatesModal();
         }
         if (elements.excelInstanceModal && e.target === elements.excelInstanceModal) {
             closeExcelInstanceModal(null);
