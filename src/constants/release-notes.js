@@ -23,13 +23,17 @@ export const RELEASE_NOTES = {
     // Add new version entries here (newest first)
     // The key should match the version in manifest.json
 
-    '10.3': {
+    '11.0': {
         title: 'Latest Updates',
         date: 'January 30, 2026',
         updates: [
-            'Added non-API course fetch toggle to Canvas Auth Error modal',
-            'Fixed non-API course fetch toggle not reading setting correctly',
-            'Fixed non-API course fetch bypassing cache check'
+            'Added numerous bug fixes and stababilty',
+            'Added support for Power Automate integration',
+            'Included a non api feature for users without API permissions.',
+            'Adjusted UI for a more professional and polished look',
+            'Improved data management handling with 6k students',
+            'Included a Campus filter in case you import multiple Campus populations',
+            'Added safety guards for the extension to disable if Chrome crashes'
         ]
     }
 
@@ -81,3 +85,4 @@ export function getAllVersionsWithNotes() {
         return 0;
     });
 }
+
