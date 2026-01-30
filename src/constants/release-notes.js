@@ -4,12 +4,13 @@
  * This file contains the release notes for the extension.
  * To add new release notes:
  * 1. Add a new entry with the version number as the key
- * 2. Fill in the title and updates array
+ * 2. Fill in the title, date, and updates array
  * 3. The modal will automatically show when users update to this version
  *
  * Example:
  * '10.4': {
  *     title: 'New Feature Release',
+ *     date: 'February 1, 2026',
  *     updates: [
  *         'Added new feature X',
  *         'Fixed bug Y',
@@ -24,6 +25,7 @@ export const RELEASE_NOTES = {
 
     '10.3': {
         title: 'Latest Updates',
+        date: 'January 30, 2026',
         updates: [
             'Added non-API course fetch toggle to Canvas Auth Error modal',
             'Fixed non-API course fetch toggle not reading setting correctly',
@@ -34,6 +36,7 @@ export const RELEASE_NOTES = {
     // Example of how to add future versions:
     // '10.4': {
     //     title: 'Performance Improvements',
+    //     date: 'February 15, 2026',
     //     updates: [
     //         'Faster master list loading',
     //         'Improved Canvas API caching',

@@ -1598,6 +1598,15 @@ export function openLatestUpdatesModal() {
         elements.latestUpdatesVersion.textContent = `Version ${currentVersion}`;
     }
 
+    // Update the date display
+    if (elements.latestUpdatesDate) {
+        if (releaseNotes.date) {
+            elements.latestUpdatesDate.textContent = `Last Updated: ${releaseNotes.date}`;
+        } else {
+            elements.latestUpdatesDate.style.display = 'none';
+        }
+    }
+
     // Populate the updates list
     if (elements.latestUpdatesList) {
         elements.latestUpdatesList.innerHTML = '';

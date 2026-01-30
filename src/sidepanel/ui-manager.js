@@ -148,6 +148,7 @@ export function cacheDomElements() {
     elements.latestUpdatesGotItBtn = document.getElementById('latestUpdatesGotItBtn');
     elements.latestUpdatesTitle = document.getElementById('latestUpdatesTitle');
     elements.latestUpdatesVersion = document.getElementById('latestUpdatesVersion');
+    elements.latestUpdatesDate = document.getElementById('latestUpdatesDate');
     elements.latestUpdatesList = document.getElementById('latestUpdatesList');
 
     // Excel Instance Modal
