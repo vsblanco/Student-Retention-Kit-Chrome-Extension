@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Student Retention Kit",
-  "version": "10.3",
-  "description": "Automated student submission checking via Canvas API.",
+  "version": "11.0",
+  "description": "Workflow Solution for Identifying At-Risk Students and Outreach.",
   "icons": {
     "16": "icon.png",
     "48": "icon.png",
