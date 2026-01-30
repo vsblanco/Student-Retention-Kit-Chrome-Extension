@@ -5,6 +5,24 @@ import { openCanvasAuthErrorModal, isCanvasAuthError, isCanvasAuthErrorBody } fr
 
 // Track if we've already shown the auth error modal in this session
 let authErrorShownInSession = false;
+// Track if shutdown was requested - persists until process fully stops
+let shutdownRequested = false;
+
+/**
+ * Resets the auth error state - call this when starting a new process
+ */
+export function resetAuthErrorState() {
+    authErrorShownInSession = false;
+    shutdownRequested = false;
+}
+
+/**
+ * Checks if shutdown was requested
+ * @returns {boolean} True if shutdown was requested
+ */
+export function isShutdownRequested() {
+    return shutdownRequested;
+}
 
 /**
  * Custom error class for Canvas auth shutdown
@@ -17,12 +35,27 @@ export class CanvasAuthShutdownError extends Error {
 }
 
 /**
+ * Throws CanvasAuthShutdownError if shutdown was requested
+ * Call this at the start of operations to abort early
+ */
+function checkShutdown() {
+    if (shutdownRequested) {
+        throw new CanvasAuthShutdownError();
+    }
+}
+
+/**
  * Handles Canvas API authorization errors by showing a modal and returning user choice
  * @param {string} context - Context description for logging
  * @returns {Promise<'continue'|'shutdown'>} The user's choice
  */
 async function handleCanvasAuthError(context) {
     console.warn(`[Canvas Integration] Authorization error during ${context}`);
+
+    // If shutdown was already requested, don't show modal again
+    if (shutdownRequested) {
+        return 'shutdown';
+    }
 
     // Prevent multiple modals from stacking
     if (authErrorShownInSession) {
@@ -32,6 +65,11 @@ async function handleCanvasAuthError(context) {
     authErrorShownInSession = true;
     const choice = await openCanvasAuthErrorModal();
     authErrorShownInSession = false;
+
+    // If shutdown selected, set the persistent flag
+    if (choice === 'shutdown') {
+        shutdownRequested = true;
+    }
 
     return choice;
 }
@@ -76,6 +114,9 @@ function preloadImage(url) {
  * @param {boolean} cacheEnabled - Whether to use caching (default: true)
  */
 export async function fetchCanvasDetails(student, cacheEnabled = true) {
+    // Check if shutdown was requested before processing
+    checkShutdown();
+
     if (!student.SyStudentId) return student;
 
     try {
@@ -249,6 +290,9 @@ export async function fetchCanvasDetails(student, cacheEnabled = true) {
  * Uses reverse cache lookup: iterates through cache entries and matches to master list
  */
 export async function processStep2(students, renderCallback) {
+    // Reset auth error state at the start of a new process
+    resetAuthErrorState();
+
     const step2 = document.getElementById('step2');
     const timeSpan = step2.querySelector('.step-time');
 
@@ -336,6 +380,9 @@ export async function processStep2(students, renderCallback) {
         // Process cached students first
         const totalCachedBatches = Math.ceil(cachedStudents.length / BATCH_SIZE);
         for (let i = 0; i < cachedStudents.length; i += BATCH_SIZE) {
+            // Check if shutdown was requested before processing next batch
+            checkShutdown();
+
             const batch = cachedStudents.slice(i, i + BATCH_SIZE);
             const batchNumber = Math.floor(i / BATCH_SIZE) + 1;
 
@@ -374,6 +421,9 @@ export async function processStep2(students, renderCallback) {
 
         const totalUncachedBatches = Math.ceil(uncachedStudents.length / BATCH_SIZE);
         for (let i = 0; i < uncachedStudents.length; i += BATCH_SIZE) {
+            // Check if shutdown was requested before processing next batch
+            checkShutdown();
+
             const batch = uncachedStudents.slice(i, i + BATCH_SIZE);
             const batchNumber = Math.floor(i / BATCH_SIZE) + 1;
 
@@ -468,6 +518,9 @@ function parseGradebookUrl(url) {
  * Fetches paginated data from Canvas API
  */
 async function fetchPaged(url, items = []) {
+    // Check if shutdown was requested before making request
+    checkShutdown();
+
     const headers = {
         'Accept': 'application/json',
         'X-Requested-With': 'XMLHttpRequest'
@@ -597,6 +650,9 @@ function analyzeMissingAssignments(submissions, userObject, studentName, courseI
  * @param {Date} referenceDate - The date to use for checking if assignments are past due
  */
 async function fetchMissingAssignments(student, referenceDate = new Date()) {
+    // Check if shutdown was requested before processing
+    checkShutdown();
+
     // Support both 'url' field and legacy 'Gradebook' field
     const gradebookUrl = student.url || student.Gradebook;
 
@@ -684,6 +740,9 @@ export async function processStep3(students, renderCallback) {
         const totalBatches = Math.ceil(updatedStudents.length / BATCH_SIZE);
 
         for (let i = 0; i < updatedStudents.length; i += BATCH_SIZE) {
+            // Check if shutdown was requested before processing next batch
+            checkShutdown();
+
             const batch = updatedStudents.slice(i, i + BATCH_SIZE);
             const batchNumber = Math.floor(i / BATCH_SIZE) + 1;
 
