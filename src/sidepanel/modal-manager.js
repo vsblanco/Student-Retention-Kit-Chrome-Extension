@@ -1421,11 +1421,37 @@ let canvasAuthErrorResolve = null;
 let canvasAuthErrorShown = false;
 
 /**
+ * Updates the non-API toggle UI in the Canvas Auth Error modal
+ * @param {boolean} isEnabled - Whether non-API course fetch is enabled
+ */
+function updateCanvasAuthNonApiToggleUI(isEnabled) {
+    if (!elements.canvasAuthNonApiToggle) return;
+
+    if (isEnabled) {
+        elements.canvasAuthNonApiToggle.className = 'fas fa-toggle-on';
+        elements.canvasAuthNonApiToggle.style.color = 'var(--primary-color)';
+    } else {
+        elements.canvasAuthNonApiToggle.className = 'fas fa-toggle-off';
+        elements.canvasAuthNonApiToggle.style.color = 'gray';
+    }
+}
+
+/**
+ * Toggles the non-API course fetch setting in the Canvas Auth Error modal
+ */
+export function toggleCanvasAuthNonApi() {
+    if (!elements.canvasAuthNonApiToggle) return;
+
+    const isCurrentlyOn = elements.canvasAuthNonApiToggle.classList.contains('fa-toggle-on');
+    updateCanvasAuthNonApiToggleUI(!isCurrentlyOn);
+}
+
+/**
  * Opens the Canvas Auth Error modal and returns a promise that resolves with the user's choice
  * @returns {Promise<'continue'|'shutdown'>} Promise that resolves with 'continue' or 'shutdown'
  */
-export function openCanvasAuthErrorModal() {
-    return new Promise((resolve) => {
+export async function openCanvasAuthErrorModal() {
+    return new Promise(async (resolve) => {
         // Prevent multiple modals from stacking
         if (canvasAuthErrorShown) {
             resolve('continue'); // Default to continue if already shown
@@ -1440,6 +1466,11 @@ export function openCanvasAuthErrorModal() {
         canvasAuthErrorShown = true;
         canvasAuthErrorResolve = resolve;
 
+        // Load current non-API setting and update toggle UI
+        const settings = await storageGet([STORAGE_KEYS.NON_API_COURSE_FETCH]);
+        const nonApiFetch = settings[STORAGE_KEYS.NON_API_COURSE_FETCH] || false;
+        updateCanvasAuthNonApiToggleUI(nonApiFetch);
+
         // Show modal
         elements.canvasAuthErrorModal.style.display = 'flex';
     });
@@ -1449,7 +1480,16 @@ export function openCanvasAuthErrorModal() {
  * Closes the Canvas Auth Error modal
  * @param {'continue'|'shutdown'} choice - The user's choice
  */
-export function closeCanvasAuthErrorModal(choice = 'continue') {
+export async function closeCanvasAuthErrorModal(choice = 'continue') {
+    // Save the non-API toggle setting if user chose to continue
+    if (choice === 'continue' && elements.canvasAuthNonApiToggle) {
+        const isNonApiEnabled = elements.canvasAuthNonApiToggle.classList.contains('fa-toggle-on');
+        await storageSet({ [STORAGE_KEYS.NON_API_COURSE_FETCH]: isNonApiEnabled });
+        if (isNonApiEnabled) {
+            console.log('[Canvas Auth Error] Non-API course fetch enabled by user');
+        }
+    }
+
     if (elements.canvasAuthErrorModal) {
         elements.canvasAuthErrorModal.style.display = 'none';
     }

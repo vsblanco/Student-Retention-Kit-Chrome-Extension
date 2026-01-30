@@ -807,6 +807,21 @@
                     </ul>
                 </div>
 
+                <!-- Non-API Course Fetch Toggle -->
+                <div style="background: rgba(59, 130, 246, 0.1); border-left: 4px solid var(--primary-color); padding: 15px; border-radius: 0.5rem; margin-bottom: 20px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <div style="font-weight: 600; color: var(--text-main); margin-bottom: 4px;">
+                                <i class="fas fa-globe" style="color: var(--primary-color);"></i> Enable Non-API Course Fetch
+                            </div>
+                            <div style="font-size: 0.85em; color: var(--text-secondary);">
+                                Fetch courses by scraping the Canvas web page instead of using the API
+                            </div>
+                        </div>
+                        <i id="canvasAuthNonApiToggle" class="fas fa-toggle-off" style="color: gray; font-size: 1.8em; cursor: pointer; margin-left: 15px;"></i>
+                    </div>
+                </div>
+
                 <div style="display: flex; gap: 10px;">
                     <button class="btn-secondary" id="canvasAuthContinueBtn" style="flex: 1; padding: 12px;">
                         <i class="fas fa-play"></i> Continue
