@@ -3,6 +3,116 @@ import { STORAGE_KEYS, CANVAS_DOMAIN, GENERIC_AVATAR_URL } from '../constants/in
 import { getCachedData, setCachedData, hasCachedData, getCache } from '../utils/canvasCache.js';
 import { openCanvasAuthErrorModal, isCanvasAuthError, isCanvasAuthErrorBody } from './modal-manager.js';
 
+/**
+ * Fetches courses by scraping the Canvas user profile HTML page
+ * This is a workaround for when the API endpoint is blocked
+ * @param {number|string} canvasUserId - The Canvas user ID
+ * @returns {Promise<Array>} Array of course objects with id, name, start_at, end_at, enrollments
+ */
+async function fetchCoursesFromHtml(canvasUserId) {
+    const profileUrl = `${CANVAS_DOMAIN}/users/${canvasUserId}`;
+    console.log(`[Non-API] Fetching courses from HTML: ${profileUrl}`);
+
+    try {
+        const response = await fetch(profileUrl, {
+            headers: { 'Accept': 'text/html' },
+            credentials: 'include'
+        });
+
+        if (!response.ok) {
+            console.warn(`[Non-API] Failed to fetch user profile page: ${response.status}`);
+            return [];
+        }
+
+        const html = await response.text();
+
+        // Parse the HTML to extract course information
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, 'text/html');
+
+        // Find the courses list
+        const coursesList = doc.querySelector('#courses_list ul.context_list');
+        if (!coursesList) {
+            console.warn('[Non-API] Could not find courses list in HTML');
+            return [];
+        }
+
+        const courseItems = coursesList.querySelectorAll('li');
+        const courses = [];
+
+        courseItems.forEach(li => {
+            const link = li.querySelector('a');
+            if (!link) return;
+
+            const href = link.getAttribute('href');
+            // Extract course ID and user ID from href like "/courses/108968/users/178163"
+            const match = href.match(/\/courses\/(\d+)\/users\/(\d+)/);
+            if (!match) return;
+
+            const courseId = parseInt(match[1], 10);
+
+            // Get course name from the title attribute of the name span
+            const nameSpan = link.querySelector('span.name');
+            const courseName = nameSpan ? (nameSpan.getAttribute('title') || nameSpan.textContent.trim()) : '';
+
+            // Get subtitles - first one has the term/date, second has enrollment status
+            const subtitles = link.querySelectorAll('span.subtitle');
+            let termInfo = '';
+            let enrollmentStatus = '';
+
+            if (subtitles.length >= 1) {
+                termInfo = subtitles[0].textContent.trim();
+            }
+            if (subtitles.length >= 2) {
+                enrollmentStatus = subtitles[1].textContent.trim();
+            }
+
+            // Determine if course is active based on li class or enrollment status
+            const isActive = li.classList.contains('active') || enrollmentStatus.toLowerCase().includes('active');
+            const isCompleted = li.classList.contains('inactive') || enrollmentStatus.toLowerCase().includes('completed');
+            const isPending = li.classList.contains('accepted') || enrollmentStatus.toLowerCase().includes('pending');
+
+            // Extract start date from term info like "FTC 2026 01C January (1/12/2026)"
+            let startDate = null;
+            let endDate = null;
+            const dateMatch = termInfo.match(/\((\d{1,2})\/(\d{1,2})\/(\d{4})\)/);
+            if (dateMatch) {
+                const month = parseInt(dateMatch[1], 10);
+                const day = parseInt(dateMatch[2], 10);
+                const year = parseInt(dateMatch[3], 10);
+                startDate = new Date(year, month - 1, day);
+                // Estimate end date as ~5 weeks after start (typical course length)
+                endDate = new Date(startDate);
+                endDate.setDate(endDate.getDate() + 35);
+            }
+
+            // Build a course object similar to what the API returns
+            const course = {
+                id: courseId,
+                name: courseName,
+                start_at: startDate ? startDate.toISOString() : null,
+                end_at: endDate ? endDate.toISOString() : null,
+                workflow_state: isActive ? 'available' : (isCompleted ? 'completed' : 'unpublished'),
+                enrollments: [{
+                    type: 'StudentEnrollment',
+                    enrollment_state: isActive ? 'active' : (isCompleted ? 'completed' : 'invited'),
+                    grades: {} // Grades not available from HTML scraping
+                }]
+            };
+
+            courses.push(course);
+            console.log(`[Non-API] Found course: ${courseName} (ID: ${courseId}, Active: ${isActive})`);
+        });
+
+        console.log(`[Non-API] Extracted ${courses.length} course(s) from HTML`);
+        return courses;
+
+    } catch (error) {
+        console.error('[Non-API] Error fetching courses from HTML:', error);
+        return [];
+    }
+}
+
 // Track if we've already shown the auth error modal in this session
 let authErrorShownInSession = false;
 // Track if shutdown was requested - persists until process fully stops
@@ -159,25 +269,35 @@ export async function fetchCanvasDetails(student, cacheEnabled = true) {
             const canvasUserId = userData.id;
 
             if (canvasUserId) {
-                // Fetch ALL courses (not just active) to support Time Machine mode
-                // enrollment_state can be: active, invited_or_pending, completed
-                const coursesUrl = `${CANVAS_DOMAIN}/api/v1/users/${canvasUserId}/courses?include[]=enrollments&per_page=100`;
-                const coursesResp = await fetch(coursesUrl, { headers: { 'Accept': 'application/json' } });
+                // Check if non-API course fetch is enabled
+                const settings = await chrome.storage.local.get([STORAGE_KEYS.NON_API_COURSE_FETCH]);
+                const useNonApiFetch = settings[STORAGE_KEYS.NON_API_COURSE_FETCH] || false;
 
-                // Check for Canvas authorization errors
-                if (isCanvasAuthError(coursesResp)) {
-                    const choice = await handleCanvasAuthError('fetching courses');
-                    if (choice === 'shutdown') {
-                        throw new CanvasAuthShutdownError();
-                    }
-                    // Continue with what we have
-                    courses = [];
-                } else if (coursesResp.ok) {
-                    courses = await coursesResp.json();
-                    console.log(`✓ Fetched ${courses.length} course(s) for ${student.name || student.SyStudentId}`);
+                if (useNonApiFetch) {
+                    // Use HTML scraping method instead of API
+                    console.log(`[fetchCanvasDetails] Using non-API course fetch for ${student.name || student.SyStudentId}`);
+                    courses = await fetchCoursesFromHtml(canvasUserId);
                 } else {
-                    console.warn(`✗ Failed to fetch courses for ${student.SyStudentId}: ${coursesResp.status} ${coursesResp.statusText}`);
-                    courses = [];
+                    // Fetch ALL courses (not just active) to support Time Machine mode
+                    // enrollment_state can be: active, invited_or_pending, completed
+                    const coursesUrl = `${CANVAS_DOMAIN}/api/v1/users/${canvasUserId}/courses?include[]=enrollments&per_page=100`;
+                    const coursesResp = await fetch(coursesUrl, { headers: { 'Accept': 'application/json' } });
+
+                    // Check for Canvas authorization errors
+                    if (isCanvasAuthError(coursesResp)) {
+                        const choice = await handleCanvasAuthError('fetching courses');
+                        if (choice === 'shutdown') {
+                            throw new CanvasAuthShutdownError();
+                        }
+                        // Continue with what we have
+                        courses = [];
+                    } else if (coursesResp.ok) {
+                        courses = await coursesResp.json();
+                        console.log(`✓ Fetched ${courses.length} course(s) for ${student.name || student.SyStudentId}`);
+                    } else {
+                        console.warn(`✗ Failed to fetch courses for ${student.SyStudentId}: ${coursesResp.status} ${coursesResp.statusText}`);
+                        courses = [];
+                    }
                 }
 
                 // Only save to cache if caching is enabled
