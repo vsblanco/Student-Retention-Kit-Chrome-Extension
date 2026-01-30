@@ -78,7 +78,8 @@ import {
     openCampusSelectionModal,
     closeCampusSelectionModal,
     openCanvasAuthErrorModal,
-    closeCanvasAuthErrorModal
+    closeCanvasAuthErrorModal,
+    updateStartButtonForMasterList
 } from './modal-manager.js';
 
 import { QueueManager } from './queue-manager.js';
@@ -1083,6 +1084,9 @@ async function loadStorageData() {
     // Restore campus filter if master list has campus data
     updateCampusFilter(masterEntries);
 
+    // Update Start button based on master list (gradebook links check)
+    updateStartButtonForMasterList();
+
     if (elements.lastUpdatedText && data[STORAGE_KEYS.LAST_UPDATED]) {
         elements.lastUpdatedText.textContent = data[STORAGE_KEYS.LAST_UPDATED];
     }
@@ -1149,6 +1153,8 @@ chrome.storage.local.onChanged.addListener((changes) => {
         });
         // Update campus filter when master list changes
         updateCampusFilter(newMasterEntries);
+        // Update Start button based on master list (gradebook links check)
+        updateStartButtonForMasterList();
     }
 
     // Handle name format toggle changes - re-render all displays

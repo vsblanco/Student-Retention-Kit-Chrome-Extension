@@ -806,37 +806,8 @@ export async function updateCanvasStatus() {
                 elements.canvasStatusDot.title = 'Connected';
             }
 
-            // Enable start button and restore normal status text
-            if (elements.startBtn) {
-                elements.startBtn.disabled = false;
-                elements.startBtn.style.opacity = '1';
-                elements.startBtn.style.cursor = 'pointer';
-            }
-            if (elements.statusText) {
-                // Check if scanner is currently running before overwriting status (use session storage)
-                const currentState = await sessionGetValue(STORAGE_KEYS.EXTENSION_STATE, EXTENSION_STATES.OFF);
-                const isCurrentlyScanning = currentState === EXTENSION_STATES.ON;
-
-                // Remove link styling
-                elements.statusText.style.textDecoration = 'none';
-                elements.statusText.style.color = '';
-
-                // Only update text if not currently scanning
-                if (!isCurrentlyScanning) {
-                    elements.statusText.textContent = 'Ready to Scan';
-                }
-
-                // Set onclick to toggle mini console when connected
-                elements.statusText.onclick = () => {
-                    if (elements.miniConsole) {
-                        if (elements.miniConsole.style.display === 'none') {
-                            elements.miniConsole.style.display = 'flex';
-                        } else {
-                            elements.miniConsole.style.display = 'none';
-                        }
-                    }
-                };
-            }
+            // Check master list status to determine if Start button should be enabled
+            await updateStartButtonForMasterList();
         } else {
             // Not logged in or authentication failed
             elements.canvasStatusText.textContent = 'No user logged in';
@@ -884,6 +855,96 @@ export async function updateCanvasStatus() {
                 chrome.tabs.create({ url: CANVAS_DOMAIN });
             };
         }
+    }
+}
+
+/**
+ * Checks master list for students with gradebook links and updates Start button state
+ * Should be called after verifying Canvas connection is OK
+ */
+export async function updateStartButtonForMasterList() {
+    const data = await storageGet([STORAGE_KEYS.MASTER_ENTRIES]);
+    const masterEntries = data[STORAGE_KEYS.MASTER_ENTRIES] || [];
+
+    // Check if there are any students
+    if (masterEntries.length === 0) {
+        if (elements.startBtn) {
+            elements.startBtn.disabled = true;
+            elements.startBtn.style.opacity = '0.5';
+            elements.startBtn.style.cursor = 'not-allowed';
+        }
+        if (elements.statusText) {
+            // Check if scanner is currently running before overwriting status
+            const currentState = await sessionGetValue(STORAGE_KEYS.EXTENSION_STATE, EXTENSION_STATES.OFF);
+            const isCurrentlyScanning = currentState === EXTENSION_STATES.ON;
+
+            if (!isCurrentlyScanning) {
+                elements.statusText.textContent = 'No students in Master List';
+                elements.statusText.style.textDecoration = 'none';
+                elements.statusText.style.color = 'var(--text-secondary)';
+                elements.statusText.onclick = null;
+            }
+        }
+        return;
+    }
+
+    // Check if any students have gradebook links (url or Gradebook field)
+    const studentsWithGradebook = masterEntries.filter(entry =>
+        (entry.url && entry.url.trim() !== '') ||
+        (entry.Gradebook && entry.Gradebook.trim() !== '')
+    );
+
+    if (studentsWithGradebook.length === 0) {
+        if (elements.startBtn) {
+            elements.startBtn.disabled = true;
+            elements.startBtn.style.opacity = '0.5';
+            elements.startBtn.style.cursor = 'not-allowed';
+        }
+        if (elements.statusText) {
+            // Check if scanner is currently running before overwriting status
+            const currentState = await sessionGetValue(STORAGE_KEYS.EXTENSION_STATE, EXTENSION_STATES.OFF);
+            const isCurrentlyScanning = currentState === EXTENSION_STATES.ON;
+
+            if (!isCurrentlyScanning) {
+                elements.statusText.textContent = 'No gradebook links found';
+                elements.statusText.style.textDecoration = 'none';
+                elements.statusText.style.color = 'var(--text-secondary)';
+                elements.statusText.onclick = null;
+            }
+        }
+        return;
+    }
+
+    // All checks passed - enable the button
+    if (elements.startBtn) {
+        elements.startBtn.disabled = false;
+        elements.startBtn.style.opacity = '1';
+        elements.startBtn.style.cursor = 'pointer';
+    }
+    if (elements.statusText) {
+        // Check if scanner is currently running before overwriting status
+        const currentState = await sessionGetValue(STORAGE_KEYS.EXTENSION_STATE, EXTENSION_STATES.OFF);
+        const isCurrentlyScanning = currentState === EXTENSION_STATES.ON;
+
+        // Remove link styling
+        elements.statusText.style.textDecoration = 'none';
+        elements.statusText.style.color = '';
+
+        // Only update text if not currently scanning
+        if (!isCurrentlyScanning) {
+            elements.statusText.textContent = 'Ready to Scan';
+        }
+
+        // Set onclick to toggle mini console when connected
+        elements.statusText.onclick = () => {
+            if (elements.miniConsole) {
+                if (elements.miniConsole.style.display === 'none') {
+                    elements.miniConsole.style.display = 'flex';
+                } else {
+                    elements.miniConsole.style.display = 'none';
+                }
+            }
+        };
     }
 }
 
