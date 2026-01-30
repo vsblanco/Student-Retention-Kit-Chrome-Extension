@@ -234,8 +234,13 @@ export async function fetchCanvasDetails(student, cacheEnabled = true) {
         const syStudentId = String(student.SyStudentId);
         console.log(`[fetchCanvasDetails] Processing student: ${student.name}, SyStudentId: ${syStudentId}`);
 
-        // Only check cache if caching is enabled
-        const cachedData = cacheEnabled ? await getCachedData(syStudentId) : null;
+        // Check if non-API course fetch is enabled FIRST
+        const nonApiSettings = await chrome.storage.local.get([STORAGE_KEYS.NON_API_COURSE_FETCH]);
+        const useNonApiFetch = nonApiSettings[STORAGE_KEYS.NON_API_COURSE_FETCH] || false;
+
+        // Only check cache if caching is enabled AND non-API fetch is disabled
+        // When non-API fetch is enabled, we always fetch fresh course data from HTML
+        const cachedData = (cacheEnabled && !useNonApiFetch) ? await getCachedData(syStudentId) : null;
 
         let userData;
         let courses;
@@ -269,10 +274,6 @@ export async function fetchCanvasDetails(student, cacheEnabled = true) {
             const canvasUserId = userData.id;
 
             if (canvasUserId) {
-                // Check if non-API course fetch is enabled
-                const settings = await chrome.storage.local.get([STORAGE_KEYS.NON_API_COURSE_FETCH]);
-                const useNonApiFetch = settings[STORAGE_KEYS.NON_API_COURSE_FETCH] || false;
-
                 if (useNonApiFetch) {
                     // Use HTML scraping method instead of API
                     console.log(`[fetchCanvasDetails] Using non-API course fetch for ${student.name || student.SyStudentId}`);
