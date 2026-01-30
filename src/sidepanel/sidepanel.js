@@ -80,6 +80,7 @@ import {
     closeCampusSelectionModal,
     openCanvasAuthErrorModal,
     closeCanvasAuthErrorModal,
+    toggleCanvasAuthNonApi,
     updateStartButtonForMasterList
 } from './modal-manager.js';
 
@@ -627,6 +628,9 @@ function setupEventListeners() {
     }
     if (elements.canvasAuthShutdownBtn) {
         elements.canvasAuthShutdownBtn.addEventListener('click', () => closeCanvasAuthErrorModal('shutdown'));
+    }
+    if (elements.canvasAuthNonApiToggle) {
+        elements.canvasAuthNonApiToggle.addEventListener('click', toggleCanvasAuthNonApi);
     }
 
     // Modal outside click handlers

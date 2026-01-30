@@ -158,6 +158,7 @@ export function cacheDomElements() {
     elements.canvasAuthErrorModal = document.getElementById('canvasAuthErrorModal');
     elements.canvasAuthContinueBtn = document.getElementById('canvasAuthContinueBtn');
     elements.canvasAuthShutdownBtn = document.getElementById('canvasAuthShutdownBtn');
+    elements.canvasAuthNonApiToggle = document.getElementById('canvasAuthNonApiToggle');
 
     // Connections Modal
     elements.connectionsModal = document.getElementById('connectionsModal');

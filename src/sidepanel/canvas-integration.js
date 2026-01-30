@@ -2,6 +2,7 @@
 import { STORAGE_KEYS, CANVAS_DOMAIN, GENERIC_AVATAR_URL } from '../constants/index.js';
 import { getCachedData, setCachedData, hasCachedData, getCache } from '../utils/canvasCache.js';
 import { openCanvasAuthErrorModal, isCanvasAuthError, isCanvasAuthErrorBody } from './modal-manager.js';
+import { storageGet } from '../utils/storage.js';
 
 /**
  * Fetches courses by scraping the Canvas user profile HTML page
@@ -235,7 +236,8 @@ export async function fetchCanvasDetails(student, cacheEnabled = true) {
         console.log(`[fetchCanvasDetails] Processing student: ${student.name}, SyStudentId: ${syStudentId}`);
 
         // Check if non-API course fetch is enabled FIRST
-        const nonApiSettings = await chrome.storage.local.get([STORAGE_KEYS.NON_API_COURSE_FETCH]);
+        // Use storageGet to properly handle nested storage paths
+        const nonApiSettings = await storageGet([STORAGE_KEYS.NON_API_COURSE_FETCH]);
         const useNonApiFetch = nonApiSettings[STORAGE_KEYS.NON_API_COURSE_FETCH] || false;
 
         // Only check cache if caching is enabled AND non-API fetch is disabled
