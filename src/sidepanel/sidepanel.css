@@ -59,6 +59,11 @@ body {
     font-weight: 700;
     color: #1a202c;
     margin: 0;
+    transition: text-decoration 0.2s;
+}
+
+.title-area h2:hover {
+    text-decoration: underline;
 }
 
 .title-area span {
