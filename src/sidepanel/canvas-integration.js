@@ -1,6 +1,40 @@
 // Canvas Integration - Handles all Canvas API calls for student data and assignments
 import { STORAGE_KEYS, CANVAS_DOMAIN, GENERIC_AVATAR_URL } from '../constants/index.js';
 import { getCachedData, setCachedData, hasCachedData, getCache } from '../utils/canvasCache.js';
+import { openCanvasAuthErrorModal, isCanvasAuthError, isCanvasAuthErrorBody } from './modal-manager.js';
+
+// Track if we've already shown the auth error modal in this session
+let authErrorShownInSession = false;
+
+/**
+ * Custom error class for Canvas auth shutdown
+ */
+export class CanvasAuthShutdownError extends Error {
+    constructor() {
+        super('Canvas authentication shutdown requested by user');
+        this.name = 'CanvasAuthShutdownError';
+    }
+}
+
+/**
+ * Handles Canvas API authorization errors by showing a modal and returning user choice
+ * @param {string} context - Context description for logging
+ * @returns {Promise<'continue'|'shutdown'>} The user's choice
+ */
+async function handleCanvasAuthError(context) {
+    console.warn(`[Canvas Integration] Authorization error during ${context}`);
+
+    // Prevent multiple modals from stacking
+    if (authErrorShownInSession) {
+        return 'continue';
+    }
+
+    authErrorShownInSession = true;
+    const choice = await openCanvasAuthErrorModal();
+    authErrorShownInSession = false;
+
+    return choice;
+}
 
 /**
  * Formats duration - shows minutes when >= 60 seconds
@@ -65,6 +99,16 @@ export async function fetchCanvasDetails(student, cacheEnabled = true) {
             const userUrl = `${CANVAS_DOMAIN}/api/v1/users/sis_user_id:${student.SyStudentId}`;
             const userResp = await fetch(userUrl, { headers: { 'Accept': 'application/json' } });
 
+            // Check for Canvas authorization errors
+            if (isCanvasAuthError(userResp)) {
+                const choice = await handleCanvasAuthError('fetching user data');
+                if (choice === 'shutdown') {
+                    throw new CanvasAuthShutdownError();
+                }
+                // Continue with next student
+                return student;
+            }
+
             if (!userResp.ok) {
                 console.warn(`✗ Failed to fetch user data for ${student.SyStudentId}: ${userResp.status} ${userResp.statusText}`);
                 return student;
@@ -79,7 +123,15 @@ export async function fetchCanvasDetails(student, cacheEnabled = true) {
                 const coursesUrl = `${CANVAS_DOMAIN}/api/v1/users/${canvasUserId}/courses?include[]=enrollments&per_page=100`;
                 const coursesResp = await fetch(coursesUrl, { headers: { 'Accept': 'application/json' } });
 
-                if (coursesResp.ok) {
+                // Check for Canvas authorization errors
+                if (isCanvasAuthError(coursesResp)) {
+                    const choice = await handleCanvasAuthError('fetching courses');
+                    if (choice === 'shutdown') {
+                        throw new CanvasAuthShutdownError();
+                    }
+                    // Continue with what we have
+                    courses = [];
+                } else if (coursesResp.ok) {
                     courses = await coursesResp.json();
                     console.log(`✓ Fetched ${courses.length} course(s) for ${student.name || student.SyStudentId}`);
                 } else {
@@ -289,13 +341,22 @@ export async function processStep2(students, renderCallback) {
 
             console.log(`[Step 2] Cached batch ${batchNumber}/${totalCachedBatches} (students ${i + 1}-${Math.min(i + BATCH_SIZE, cachedStudents.length)})`);
 
+            // Use Promise.allSettled to handle auth errors gracefully
             const promises = batch.map(student => fetchCanvasDetails(student, cacheEnabled));
-            const results = await Promise.all(promises);
+            const settledResults = await Promise.allSettled(promises);
 
-            results.forEach((updatedStudent, batchIndex) => {
+            // Check for shutdown errors
+            for (const result of settledResults) {
+                if (result.status === 'rejected' && result.reason instanceof CanvasAuthShutdownError) {
+                    throw result.reason;
+                }
+            }
+
+            settledResults.forEach((result, batchIndex) => {
                 const originalStudent = batch[batchIndex];
                 const originalIndex = studentIndexMap.get(originalStudent);
-                updatedStudents[originalIndex] = updatedStudent;
+                // If fulfilled, use the result; if rejected (but not shutdown), keep original student
+                updatedStudents[originalIndex] = result.status === 'fulfilled' ? result.value : originalStudent;
             });
 
             processedCount += batch.length;
@@ -318,13 +379,22 @@ export async function processStep2(students, renderCallback) {
 
             console.log(`[Step 2] Uncached batch ${batchNumber}/${totalUncachedBatches} (students ${i + 1}-${Math.min(i + BATCH_SIZE, uncachedStudents.length)})`);
 
+            // Use Promise.allSettled to handle auth errors gracefully
             const promises = batch.map(student => fetchCanvasDetails(student, cacheEnabled));
-            const results = await Promise.all(promises);
+            const settledResults = await Promise.allSettled(promises);
 
-            results.forEach((updatedStudent, batchIndex) => {
+            // Check for shutdown errors
+            for (const result of settledResults) {
+                if (result.status === 'rejected' && result.reason instanceof CanvasAuthShutdownError) {
+                    throw result.reason;
+                }
+            }
+
+            settledResults.forEach((result, batchIndex) => {
                 const originalStudent = batch[batchIndex];
                 const originalIndex = studentIndexMap.get(originalStudent);
-                updatedStudents[originalIndex] = updatedStudent;
+                // If fulfilled, use the result; if rejected (but not shutdown), keep original student
+                updatedStudents[originalIndex] = result.status === 'fulfilled' ? result.value : originalStudent;
             });
 
             processedCount += batch.length;
@@ -356,6 +426,15 @@ export async function processStep2(students, renderCallback) {
         return updatedStudents;
 
     } catch (error) {
+        // Handle Canvas auth shutdown gracefully
+        if (error instanceof CanvasAuthShutdownError) {
+            console.log('[Step 2] Stopped by user due to Canvas auth error');
+            step2.querySelector('i').className = 'fas fa-stop';
+            step2.style.color = '#f59e0b'; // Orange for stopped
+            timeSpan.textContent = 'Stopped';
+            throw error; // Re-throw to stop the pipeline
+        }
+
         console.error("[Step 2 Error]", error);
         step2.querySelector('i').className = 'fas fa-times';
         step2.style.color = '#ef4444';
@@ -397,6 +476,16 @@ async function fetchPaged(url, items = []) {
     try {
         const response = await fetch(url, { method: 'GET', credentials: 'include', headers });
 
+        // Check for Canvas authorization errors
+        if (isCanvasAuthError(response)) {
+            const choice = await handleCanvasAuthError('fetching paged data');
+            if (choice === 'shutdown') {
+                throw new CanvasAuthShutdownError();
+            }
+            // Continue with partial data
+            return items;
+        }
+
         if (!response.ok) {
             if (items.length > 0) return items;
             throw new Error(`HTTP ${response.status}`);
@@ -414,6 +503,10 @@ async function fetchPaged(url, items = []) {
 
         return allItems;
     } catch (e) {
+        // Re-throw shutdown errors
+        if (e instanceof CanvasAuthShutdownError) {
+            throw e;
+        }
         console.warn('Fetch error:', e);
         return items;
     }
@@ -542,6 +635,10 @@ async function fetchMissingAssignments(student, referenceDate = new Date()) {
         };
 
     } catch (e) {
+        // Re-throw shutdown errors
+        if (e instanceof CanvasAuthShutdownError) {
+            throw e;
+        }
         console.error(`[Step 3] ${student.name}: Error fetching data:`, e);
         return { ...student, missingCount: 0, missingAssignments: [] };
     }
@@ -592,11 +689,22 @@ export async function processStep3(students, renderCallback) {
 
             console.log(`[Step 3] Processing batch ${batchNumber}/${totalBatches} (students ${i + 1}-${Math.min(i + BATCH_SIZE, updatedStudents.length)})`);
 
+            // Use Promise.allSettled to handle auth errors gracefully
             const promises = batch.map(student => fetchMissingAssignments(student, referenceDate));
-            const results = await Promise.all(promises);
+            const settledResults = await Promise.allSettled(promises);
 
-            results.forEach((updatedStudent, index) => {
-                updatedStudents[i + index] = updatedStudent;
+            // Check for shutdown errors
+            for (const result of settledResults) {
+                if (result.status === 'rejected' && result.reason instanceof CanvasAuthShutdownError) {
+                    throw result.reason;
+                }
+            }
+
+            settledResults.forEach((result, index) => {
+                // If fulfilled, use the result; if rejected (but not shutdown), keep original student with zeros
+                updatedStudents[i + index] = result.status === 'fulfilled'
+                    ? result.value
+                    : { ...batch[index], missingCount: 0, missingAssignments: [] };
             });
 
             processedCount += batch.length;
@@ -627,6 +735,15 @@ export async function processStep3(students, renderCallback) {
         return updatedStudents;
 
     } catch (error) {
+        // Handle Canvas auth shutdown gracefully
+        if (error instanceof CanvasAuthShutdownError) {
+            console.log('[Step 3] Stopped by user due to Canvas auth error');
+            step3.querySelector('i').className = 'fas fa-stop';
+            step3.style.color = '#f59e0b'; // Orange for stopped
+            timeSpan.textContent = 'Stopped';
+            throw error; // Re-throw to stop the pipeline
+        }
+
         console.error("[Step 3 Error]", error);
         step3.querySelector('i').className = 'fas fa-times';
         step3.style.color = '#ef4444';

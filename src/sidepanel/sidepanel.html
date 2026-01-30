@@ -768,6 +768,44 @@
         </div>
     </div>
 
+    <!-- Canvas Auth Error Modal -->
+    <div id="canvasAuthErrorModal" class="modal-overlay" style="display:none;">
+        <div class="modal-content" style="max-width: 420px;">
+            <div class="modal-header" style="border-bottom: 1px solid rgba(239, 68, 68, 0.2);">
+                <h3><i class="fas fa-exclamation-triangle" style="color: #ef4444;"></i> Canvas Authorization Error</h3>
+            </div>
+
+            <div class="modal-body" style="padding: 20px;">
+                <div style="background: rgba(239, 68, 68, 0.1); border-left: 4px solid #ef4444; padding: 15px; border-radius: 0.5rem; margin-bottom: 20px;">
+                    <div style="font-weight: 600; color: #dc2626; margin-bottom: 8px;">
+                        <i class="fas fa-lock"></i> Access Denied
+                    </div>
+                    <div style="font-size: 0.9em; color: var(--text-main); line-height: 1.5;">
+                        The Canvas API returned an <strong>unauthorized</strong> error. This typically means your account permissions have changed or there's an issue with the Canvas system.
+                    </div>
+                </div>
+
+                <div style="font-size: 0.85em; color: var(--text-secondary); margin-bottom: 20px;">
+                    <div style="margin-bottom: 8px;"><i class="fas fa-info-circle" style="color: var(--primary-color);"></i> <strong>What you can do:</strong></div>
+                    <ul style="margin: 0; padding-left: 20px; line-height: 1.8;">
+                        <li>Contact your Canvas administrator</li>
+                        <li>Check if Canvas is experiencing issues</li>
+                        <li>Try logging out and back into Canvas</li>
+                    </ul>
+                </div>
+
+                <div style="display: flex; gap: 10px;">
+                    <button class="btn-secondary" id="canvasAuthContinueBtn" style="flex: 1; padding: 12px;">
+                        <i class="fas fa-play"></i> Continue
+                    </button>
+                    <button class="btn-primary" id="canvasAuthShutdownBtn" style="flex: 1; padding: 12px; background: #ef4444;">
+                        <i class="fas fa-stop"></i> Shutdown
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Context Menu for Update Master List Button -->
     <div id="updateMasterContextMenu" class="context-menu">
         <div class="context-menu-item" id="sendListToExcelMenuItem">
