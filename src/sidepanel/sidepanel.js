@@ -1291,8 +1291,19 @@ async function toggleScanState() {
         return;
     }
 
-    // If turning ON, check if we need to select an Excel tab for highlights
+    // If turning ON, check prerequisites before starting
     if (!isScanning) {
+        // Check if scan filter has been configured
+        const scanFilterData = await storageGet([STORAGE_KEYS.LOOPER_DAYS_OUT_FILTER]);
+        const hasScanFilterSetting = scanFilterData[STORAGE_KEYS.LOOPER_DAYS_OUT_FILTER] !== undefined;
+
+        if (!hasScanFilterSetting) {
+            // No scan filter saved - open the modal for the user to configure
+            console.log('No scan filter setting found - opening Scan Filter modal');
+            openScanFilterModal();
+            return; // Don't start scanning until user configures the filter
+        }
+
         // Check if highlight feature is enabled
         const highlightEnabled = await storageGetValue(STORAGE_KEYS.HIGHLIGHT_STUDENT_ROW_ENABLED, true);
 
