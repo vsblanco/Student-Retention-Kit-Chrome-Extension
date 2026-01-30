@@ -4,7 +4,7 @@ import { storageGet, storageSet, storageGetValue, sessionGetValue } from '../uti
 import { encrypt, decrypt } from '../utils/encryption.js';
 import { elements } from './ui-manager.js';
 import { resolveStudentData } from './student-renderer.js';
-import { getReleaseNotes, hasReleaseNotes } from '../constants/release-notes.js';
+import { getReleaseNotes, hasReleaseNotes, getLatestReleaseNotes } from '../constants/release-notes.js';
 
 /**
  * Opens the scan filter modal
@@ -1576,32 +1576,31 @@ export async function shouldShowLatestUpdatesModal() {
 export function openLatestUpdatesModal() {
     if (!elements.latestUpdatesModal) return;
 
-    // Get the current version from the manifest
-    const manifest = chrome.runtime.getManifest();
-    const currentVersion = manifest.version;
+    // Get the latest release notes (version comes from release-notes.js, not manifest)
+    const latest = getLatestReleaseNotes();
 
-    // Get the release notes for this version
-    const releaseNotes = getReleaseNotes(currentVersion);
-
-    if (!releaseNotes) {
-        console.warn('No release notes found for version:', currentVersion);
+    if (!latest) {
+        console.warn('No release notes found');
         return;
     }
+
+    const { version, notes: releaseNotes } = latest;
 
     // Update the modal title
     if (elements.latestUpdatesTitle) {
         elements.latestUpdatesTitle.textContent = releaseNotes.title || "What's New";
     }
 
-    // Update the version display
+    // Update the version display (uses version from release notes)
     if (elements.latestUpdatesVersion) {
-        elements.latestUpdatesVersion.textContent = `Version ${currentVersion}`;
+        elements.latestUpdatesVersion.textContent = `Version ${version}`;
     }
 
     // Update the date display
     if (elements.latestUpdatesDate) {
         if (releaseNotes.date) {
             elements.latestUpdatesDate.textContent = `Last Updated: ${releaseNotes.date}`;
+            elements.latestUpdatesDate.style.display = '';
         } else {
             elements.latestUpdatesDate.style.display = 'none';
         }
