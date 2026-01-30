@@ -347,11 +347,26 @@ function setupEventListeners() {
         elements.headerSettingsBtn.addEventListener('click', () => switchTab('settings'));
     }
 
-    // Title opens README/About page
+    // Title toggles README/About page
+    let previousTab = 'checker'; // Default to checker tab
     if (elements.headerTitle) {
         elements.headerTitle.addEventListener('click', () => {
-            switchTab('about');
-            loadAboutContent();
+            // Check if currently on about tab
+            const aboutContent = document.getElementById('about');
+            const isOnAbout = aboutContent && aboutContent.classList.contains('active');
+
+            if (isOnAbout) {
+                // Go back to previous tab
+                switchTab(previousTab);
+            } else {
+                // Save current tab and switch to about
+                const activeContent = document.querySelector('.tab-content.active');
+                if (activeContent) {
+                    previousTab = activeContent.id;
+                }
+                switchTab('about');
+                loadAboutContent();
+            }
         });
     }
 
