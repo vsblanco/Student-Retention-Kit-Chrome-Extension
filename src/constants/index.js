@@ -135,6 +135,7 @@ export const STORAGE_KEYS = {
     EMBED_IN_CANVAS: 'settings.canvas.embedInCanvas',
     HIGHLIGHT_COLOR: 'settings.canvas.highlightColor',
     CANVAS_CACHE_ENABLED: 'settings.canvas.cacheEnabled',
+    NON_API_COURSE_FETCH: 'settings.canvas.nonApiCourseFetch',
 
     // Five9 settings (settings.five9.*)
     CALL_DEMO: 'settings.five9.callDemo',
@@ -210,6 +211,7 @@ export const DEFAULT_SETTINGS = {
     [STORAGE_KEYS.EMBED_IN_CANVAS]: true,
     [STORAGE_KEYS.HIGHLIGHT_COLOR]: '#ffff00',
     [STORAGE_KEYS.CANVAS_CACHE_ENABLED]: true,
+    [STORAGE_KEYS.NON_API_COURSE_FETCH]: false,
 
     // Five9 settings
     [STORAGE_KEYS.CALL_DEMO]: false, // Call demo mode (was debugMode)

@@ -199,6 +199,7 @@ export function cacheDomElements() {
     elements.embedHelperToggleModal = document.getElementById('embedHelperToggleModal');
     elements.highlightColorPickerModal = document.getElementById('highlightColorPickerModal');
     elements.canvasCacheToggleModal = document.getElementById('canvasCacheToggleModal');
+    elements.nonApiCourseFetchToggle = document.getElementById('nonApiCourseFetchToggle');
     elements.cacheSettingsContainer = document.getElementById('cacheSettingsContainer');
     elements.cacheStatsTextModal = document.getElementById('cacheStatsTextModal');
     elements.clearCacheBtnModal = document.getElementById('clearCacheBtnModal');
