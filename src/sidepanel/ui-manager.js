@@ -13,6 +13,7 @@ export function cacheDomElements() {
     elements.contents = document.querySelectorAll('.tab-content');
 
     // Header
+    elements.headerTitle = document.getElementById('headerTitle');
     elements.headerSettingsBtn = document.getElementById('headerSettingsBtn');
     elements.versionText = document.getElementById('versionText');
 
