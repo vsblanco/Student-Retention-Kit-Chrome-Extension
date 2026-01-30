@@ -429,9 +429,9 @@ export async function processStep2(students, renderCallback) {
         // Handle Canvas auth shutdown gracefully
         if (error instanceof CanvasAuthShutdownError) {
             console.log('[Step 2] Stopped by user due to Canvas auth error');
-            step2.querySelector('i').className = 'fas fa-stop';
-            step2.style.color = '#f59e0b'; // Orange for stopped
-            timeSpan.textContent = 'Stopped';
+            step2.querySelector('i').className = 'fas fa-times';
+            step2.style.color = '#ef4444';
+            timeSpan.textContent = 'Stopped by user';
             throw error; // Re-throw to stop the pipeline
         }
 
@@ -738,9 +738,9 @@ export async function processStep3(students, renderCallback) {
         // Handle Canvas auth shutdown gracefully
         if (error instanceof CanvasAuthShutdownError) {
             console.log('[Step 3] Stopped by user due to Canvas auth error');
-            step3.querySelector('i').className = 'fas fa-stop';
-            step3.style.color = '#f59e0b'; // Orange for stopped
-            timeSpan.textContent = 'Stopped';
+            step3.querySelector('i').className = 'fas fa-times';
+            step3.style.color = '#ef4444';
+            timeSpan.textContent = 'Stopped by user';
             throw error; // Re-throw to stop the pipeline
         }
 
