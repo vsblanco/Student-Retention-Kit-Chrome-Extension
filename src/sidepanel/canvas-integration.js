@@ -5,6 +5,16 @@ import { openCanvasAuthErrorModal, isCanvasAuthError, isCanvasAuthErrorBody } fr
 
 // Track if we've already shown the auth error modal in this session
 let authErrorShownInSession = false;
+// Track if shutdown was requested - persists until process fully stops
+let shutdownRequested = false;
+
+/**
+ * Resets the auth error state - call this when starting a new process
+ */
+export function resetAuthErrorState() {
+    authErrorShownInSession = false;
+    shutdownRequested = false;
+}
 
 /**
  * Custom error class for Canvas auth shutdown
@@ -24,6 +34,11 @@ export class CanvasAuthShutdownError extends Error {
 async function handleCanvasAuthError(context) {
     console.warn(`[Canvas Integration] Authorization error during ${context}`);
 
+    // If shutdown was already requested, don't show modal again
+    if (shutdownRequested) {
+        return 'shutdown';
+    }
+
     // Prevent multiple modals from stacking
     if (authErrorShownInSession) {
         return 'continue';
@@ -32,6 +47,11 @@ async function handleCanvasAuthError(context) {
     authErrorShownInSession = true;
     const choice = await openCanvasAuthErrorModal();
     authErrorShownInSession = false;
+
+    // If shutdown selected, set the persistent flag
+    if (choice === 'shutdown') {
+        shutdownRequested = true;
+    }
 
     return choice;
 }
@@ -249,6 +269,9 @@ export async function fetchCanvasDetails(student, cacheEnabled = true) {
  * Uses reverse cache lookup: iterates through cache entries and matches to master list
  */
 export async function processStep2(students, renderCallback) {
+    // Reset auth error state at the start of a new process
+    resetAuthErrorState();
+
     const step2 = document.getElementById('step2');
     const timeSpan = step2.querySelector('.step-time');
 
