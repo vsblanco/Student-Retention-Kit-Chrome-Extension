@@ -60,6 +60,7 @@ import {
     updateFive9Status,
     toggleEmbedHelperModal,
     toggleCanvasCacheModal,
+    toggleNonApiCourseFetch,
     togglePowerAutomateEnabled,
     togglePowerAutomateDebug,
     toggleDebugModeModal,
@@ -469,6 +470,10 @@ function setupEventListeners() {
 
     if (elements.canvasCacheToggleModal) {
         elements.canvasCacheToggleModal.addEventListener('click', toggleCanvasCacheModal);
+    }
+
+    if (elements.nonApiCourseFetchToggle) {
+        elements.nonApiCourseFetchToggle.addEventListener('click', toggleNonApiCourseFetch);
     }
 
     if (elements.clearCacheBtnModal) {
