@@ -1,14 +1,5 @@
 # Student Retention Kit
 
-**Version 10.3** | Last Updated: January 28th, 2026
-
-## Latest Updates
-
-- Optimized storage handling with over 6k students
-- Integrated Power Automate HTTP Request Feature
-- Organized chrome local storage for better debugging
-- Minor UI Improvements
-
 ## Overview
 
 The Student Retention Kit is a comprehensive Chrome extension designed to help NUC University retention teams track student engagement, identify at-risk students, and streamline outreach efforts through automated workflows.
