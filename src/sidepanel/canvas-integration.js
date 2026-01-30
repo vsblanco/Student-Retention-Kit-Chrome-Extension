@@ -17,12 +17,30 @@ export function resetAuthErrorState() {
 }
 
 /**
+ * Checks if shutdown was requested
+ * @returns {boolean} True if shutdown was requested
+ */
+export function isShutdownRequested() {
+    return shutdownRequested;
+}
+
+/**
  * Custom error class for Canvas auth shutdown
  */
 export class CanvasAuthShutdownError extends Error {
     constructor() {
         super('Canvas authentication shutdown requested by user');
         this.name = 'CanvasAuthShutdownError';
+    }
+}
+
+/**
+ * Throws CanvasAuthShutdownError if shutdown was requested
+ * Call this at the start of operations to abort early
+ */
+function checkShutdown() {
+    if (shutdownRequested) {
+        throw new CanvasAuthShutdownError();
     }
 }
 
@@ -96,6 +114,9 @@ function preloadImage(url) {
  * @param {boolean} cacheEnabled - Whether to use caching (default: true)
  */
 export async function fetchCanvasDetails(student, cacheEnabled = true) {
+    // Check if shutdown was requested before processing
+    checkShutdown();
+
     if (!student.SyStudentId) return student;
 
     try {
@@ -359,6 +380,9 @@ export async function processStep2(students, renderCallback) {
         // Process cached students first
         const totalCachedBatches = Math.ceil(cachedStudents.length / BATCH_SIZE);
         for (let i = 0; i < cachedStudents.length; i += BATCH_SIZE) {
+            // Check if shutdown was requested before processing next batch
+            checkShutdown();
+
             const batch = cachedStudents.slice(i, i + BATCH_SIZE);
             const batchNumber = Math.floor(i / BATCH_SIZE) + 1;
 
@@ -397,6 +421,9 @@ export async function processStep2(students, renderCallback) {
 
         const totalUncachedBatches = Math.ceil(uncachedStudents.length / BATCH_SIZE);
         for (let i = 0; i < uncachedStudents.length; i += BATCH_SIZE) {
+            // Check if shutdown was requested before processing next batch
+            checkShutdown();
+
             const batch = uncachedStudents.slice(i, i + BATCH_SIZE);
             const batchNumber = Math.floor(i / BATCH_SIZE) + 1;
 
@@ -491,6 +518,9 @@ function parseGradebookUrl(url) {
  * Fetches paginated data from Canvas API
  */
 async function fetchPaged(url, items = []) {
+    // Check if shutdown was requested before making request
+    checkShutdown();
+
     const headers = {
         'Accept': 'application/json',
         'X-Requested-With': 'XMLHttpRequest'
@@ -620,6 +650,9 @@ function analyzeMissingAssignments(submissions, userObject, studentName, courseI
  * @param {Date} referenceDate - The date to use for checking if assignments are past due
  */
 async function fetchMissingAssignments(student, referenceDate = new Date()) {
+    // Check if shutdown was requested before processing
+    checkShutdown();
+
     // Support both 'url' field and legacy 'Gradebook' field
     const gradebookUrl = student.url || student.Gradebook;
 
@@ -707,6 +740,9 @@ export async function processStep3(students, renderCallback) {
         const totalBatches = Math.ceil(updatedStudents.length / BATCH_SIZE);
 
         for (let i = 0; i < updatedStudents.length; i += BATCH_SIZE) {
+            // Check if shutdown was requested before processing next batch
+            checkShutdown();
+
             const batch = updatedStudents.slice(i, i + BATCH_SIZE);
             const batchNumber = Math.floor(i / BATCH_SIZE) + 1;
 
