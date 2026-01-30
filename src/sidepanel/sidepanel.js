@@ -76,7 +76,9 @@ import {
     closeExcelInstanceModal,
     getCampusesFromStudents,
     openCampusSelectionModal,
-    closeCampusSelectionModal
+    closeCampusSelectionModal,
+    openCanvasAuthErrorModal,
+    closeCanvasAuthErrorModal
 } from './modal-manager.js';
 
 import { QueueManager } from './queue-manager.js';
@@ -611,6 +613,14 @@ function setupEventListeners() {
     // Campus Selection Modal
     if (elements.closeCampusSelectionBtn) {
         elements.closeCampusSelectionBtn.addEventListener('click', () => closeCampusSelectionModal(null));
+    }
+
+    // Canvas Auth Error Modal
+    if (elements.canvasAuthContinueBtn) {
+        elements.canvasAuthContinueBtn.addEventListener('click', () => closeCanvasAuthErrorModal('continue'));
+    }
+    if (elements.canvasAuthShutdownBtn) {
+        elements.canvasAuthShutdownBtn.addEventListener('click', () => closeCanvasAuthErrorModal('shutdown'));
     }
 
     // Modal outside click handlers
@@ -1244,6 +1254,25 @@ chrome.runtime.onMessage.addListener(async (msg, sender, sendResponse) => {
     // Handle logs from background script
     if (msg.type === MESSAGE_TYPES.LOG_TO_PANEL) {
         addConsoleMessage(msg.level, msg.args);
+    }
+
+    // Handle Canvas auth error from looper (background)
+    if (msg.type === MESSAGE_TYPES.CANVAS_AUTH_ERROR) {
+        console.log('%c [Sidepanel] Canvas auth error received - showing modal', 'color: red; font-weight: bold');
+
+        // Show the auth error modal and wait for user response
+        openCanvasAuthErrorModal().then(choice => {
+            // Send the user's choice back to the looper
+            chrome.runtime.sendMessage({
+                type: MESSAGE_TYPES.CANVAS_AUTH_RESPONSE,
+                choice: choice
+            }).catch(err => {
+                console.warn('[Sidepanel] Could not send auth response:', err);
+            });
+        });
+
+        // Return true to indicate we'll respond asynchronously (even though we're not using sendResponse)
+        return true;
     }
 });
 

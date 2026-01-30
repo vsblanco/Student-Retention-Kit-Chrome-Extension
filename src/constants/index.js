@@ -56,7 +56,9 @@ export const MESSAGE_TYPES = {
     SRK_SHEET_LIST_RESPONSE: 'SRK_SHEET_LIST_RESPONSE',
     SRK_LINKS: 'SRK_LINKS',
     RESEND_HIGHLIGHT_PING: 'resendHighlightPing',
-    RESEND_ALL_HIGHLIGHT_PINGS: 'resendAllHighlightPings'
+    RESEND_ALL_HIGHLIGHT_PINGS: 'resendAllHighlightPings',
+    CANVAS_AUTH_ERROR: 'canvasAuthError',
+    CANVAS_AUTH_RESPONSE: 'canvasAuthResponse'
 };
 
 /**

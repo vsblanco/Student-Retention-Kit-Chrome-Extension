@@ -7,7 +7,7 @@ let isLooping = false;
 let batchQueue = [];
 let foundUrlCache = new Set();
 let currentLoopIndex = 0;
-let maxConcurrentRequests = 5; 
+let maxConcurrentRequests = 5;
 let currentCheckerMode = DEFAULT_SETTINGS[STORAGE_KEYS.CHECKER_MODE];
 let onCompleteCallback = null;
 let onFoundCallback = null;
@@ -17,6 +17,10 @@ let activeRequests = 0;
 // Progress Tracking Variables
 let totalStudents = 0;
 let processedCount = 0;
+
+// Canvas Auth Error handling
+let isPausedForAuthError = false;
+let authErrorResolve = null;
 
 const BATCH_SIZE = 30;
 const REQUEST_TIMEOUT_MS = 30000; 
@@ -70,7 +74,36 @@ async function fetchPaged(url, items = []) {
 
     try {
         const response = await fetchWithTimeout(url, { method: 'GET', credentials: 'include', headers });
-        
+
+        // Check for Canvas authorization errors (401 or 403)
+        if (response.status === 401 || response.status === 403) {
+            // Try to parse error body to confirm it's an auth error
+            let isAuthError = true;
+            try {
+                const errorBody = await response.clone().json();
+                isAuthError = errorBody.status === 'unauthorized' ||
+                    (errorBody.errors && errorBody.errors.some(e =>
+                        e.message && e.message.toLowerCase().includes('not authorized')
+                    ));
+            } catch (e) {
+                // If we can't parse, assume it's an auth error based on status code
+            }
+
+            if (isAuthError) {
+                console.warn('[LOOPER] Canvas authorization error detected');
+                logToDebug('warn', 'Canvas authorization error detected - pausing for user input');
+
+                // Send message to sidepanel to show auth error modal
+                const userChoice = await handleCanvasAuthError();
+
+                if (userChoice === 'shutdown') {
+                    throw new Error('CANVAS_AUTH_SHUTDOWN');
+                }
+                // If 'continue', return partial data and skip this request
+                return items;
+            }
+        }
+
         if (!response.ok) {
             if (items.length > 0) return items;
             throw new Error(`HTTP ${response.status}`);
@@ -96,6 +129,40 @@ async function fetchPaged(url, items = []) {
     }
 }
 
+/**
+ * Handles Canvas authorization errors by notifying the sidepanel and waiting for user response
+ * @returns {Promise<'continue'|'shutdown'>} The user's choice
+ */
+async function handleCanvasAuthError() {
+    if (isPausedForAuthError) {
+        // Already showing modal, wait for existing promise
+        return new Promise(resolve => {
+            const checkInterval = setInterval(() => {
+                if (!isPausedForAuthError) {
+                    clearInterval(checkInterval);
+                    resolve('continue');
+                }
+            }, 100);
+        });
+    }
+
+    isPausedForAuthError = true;
+
+    return new Promise((resolve) => {
+        authErrorResolve = resolve;
+
+        // Send message to sidepanel to show the auth error modal
+        chrome.runtime.sendMessage({
+            type: MESSAGE_TYPES.CANVAS_AUTH_ERROR
+        }).catch(() => {
+            // If sidepanel is not open, default to continue
+            console.warn('[LOOPER] Could not reach sidepanel - continuing');
+            isPausedForAuthError = false;
+            resolve('continue');
+        });
+    });
+}
+
 async function fetchBatchData(batch) {
     const firstEntry = batch[0];
     const { origin, courseId } = firstEntry.parsed;
@@ -116,6 +183,9 @@ async function fetchBatchData(batch) {
     try {
         submissionsData = await fetchPaged(submissionsEndpoint);
     } catch (e) {
+        if (e.message === 'CANVAS_AUTH_SHUTDOWN') {
+            return { batch, error: 'CANVAS_AUTH_SHUTDOWN', shutdown: true };
+        }
         console.error(`Submissions fetch failed for course ${courseId}:`, e);
         return { batch, error: e.message };
     }
@@ -123,6 +193,9 @@ async function fetchBatchData(batch) {
     try {
         usersData = await fetchPaged(usersEndpoint);
     } catch (e) {
+        if (e.message === 'CANVAS_AUTH_SHUTDOWN') {
+            return { batch, error: 'CANVAS_AUTH_SHUTDOWN', shutdown: true };
+        }
         console.warn(`Users/Grades fetch failed for course ${courseId} (continuing with blank grades):`, e);
     }
 
@@ -138,7 +211,14 @@ function logToDebug(level, message) {
 }
 
 async function processBatchResult(result) {
-    if (!result || result.error) return;
+    if (!result || result.error) {
+        // Check if this was a shutdown request
+        if (result && result.shutdown) {
+            console.log('[LOOPER] Stopping loop due to Canvas auth shutdown request');
+            stopLoop();
+        }
+        return;
+    }
     const { batch, submissionsData, usersData } = result;
 
     const batchResults = [];
@@ -565,9 +645,32 @@ export function stopLoop() {
 
     isLooping = false;
     activeRequests = 0;
+    isPausedForAuthError = false;
+    authErrorResolve = null;
     onCompleteCallback = null;
     onFoundCallback = null;
     onMissingFoundCallback = null;
     // Remove LOOP_STATUS from storage (flat key, use chrome.storage.local directly)
     chrome.storage.local.remove(STORAGE_KEYS.LOOP_STATUS);
 }
+
+// Listen for Canvas auth error responses from the sidepanel
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (message.type === MESSAGE_TYPES.CANVAS_AUTH_RESPONSE) {
+        console.log('[LOOPER] Received Canvas auth response:', message.choice);
+
+        if (authErrorResolve) {
+            authErrorResolve(message.choice);
+            authErrorResolve = null;
+        }
+        isPausedForAuthError = false;
+
+        // If shutdown was chosen, stop the loop
+        if (message.choice === 'shutdown') {
+            stopLoop();
+        }
+
+        sendResponse({ received: true });
+        return true;
+    }
+});

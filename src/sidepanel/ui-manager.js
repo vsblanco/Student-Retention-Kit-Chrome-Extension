@@ -154,6 +154,11 @@ export function cacheDomElements() {
     elements.campusSelectionList = document.getElementById('campusSelectionList');
     elements.campusSelectionMessage = document.getElementById('campusSelectionMessage');
 
+    // Canvas Auth Error Modal
+    elements.canvasAuthErrorModal = document.getElementById('canvasAuthErrorModal');
+    elements.canvasAuthContinueBtn = document.getElementById('canvasAuthContinueBtn');
+    elements.canvasAuthShutdownBtn = document.getElementById('canvasAuthShutdownBtn');
+
     // Connections Modal
     elements.connectionsModal = document.getElementById('connectionsModal');
     elements.closeConnectionsBtn = document.getElementById('closeConnectionsBtn');

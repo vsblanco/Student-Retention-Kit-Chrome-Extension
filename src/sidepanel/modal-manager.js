@@ -1318,3 +1318,83 @@ export function closeCampusSelectionModal(selectedCampus = null) {
         campusSelectionResolve = null;
     }
 }
+
+// Canvas Auth Error Modal state
+let canvasAuthErrorResolve = null;
+let canvasAuthErrorShown = false;
+
+/**
+ * Opens the Canvas Auth Error modal and returns a promise that resolves with the user's choice
+ * @returns {Promise<'continue'|'shutdown'>} Promise that resolves with 'continue' or 'shutdown'
+ */
+export function openCanvasAuthErrorModal() {
+    return new Promise((resolve) => {
+        // Prevent multiple modals from stacking
+        if (canvasAuthErrorShown) {
+            resolve('continue'); // Default to continue if already shown
+            return;
+        }
+
+        if (!elements.canvasAuthErrorModal) {
+            resolve('continue');
+            return;
+        }
+
+        canvasAuthErrorShown = true;
+        canvasAuthErrorResolve = resolve;
+
+        // Show modal
+        elements.canvasAuthErrorModal.style.display = 'flex';
+    });
+}
+
+/**
+ * Closes the Canvas Auth Error modal
+ * @param {'continue'|'shutdown'} choice - The user's choice
+ */
+export function closeCanvasAuthErrorModal(choice = 'continue') {
+    if (elements.canvasAuthErrorModal) {
+        elements.canvasAuthErrorModal.style.display = 'none';
+    }
+
+    canvasAuthErrorShown = false;
+
+    // Resolve the promise with the user's choice
+    if (canvasAuthErrorResolve) {
+        canvasAuthErrorResolve(choice);
+        canvasAuthErrorResolve = null;
+    }
+}
+
+/**
+ * Checks if an error response indicates a Canvas authorization error
+ * @param {Response} response - The fetch response object
+ * @returns {boolean} True if it's an authorization error
+ */
+export function isCanvasAuthError(response) {
+    return response && (response.status === 401 || response.status === 403);
+}
+
+/**
+ * Checks if a JSON error body indicates a Canvas authorization error
+ * @param {Object} errorBody - The parsed JSON error body
+ * @returns {boolean} True if it's an authorization error
+ */
+export function isCanvasAuthErrorBody(errorBody) {
+    if (!errorBody) return false;
+
+    // Check for "unauthorized" status
+    if (errorBody.status === 'unauthorized') return true;
+
+    // Check for authorization error messages
+    if (errorBody.errors && Array.isArray(errorBody.errors)) {
+        return errorBody.errors.some(err =>
+            err.message && (
+                err.message.toLowerCase().includes('unauthorized') ||
+                err.message.toLowerCase().includes('not authorized')
+            )
+        );
+    }
+
+    return false;
+}
