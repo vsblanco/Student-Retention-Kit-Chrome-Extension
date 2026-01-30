@@ -142,6 +142,14 @@ export function cacheDomElements() {
     elements.dailyUpdateBtn = document.getElementById('dailyUpdateBtn');
     elements.dailyUpdateLaterBtn = document.getElementById('dailyUpdateLaterBtn');
 
+    // Latest Updates Modal
+    elements.latestUpdatesModal = document.getElementById('latestUpdatesModal');
+    elements.closeLatestUpdatesBtn = document.getElementById('closeLatestUpdatesBtn');
+    elements.latestUpdatesGotItBtn = document.getElementById('latestUpdatesGotItBtn');
+    elements.latestUpdatesTitle = document.getElementById('latestUpdatesTitle');
+    elements.latestUpdatesVersion = document.getElementById('latestUpdatesVersion');
+    elements.latestUpdatesList = document.getElementById('latestUpdatesList');
+
     // Excel Instance Modal
     elements.excelInstanceModal = document.getElementById('excelInstanceModal');
     elements.closeExcelInstanceBtn = document.getElementById('closeExcelInstanceBtn');

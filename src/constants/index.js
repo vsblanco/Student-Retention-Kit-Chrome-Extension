@@ -109,6 +109,7 @@ export const STORAGE_KEYS = {
     // General settings (settings.*)
     AUTO_UPDATE_MASTER_LIST: 'settings.autoUpdateMasterList',
     TUTORIAL_COMPLETED: 'settings.tutorialCompleted',
+    LAST_SEEN_VERSION: 'settings.lastSeenVersion',
 
     // Excel Add-in settings (settings.excelAddIn.*)
     SEND_MASTER_LIST_TO_EXCEL: 'settings.excelAddIn.sendMasterListToExcel',
@@ -186,6 +187,7 @@ export const DEFAULT_SETTINGS = {
     // General settings
     [STORAGE_KEYS.AUTO_UPDATE_MASTER_LIST]: 'always', // Options: 'always', 'once-daily', 'never'
     [STORAGE_KEYS.TUTORIAL_COMPLETED]: false,
+    [STORAGE_KEYS.LAST_SEEN_VERSION]: null, // Tracks last version user has seen updates for
 
     // Excel Add-in settings
     [STORAGE_KEYS.SEND_MASTER_LIST_TO_EXCEL]: true,
