@@ -83,6 +83,8 @@ import {
     getCampusesFromStudents,
     openCampusSelectionModal,
     closeCampusSelectionModal,
+    openStudentViewModal,
+    closeStudentViewModal,
     openCanvasAuthErrorModal,
     closeCanvasAuthErrorModal,
     toggleCanvasAuthNonApi,
@@ -677,6 +679,27 @@ function setupEventListeners() {
         elements.closeCampusSelectionBtn.addEventListener('click', () => closeCampusSelectionModal(null));
     }
 
+    // Student View Modal
+    if (elements.closeStudentViewBtn) {
+        elements.closeStudentViewBtn.addEventListener('click', closeStudentViewModal);
+    }
+    if (elements.studentViewCallBtn) {
+        elements.studentViewCallBtn.addEventListener('click', () => {
+            closeStudentViewModal();
+            switchTab('contact');
+            // Update Five9 connection indicator when switching to contact tab
+            if (queueManager) {
+                updateFive9ConnectionIndicator(queueManager.getQueue());
+            }
+        });
+    }
+    if (elements.studentViewEmailBtn) {
+        elements.studentViewEmailBtn.addEventListener('click', () => {
+            // Email functionality to be implemented later
+            console.log('Email button clicked - functionality coming soon');
+        });
+    }
+
     // Canvas Auth Error Modal
     if (elements.canvasAuthContinueBtn) {
         elements.canvasAuthContinueBtn.addEventListener('click', () => closeCanvasAuthErrorModal('continue'));
@@ -710,6 +733,9 @@ function setupEventListeners() {
         }
         if (elements.campusSelectionModal && e.target === elements.campusSelectionModal) {
             closeCampusSelectionModal(null);
+        }
+        if (elements.studentViewModal && e.target === elements.studentViewModal) {
+            closeStudentViewModal();
         }
     });
 

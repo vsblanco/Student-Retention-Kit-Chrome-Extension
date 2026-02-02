@@ -171,6 +171,22 @@ export function cacheDomElements() {
     elements.canvasAuthShutdownBtn = document.getElementById('canvasAuthShutdownBtn');
     elements.canvasAuthNonApiToggle = document.getElementById('canvasAuthNonApiToggle');
 
+    // Student View Modal
+    elements.studentViewModal = document.getElementById('studentViewModal');
+    elements.closeStudentViewBtn = document.getElementById('closeStudentViewBtn');
+    elements.studentViewAvatar = document.getElementById('studentViewAvatar');
+    elements.studentViewName = document.getElementById('studentViewName');
+    elements.studentViewCampus = document.getElementById('studentViewCampus');
+    elements.studentViewNewBadge = document.getElementById('studentViewNewBadge');
+    elements.studentViewDaysOut = document.getElementById('studentViewDaysOut');
+    elements.studentViewGrade = document.getElementById('studentViewGrade');
+    elements.studentViewNextAssignmentSection = document.getElementById('studentViewNextAssignmentSection');
+    elements.studentViewNextAssignment = document.getElementById('studentViewNextAssignment');
+    elements.studentViewNextAssignmentDate = document.getElementById('studentViewNextAssignmentDate');
+    elements.studentViewMissingList = document.getElementById('studentViewMissingList');
+    elements.studentViewEmailBtn = document.getElementById('studentViewEmailBtn');
+    elements.studentViewCallBtn = document.getElementById('studentViewCallBtn');
+
     // Connections Modal
     elements.connectionsModal = document.getElementById('connectionsModal');
     elements.closeConnectionsBtn = document.getElementById('closeConnectionsBtn');
