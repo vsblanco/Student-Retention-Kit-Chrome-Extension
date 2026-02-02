@@ -1537,8 +1537,8 @@ export function openStudentViewModal(student, hasMultipleCampuses = false) {
                 elements.studentViewAvatar.style.backgroundColor = 'rgb(18, 120, 255)'; // Blue
                 elements.studentViewAvatar.style.color = 'rgb(255, 255, 255)'; // White
             } else if (gender === 'female' || gender === 'f' || gender === 'girl') {
-                elements.studentViewAvatar.style.backgroundColor = '#fce7f3'; // Light pink
-                elements.studentViewAvatar.style.color = '#db2777';
+                elements.studentViewAvatar.style.backgroundColor = 'rgb(255, 145, 175)'; // Pastel pink
+                elements.studentViewAvatar.style.color = 'rgb(255, 255, 255)'; // White
             } else {
                 elements.studentViewAvatar.style.backgroundColor = '#e5e7eb'; // Gray
                 elements.studentViewAvatar.style.color = '#6b7280';
