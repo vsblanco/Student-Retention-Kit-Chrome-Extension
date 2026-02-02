@@ -41,7 +41,7 @@ import {
     hideCampusFilter
 } from './file-handler.js';
 
-import { processStep2, processStep3, processStep4 } from './canvas-integration.js';
+import { processStep2, processStep3, processStep4, formatDuration, updateTotalTime } from './canvas-integration.js';
 
 import {
     openScanFilterModal,
@@ -867,6 +867,78 @@ function setupEventListeners() {
             } else {
                 await sendMasterListToExcel(studentsToSend, targetTabId);
                 console.log(`Manually sent master list to Excel tab ${targetTabId}`);
+            }
+        });
+    }
+
+    // Context menu item - Check Grade Book Again
+    if (elements.checkGradeBookMenuItem) {
+        elements.checkGradeBookMenuItem.addEventListener('click', async () => {
+            // Hide context menu
+            if (elements.updateMasterContextMenu) {
+                elements.updateMasterContextMenu.style.display = 'none';
+            }
+
+            // Get current master list from storage
+            const data = await chrome.storage.local.get([STORAGE_KEYS.MASTER_ENTRIES]);
+            const students = data[STORAGE_KEYS.MASTER_ENTRIES] || [];
+
+            if (students.length === 0) {
+                alert('No master list data. Please update the master list first.');
+                return;
+            }
+
+            // Show update queue section and configure for grade book check only
+            if (elements.updateQueueSection) {
+                elements.updateQueueSection.style.display = 'block';
+            }
+
+            // Get step elements
+            const step1 = document.getElementById('step1');
+            const step2 = document.getElementById('step2');
+            const step3 = document.getElementById('step3');
+            const step4 = document.getElementById('step4');
+            const queueTotalTime = document.getElementById('queueTotalTime');
+
+            // Hide steps 1, 2, and 4 - only show step 3
+            if (step1) step1.style.display = 'none';
+            if (step2) step2.style.display = 'none';
+            if (step4) step4.style.display = 'none';
+
+            // Reset step 3 to initial state
+            if (step3) {
+                step3.style.display = '';
+                step3.className = 'queue-item';
+                step3.style.color = '';
+                step3.querySelector('.queue-content').innerHTML = '<i class="far fa-circle"></i> Checking Student\'s Grade book';
+                step3.querySelector('.step-time').textContent = '';
+            }
+
+            // Reset and show total time
+            if (queueTotalTime) {
+                queueTotalTime.style.display = 'none';
+                queueTotalTime.textContent = 'Total Time: 0.0s';
+                queueTotalTime.dataset.processStartTime = Date.now().toString();
+            }
+
+            // Run Step 3 only
+            try {
+                const updatedStudents = await processStep3(students, (finalStudents) => {
+                    renderMasterList(finalStudents, (entry, li, evt) => {
+                        queueManager.handleStudentClick(entry, li, evt);
+                    });
+                });
+
+                // Show total time
+                if (queueTotalTime && queueTotalTime.dataset.processStartTime) {
+                    const totalSeconds = (Date.now() - parseInt(queueTotalTime.dataset.processStartTime)) / 1000;
+                    queueTotalTime.textContent = `Total Time: ${formatDuration(totalSeconds)}`;
+                    queueTotalTime.style.display = 'block';
+                }
+
+                console.log('[Check Grade Book] Complete - updated gradebook data for all students');
+            } catch (error) {
+                console.error('[Check Grade Book] Error:', error);
             }
         });
     }

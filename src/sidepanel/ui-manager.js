@@ -96,6 +96,7 @@ export function cacheDomElements() {
     elements.downloadMasterBtn = document.getElementById('downloadMasterBtn');
     elements.updateMasterContextMenu = document.getElementById('updateMasterContextMenu');
     elements.sendListToExcelMenuItem = document.getElementById('sendListToExcelMenuItem');
+    elements.checkGradeBookMenuItem = document.getElementById('checkGradeBookMenuItem');
     elements.checkerContextMenu = document.getElementById('checkerContextMenu');
     elements.resendHighlightPingMenuItem = document.getElementById('resendHighlightPingMenuItem');
     elements.checkerContextMenuText = document.getElementById('checkerContextMenuText');
