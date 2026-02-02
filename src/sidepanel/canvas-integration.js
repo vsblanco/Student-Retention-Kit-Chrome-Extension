@@ -781,17 +781,42 @@ function findNextAssignment(submissions, courseId, origin, referenceDate = new D
     // Set time to start of day for comparison
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
+    console.log(`[findNextAssignment] Starting - Total submissions: ${submissions.length}, Reference date: ${now.toISOString()}, Today start: ${todayStart.toISOString()}`);
+
     // Filter and collect upcoming assignments that haven't been submitted
     const upcomingAssignments = [];
 
-    submissions.forEach(sub => {
-        // Skip if no assignment data
-        if (!sub.assignment) return;
+    // Debug counters
+    let noAssignmentData = 0;
+    let noDueDate = 0;
+    let dueDatePast = 0;
+    let alreadySubmitted = 0;
+    let isCompleteCount = 0;
 
-        const dueDate = sub.assignment.due_at ? new Date(sub.assignment.due_at) : null;
+    submissions.forEach((sub, index) => {
+        // Skip if no assignment data
+        if (!sub.assignment) {
+            noAssignmentData++;
+            return;
+        }
+
+        const rawDueAt = sub.assignment.due_at;
+        const dueDate = rawDueAt ? new Date(rawDueAt) : null;
+
+        // Log first few submissions for debugging
+        if (index < 5) {
+            console.log(`[findNextAssignment] Sub[${index}]: "${sub.assignment.name}" | due_at raw: ${rawDueAt} | parsed: ${dueDate ? dueDate.toISOString() : 'null'} | workflow: ${sub.workflow_state} | score: ${sub.score} | submitted_at: ${sub.submitted_at}`);
+        }
 
         // Skip assignments without a due date or with due dates before today
-        if (!dueDate || dueDate < todayStart) return;
+        if (!dueDate) {
+            noDueDate++;
+            return;
+        }
+        if (dueDate < todayStart) {
+            dueDatePast++;
+            return;
+        }
 
         // Check if the assignment has already been submitted
         // A submission is considered "submitted" if:
@@ -810,11 +835,20 @@ function findNextAssignment(submissions, courseId, origin, referenceDate = new D
         const isComplete = scoreStr === 'complete';
 
         // Skip if already submitted or complete
-        if (isSubmitted || isComplete) return;
+        if (isSubmitted) {
+            alreadySubmitted++;
+            return;
+        }
+        if (isComplete) {
+            isCompleteCount++;
+            return;
+        }
 
         // Generate assignment URL
         const assignmentId = sub.assignment.id;
         const assignmentUrl = assignmentId ? `${origin}/courses/${courseId}/assignments/${assignmentId}` : '';
+
+        console.log(`[findNextAssignment] ✓ Found upcoming: "${sub.assignment.name}" due ${dueDate.toLocaleDateString()}`);
 
         upcomingAssignments.push({
             Assignment: sub.assignment.name || 'Unknown Assignment',
@@ -824,8 +858,11 @@ function findNextAssignment(submissions, courseId, origin, referenceDate = new D
         });
     });
 
+    console.log(`[findNextAssignment] Filter results: noAssignmentData=${noAssignmentData}, noDueDate=${noDueDate}, dueDatePast=${dueDatePast}, alreadySubmitted=${alreadySubmitted}, isComplete=${isCompleteCount}, upcoming=${upcomingAssignments.length}`);
+
     // If no upcoming assignments found, return null
     if (upcomingAssignments.length === 0) {
+        console.log(`[findNextAssignment] No upcoming assignments found - returning null`);
         return null;
     }
 
