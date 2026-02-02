@@ -971,6 +971,8 @@ export async function processStep3(students, renderCallback) {
 
         if (nextAssignmentEnabled) {
             console.log(`[Step 3] Next Assignment feature enabled - will find next due assignment for each student`);
+        } else {
+            console.log(`[Step 3] Next Assignment feature is DISABLED - enable in settings to find upcoming assignments`);
         }
 
         let referenceDate;
