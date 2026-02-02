@@ -88,6 +88,7 @@ import {
     showStudentViewMain,
     showStudentViewMissing,
     showStudentViewNext,
+    showStudentViewDaysOut,
     openCanvasAuthErrorModal,
     closeCanvasAuthErrorModal,
     toggleCanvasAuthNonApi,
@@ -683,9 +684,6 @@ function setupEventListeners() {
     }
 
     // Student View Modal
-    if (elements.closeStudentViewBtn) {
-        elements.closeStudentViewBtn.addEventListener('click', closeStudentViewModal);
-    }
     if (elements.studentViewCallBtn) {
         elements.studentViewCallBtn.addEventListener('click', () => {
             closeStudentViewModal();
@@ -702,6 +700,10 @@ function setupEventListeners() {
             console.log('Email button clicked - functionality coming soon');
         });
     }
+    // Days Out card click - show detail view
+    if (elements.studentViewDaysOutCard) {
+        elements.studentViewDaysOutCard.addEventListener('click', showStudentViewDaysOut);
+    }
     // Missing Assignments card click - show detail view
     if (elements.studentViewMissingCard) {
         elements.studentViewMissingCard.addEventListener('click', showStudentViewMissing);
@@ -711,6 +713,9 @@ function setupEventListeners() {
         elements.studentViewNextCard.addEventListener('click', showStudentViewNext);
     }
     // Back buttons
+    if (elements.studentViewDaysOutBackBtn) {
+        elements.studentViewDaysOutBackBtn.addEventListener('click', showStudentViewMain);
+    }
     if (elements.studentViewMissingBackBtn) {
         elements.studentViewMissingBackBtn.addEventListener('click', showStudentViewMain);
     }
@@ -721,7 +726,7 @@ function setupEventListeners() {
     if (elements.studentViewModal) {
         elements.studentViewModal.addEventListener('click', (e) => {
             // Check if click was on an interactive element
-            const isInteractive = e.target.closest('button, .btn-primary, .btn-secondary, .icon-btn, #studentViewMissingCard, #studentViewNextCard, #studentViewMissingList a, #studentViewNextDetailContent a');
+            const isInteractive = e.target.closest('button, .btn-primary, .btn-secondary, .icon-btn, #studentViewDaysOutCard, #studentViewMissingCard, #studentViewNextCard, #studentViewMissingList a, #studentViewNextDetailContent a');
             if (!isInteractive) {
                 closeStudentViewModal();
             }

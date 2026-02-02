@@ -747,19 +747,22 @@
     <!-- Student View Modal -->
     <div id="studentViewModal" class="modal-overlay" style="display:none;">
         <div class="modal-content" style="max-width: 380px;">
-            <div class="modal-header">
-                <h3 id="studentViewModalTitle"><i class="fas fa-user-graduate" style="color: var(--primary-color);"></i> Student Details</h3>
-                <button class="icon-btn" id="closeStudentViewBtn" title="Close"><i class="fas fa-times"></i></button>
-            </div>
-
             <!-- Main View -->
             <div id="studentViewMain">
                 <div class="modal-body" style="padding: 20px;">
                     <!-- Profile Section -->
                     <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 20px;">
-                        <div id="studentViewAvatar" style="width: 60px; height: 60px; min-width: 60px; border-radius: 50%; background: #e0e7ff; display: flex; align-items: center; justify-content: center; font-size: 1.4em; font-weight: 600; color: #4f46e5; border: 3px solid #10b981;"></div>
+                        <div id="studentViewAvatar" style="width: 60px; height: 60px; min-width: 60px; border-radius: 50%; background: #e0e7ff; display: flex; align-items: center; justify-content: center; font-size: 1.4em; font-weight: 600; color: #4f46e5;"></div>
                         <div style="flex: 1; min-width: 0;">
-                            <div id="studentViewName" style="font-weight: 600; font-size: 1.1em; color: var(--text-main); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"></div>
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <div id="studentViewName" style="font-weight: 600; font-size: 1.1em; color: var(--text-main); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1;"></div>
+                                <button class="icon-btn" id="studentViewCallBtn" title="Call" style="padding: 6px 8px; background: var(--primary-color); color: white; border-radius: 6px;">
+                                    <i class="fas fa-phone-alt" style="font-size: 0.9em;"></i>
+                                </button>
+                                <button class="icon-btn" id="studentViewEmailBtn" title="Email" style="padding: 6px 8px; background: rgba(0, 90, 156, 0.1); color: var(--primary-color); border-radius: 6px;">
+                                    <i class="fas fa-envelope" style="font-size: 0.9em;"></i>
+                                </button>
+                            </div>
                             <div id="studentViewCampus" style="font-size: 0.85em; color: var(--text-secondary); display: none;">
                                 <i class="fas fa-building" style="margin-right: 4px;"></i><span></span>
                             </div>
@@ -771,8 +774,8 @@
 
                     <!-- Stats Grid (2x2) -->
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-                        <div id="studentViewDaysOutCard" style="padding: 12px; border-radius: 10px; text-align: center;">
-                            <div style="font-size: 0.75em; margin-bottom: 4px;">Days Out</div>
+                        <div id="studentViewDaysOutCard" style="padding: 12px; border-radius: 10px; text-align: center; cursor: pointer; transition: transform 0.1s;">
+                            <div style="font-size: 0.75em; margin-bottom: 4px;">Days Out <i class="fas fa-chevron-right" style="font-size: 0.7em; opacity: 0.6;"></i></div>
                             <div id="studentViewDaysOut" style="font-size: 1.3em; font-weight: 700;">-</div>
                         </div>
                         <div id="studentViewGradeCard" style="padding: 12px; border-radius: 10px; text-align: center;">
@@ -789,14 +792,23 @@
                         </div>
                     </div>
                 </div>
+            </div>
 
-                <div class="modal-footer" style="display: flex; gap: 10px;">
-                    <button class="btn-primary" id="studentViewCallBtn" style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px;">
-                        <i class="fas fa-phone-alt"></i> Call
-                    </button>
-                    <button class="btn-secondary" id="studentViewEmailBtn" style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px;">
-                        <i class="fas fa-envelope"></i> Email
-                    </button>
+            <!-- Days Out Detail View -->
+            <div id="studentViewDaysOutDetail" style="display: none;">
+                <div class="modal-body" style="padding: 20px;">
+                    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 15px;">
+                        <button id="studentViewDaysOutBackBtn" class="icon-btn" style="padding: 6px 10px;" title="Back">
+                            <i class="fas fa-arrow-left"></i>
+                        </button>
+                        <div style="font-weight: 600; font-size: 1em; color: var(--text-main);">
+                            <i class="fas fa-calendar-day" style="color: var(--primary-color); margin-right: 6px;"></i><span id="studentViewDaysOutTitle">Days Out</span>
+                        </div>
+                    </div>
+                    <div style="padding: 20px; background: rgba(0, 90, 156, 0.06); border-radius: 10px; text-align: center;">
+                        <div id="studentViewDaysLeftText" style="font-size: 1em; color: var(--text-main); margin-bottom: 12px;"></div>
+                        <div id="studentViewDeadlineText" style="font-size: 0.9em; color: var(--text-secondary);"></div>
+                    </div>
                 </div>
             </div>
 

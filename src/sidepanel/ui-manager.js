@@ -173,8 +173,6 @@ export function cacheDomElements() {
 
     // Student View Modal
     elements.studentViewModal = document.getElementById('studentViewModal');
-    elements.studentViewModalTitle = document.getElementById('studentViewModalTitle');
-    elements.closeStudentViewBtn = document.getElementById('closeStudentViewBtn');
     elements.studentViewMain = document.getElementById('studentViewMain');
     elements.studentViewAvatar = document.getElementById('studentViewAvatar');
     elements.studentViewName = document.getElementById('studentViewName');
@@ -201,6 +199,12 @@ export function cacheDomElements() {
     elements.studentViewNextAssignment = document.getElementById('studentViewNextAssignment');
     elements.studentViewNextAssignmentDate = document.getElementById('studentViewNextAssignmentDate');
     elements.studentViewNoNextAssignment = document.getElementById('studentViewNoNextAssignment');
+    // Days Out Detail View
+    elements.studentViewDaysOutDetail = document.getElementById('studentViewDaysOutDetail');
+    elements.studentViewDaysOutBackBtn = document.getElementById('studentViewDaysOutBackBtn');
+    elements.studentViewDaysOutTitle = document.getElementById('studentViewDaysOutTitle');
+    elements.studentViewDaysLeftText = document.getElementById('studentViewDaysLeftText');
+    elements.studentViewDeadlineText = document.getElementById('studentViewDeadlineText');
 
     // Connections Modal
     elements.connectionsModal = document.getElementById('connectionsModal');
