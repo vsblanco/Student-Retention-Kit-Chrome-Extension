@@ -1526,10 +1526,23 @@ export function openStudentViewModal(student, hasMultipleCampuses = false) {
             elements.studentViewAvatar.style.backgroundSize = 'cover';
             elements.studentViewAvatar.style.backgroundPosition = 'center';
             elements.studentViewAvatar.style.backgroundColor = 'transparent';
+            elements.studentViewAvatar.style.color = 'transparent';
         } else {
             elements.studentViewAvatar.style.backgroundImage = 'none';
             elements.studentViewAvatar.textContent = initials;
-            elements.studentViewAvatar.style.backgroundColor = '#e0e7ff';
+
+            // Gender-based avatar colors
+            const gender = (student.Gender || student.gender || '').toLowerCase();
+            if (gender === 'male' || gender === 'm' || gender === 'boy') {
+                elements.studentViewAvatar.style.backgroundColor = '#dbeafe'; // Light blue
+                elements.studentViewAvatar.style.color = '#2563eb';
+            } else if (gender === 'female' || gender === 'f' || gender === 'girl') {
+                elements.studentViewAvatar.style.backgroundColor = '#fce7f3'; // Light pink
+                elements.studentViewAvatar.style.color = '#db2777';
+            } else {
+                elements.studentViewAvatar.style.backgroundColor = '#e5e7eb'; // Gray
+                elements.studentViewAvatar.style.color = '#6b7280';
+            }
         }
     }
 
@@ -1638,8 +1651,8 @@ export function openStudentViewModal(student, hasMultipleCampuses = false) {
             elements.studentViewMissingCard.style.background = 'rgba(16, 185, 129, 0.15)';
             elements.studentViewMissingCard.style.color = '#047857';
         } else {
-            elements.studentViewMissingCard.style.background = 'rgba(0, 90, 156, 0.1)';
-            elements.studentViewMissingCard.style.color = 'var(--primary-color)';
+            elements.studentViewMissingCard.style.background = 'rgba(107, 114, 128, 0.15)';
+            elements.studentViewMissingCard.style.color = '#4b5563';
         }
     }
 
@@ -1669,9 +1682,9 @@ export function openStudentViewModal(student, hasMultipleCampuses = false) {
         } else {
             elements.studentViewNextDate.textContent = '-';
         }
-        // Always use gray/default color
-        elements.studentViewNextCard.style.background = 'rgba(0, 90, 156, 0.1)';
-        elements.studentViewNextCard.style.color = 'var(--primary-color)';
+        // Always use gray color
+        elements.studentViewNextCard.style.background = 'rgba(107, 114, 128, 0.15)';
+        elements.studentViewNextCard.style.color = '#4b5563';
     }
 
     // Populate next assignment detail view
