@@ -796,12 +796,14 @@ function findNextAssignment(submissions, courseId, origin, referenceDate = new D
         // Check if the assignment has already been submitted
         // A submission is considered "submitted" if:
         // - workflow_state is 'submitted', 'graded', or 'pending_review'
-        // - submitted_at has a value
-        // - score is not null and score > 0 (has been graded with a passing score)
+        // - submitted_at has an actual value (date string)
+        // - score is not null/undefined and score > 0 (has been graded with a passing score)
         const submittedStates = ['submitted', 'graded', 'pending_review'];
+        const hasSubmittedAt = sub.submitted_at != null && sub.submitted_at !== '';
+        const hasPassingScore = sub.score != null && sub.score > 0;
         const isSubmitted = submittedStates.includes(sub.workflow_state) ||
-                           sub.submitted_at !== null ||
-                           (sub.score !== null && sub.score > 0);
+                           hasSubmittedAt ||
+                           hasPassingScore;
 
         // Also check for "complete" grade which indicates completion
         const scoreStr = String(sub.score || sub.grade || '').toLowerCase();

@@ -41,7 +41,7 @@ import {
     hideCampusFilter
 } from './file-handler.js';
 
-import { processStep2, processStep3, processStep4 } from './canvas-integration.js';
+import { processStep2, processStep3, processStep4, formatDuration, updateTotalTime } from './canvas-integration.js';
 
 import {
     openScanFilterModal,
@@ -789,10 +789,7 @@ function setupEventListeners() {
 
             if (!elements.updateMasterContextMenu) return;
 
-            // Position the context menu at the mouse position
-            elements.updateMasterContextMenu.style.left = `${e.pageX}px`;
-            elements.updateMasterContextMenu.style.top = `${e.pageY}px`;
-            elements.updateMasterContextMenu.style.display = 'block';
+            positionContextMenu(elements.updateMasterContextMenu, e.pageX, e.pageY);
         });
     }
 
@@ -871,6 +868,78 @@ function setupEventListeners() {
         });
     }
 
+    // Context menu item - Check Grade Book Again
+    if (elements.checkGradeBookMenuItem) {
+        elements.checkGradeBookMenuItem.addEventListener('click', async () => {
+            // Hide context menu
+            if (elements.updateMasterContextMenu) {
+                elements.updateMasterContextMenu.style.display = 'none';
+            }
+
+            // Get current master list from storage
+            const data = await chrome.storage.local.get([STORAGE_KEYS.MASTER_ENTRIES]);
+            const students = data[STORAGE_KEYS.MASTER_ENTRIES] || [];
+
+            if (students.length === 0) {
+                alert('No master list data. Please update the master list first.');
+                return;
+            }
+
+            // Show update queue section and configure for grade book check only
+            if (elements.updateQueueSection) {
+                elements.updateQueueSection.style.display = 'block';
+            }
+
+            // Get step elements
+            const step1 = document.getElementById('step1');
+            const step2 = document.getElementById('step2');
+            const step3 = document.getElementById('step3');
+            const step4 = document.getElementById('step4');
+            const queueTotalTime = document.getElementById('queueTotalTime');
+
+            // Hide steps 1, 2, and 4 - only show step 3
+            if (step1) step1.style.display = 'none';
+            if (step2) step2.style.display = 'none';
+            if (step4) step4.style.display = 'none';
+
+            // Reset step 3 to initial state
+            if (step3) {
+                step3.style.display = '';
+                step3.className = 'queue-item';
+                step3.style.color = '';
+                step3.querySelector('.queue-content').innerHTML = '<i class="far fa-circle"></i> Checking Student\'s Grade book';
+                step3.querySelector('.step-time').textContent = '';
+            }
+
+            // Reset and show total time
+            if (queueTotalTime) {
+                queueTotalTime.style.display = 'none';
+                queueTotalTime.textContent = 'Total Time: 0.0s';
+                queueTotalTime.dataset.processStartTime = Date.now().toString();
+            }
+
+            // Run Step 3 only
+            try {
+                const updatedStudents = await processStep3(students, (finalStudents) => {
+                    renderMasterList(finalStudents, (entry, li, evt) => {
+                        queueManager.handleStudentClick(entry, li, evt);
+                    });
+                });
+
+                // Show total time
+                if (queueTotalTime && queueTotalTime.dataset.processStartTime) {
+                    const totalSeconds = (Date.now() - parseInt(queueTotalTime.dataset.processStartTime)) / 1000;
+                    queueTotalTime.textContent = `Total Time: ${formatDuration(totalSeconds)}`;
+                    queueTotalTime.style.display = 'block';
+                }
+
+                console.log('[Check Grade Book] Complete - updated gradebook data for all students');
+            } catch (error) {
+                console.error('[Check Grade Book] Error:', error);
+            }
+        });
+    }
+
     // Hide context menu when clicking elsewhere
     document.addEventListener('click', () => {
         if (elements.updateMasterContextMenu) {
@@ -883,6 +952,48 @@ function setupEventListeners() {
 
     // Variable to track the selected student entry for context menu
     let selectedStudentEntry = null;
+
+    /**
+     * Positions a context menu at the mouse position, adjusting if it would overflow the viewport
+     * @param {HTMLElement} menu - The context menu element
+     * @param {number} mouseX - The mouse X position (e.pageX)
+     * @param {number} mouseY - The mouse Y position (e.pageY)
+     */
+    function positionContextMenu(menu, mouseX, mouseY) {
+        // First, show the menu off-screen to measure its dimensions
+        menu.style.visibility = 'hidden';
+        menu.style.display = 'block';
+
+        const menuWidth = menu.offsetWidth;
+        const menuHeight = menu.offsetHeight;
+
+        // Get viewport dimensions
+        const viewportWidth = window.innerWidth;
+        const viewportHeight = window.innerHeight;
+
+        // Calculate position, adjusting if menu would overflow viewport
+        let left = mouseX;
+        let top = mouseY;
+
+        // Check right edge overflow
+        if (left + menuWidth > viewportWidth) {
+            left = mouseX - menuWidth;
+        }
+
+        // Check bottom edge overflow - position above cursor if needed
+        if (top + menuHeight > viewportHeight) {
+            top = mouseY - menuHeight;
+        }
+
+        // Ensure menu doesn't go off the left or top edges
+        if (left < 0) left = 5;
+        if (top < 0) top = 5;
+
+        // Apply calculated position and show menu
+        menu.style.left = `${left}px`;
+        menu.style.top = `${top}px`;
+        menu.style.visibility = 'visible';
+    }
 
     // Right-click context menu for Checker Tab
     const checkerTab = document.getElementById('checker');
@@ -900,10 +1011,7 @@ function setupEventListeners() {
                 selectedStudentEntry = JSON.parse(listItem.dataset.entryData);
                 elements.checkerContextMenuText.textContent = 'Resend Highlight Ping';
 
-                // Position the context menu at the mouse position
-                elements.checkerContextMenu.style.left = `${e.pageX}px`;
-                elements.checkerContextMenu.style.top = `${e.pageY}px`;
-                elements.checkerContextMenu.style.display = 'block';
+                positionContextMenu(elements.checkerContextMenu, e.pageX, e.pageY);
             } else {
                 // Right-clicked elsewhere on checker tab - check if there are any students
                 const data = await chrome.storage.local.get(STORAGE_KEYS.FOUND_ENTRIES);
@@ -914,10 +1022,7 @@ function setupEventListeners() {
                     selectedStudentEntry = null;
                     elements.checkerContextMenuText.textContent = 'Resend All Highlight Pings';
 
-                    // Position the context menu at the mouse position
-                    elements.checkerContextMenu.style.left = `${e.pageX}px`;
-                    elements.checkerContextMenu.style.top = `${e.pageY}px`;
-                    elements.checkerContextMenu.style.display = 'block';
+                    positionContextMenu(elements.checkerContextMenu, e.pageX, e.pageY);
                 }
                 // If no students, don't show the context menu
             }
