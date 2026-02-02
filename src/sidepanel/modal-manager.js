@@ -1531,14 +1531,6 @@ export function openStudentViewModal(student, hasMultipleCampuses = false) {
             elements.studentViewAvatar.textContent = initials;
             elements.studentViewAvatar.style.backgroundColor = '#e0e7ff';
         }
-
-        // Set border color based on days out
-        const daysOut = parseInt(data.daysOut) || 0;
-        let borderColor = '#10b981'; // Green (good)
-        if (daysOut >= 10) borderColor = '#ef4444'; // Red
-        else if (daysOut >= 5) borderColor = '#f97316'; // Orange
-        else if (daysOut >= 2) borderColor = '#eab308'; // Yellow
-        elements.studentViewAvatar.style.borderColor = borderColor;
     }
 
     // Name
@@ -1586,6 +1578,27 @@ export function openStudentViewModal(student, hasMultipleCampuses = false) {
         elements.studentViewDaysOutCard.style.color = textColor;
     }
 
+    // Days Out Detail View population
+    if (elements.studentViewDaysOutTitle && elements.studentViewDaysLeftText && elements.studentViewDeadlineText) {
+        const daysOut = data.daysOut !== undefined && data.daysOut !== null ? parseInt(data.daysOut) : 0;
+
+        // Title: "X Days Out"
+        elements.studentViewDaysOutTitle.textContent = `${daysOut} Days Out`;
+
+        // Calculate days left (assuming 14 days total for a standard period)
+        const daysLeft = Math.max(0, 14 - daysOut);
+        elements.studentViewDaysLeftText.textContent = `The student has ${daysLeft} day${daysLeft !== 1 ? 's' : ''} left.`;
+
+        // Calculate deadline date
+        const today = new Date();
+        const deadlineDate = new Date(today);
+        deadlineDate.setDate(today.getDate() + daysLeft);
+
+        const options = { year: 'numeric', month: 'long', day: 'numeric' };
+        const formattedDate = deadlineDate.toLocaleDateString('en-US', options);
+        elements.studentViewDeadlineText.textContent = `They have until ${formattedDate} to submit work.`;
+    }
+
     // Grade - access raw student field, with background color
     if (elements.studentViewGrade && elements.studentViewGradeCard) {
         const rawGrade = student.grade ?? student.Grade ?? student.currentGrade ?? null;
@@ -1615,26 +1628,19 @@ export function openStudentViewModal(student, hasMultipleCampuses = false) {
         elements.studentViewGradeCard.style.color = textColor;
     }
 
-    // Missing Assignments Card - show count with background color
+    // Missing Assignments Card - show count with simplified colors
     const missing = student.missingAssignments || [];
     if (elements.studentViewMissingCount && elements.studentViewMissingCard) {
         elements.studentViewMissingCount.textContent = missing.length;
 
-        // Color code based on count
-        let bgColor = 'rgba(16, 185, 129, 0.15)'; // Green (0 missing)
-        let textColor = '#047857';
-        if (missing.length >= 5) {
-            bgColor = 'rgba(239, 68, 68, 0.15)';
-            textColor = '#b91c1c';
-        } else if (missing.length >= 3) {
-            bgColor = 'rgba(249, 115, 22, 0.15)';
-            textColor = '#c2410c';
-        } else if (missing.length >= 1) {
-            bgColor = 'rgba(234, 179, 8, 0.15)';
-            textColor = '#a16207';
+        // Simple color: green for 0, gray otherwise
+        if (missing.length === 0) {
+            elements.studentViewMissingCard.style.background = 'rgba(16, 185, 129, 0.15)';
+            elements.studentViewMissingCard.style.color = '#047857';
+        } else {
+            elements.studentViewMissingCard.style.background = 'rgba(0, 90, 156, 0.1)';
+            elements.studentViewMissingCard.style.color = 'var(--primary-color)';
         }
-        elements.studentViewMissingCard.style.background = bgColor;
-        elements.studentViewMissingCard.style.color = textColor;
     }
 
     // Populate missing assignments list for detail view
@@ -1655,18 +1661,17 @@ export function openStudentViewModal(student, hasMultipleCampuses = false) {
         }
     }
 
-    // Next Assignment Card - show due date with background color
+    // Next Assignment Card - show due date (always gray)
     const nextAssignment = student.nextAssignment || null;
     if (elements.studentViewNextDate && elements.studentViewNextCard) {
         if (nextAssignment && nextAssignment.DueDate) {
             elements.studentViewNextDate.textContent = nextAssignment.DueDate;
-            elements.studentViewNextCard.style.background = 'rgba(16, 185, 129, 0.15)';
-            elements.studentViewNextCard.style.color = '#047857';
         } else {
             elements.studentViewNextDate.textContent = '-';
-            elements.studentViewNextCard.style.background = 'rgba(0, 90, 156, 0.1)';
-            elements.studentViewNextCard.style.color = 'var(--primary-color)';
         }
+        // Always use gray/default color
+        elements.studentViewNextCard.style.background = 'rgba(0, 90, 156, 0.1)';
+        elements.studentViewNextCard.style.color = 'var(--primary-color)';
     }
 
     // Populate next assignment detail view
@@ -1706,6 +1711,7 @@ export function showStudentViewMain() {
     if (elements.studentViewMain) elements.studentViewMain.style.display = 'block';
     if (elements.studentViewMissingDetail) elements.studentViewMissingDetail.style.display = 'none';
     if (elements.studentViewNextDetail) elements.studentViewNextDetail.style.display = 'none';
+    if (elements.studentViewDaysOutDetail) elements.studentViewDaysOutDetail.style.display = 'none';
 }
 
 /**
@@ -1715,6 +1721,7 @@ export function showStudentViewMissing() {
     if (elements.studentViewMain) elements.studentViewMain.style.display = 'none';
     if (elements.studentViewMissingDetail) elements.studentViewMissingDetail.style.display = 'block';
     if (elements.studentViewNextDetail) elements.studentViewNextDetail.style.display = 'none';
+    if (elements.studentViewDaysOutDetail) elements.studentViewDaysOutDetail.style.display = 'none';
 }
 
 /**
@@ -1724,6 +1731,17 @@ export function showStudentViewNext() {
     if (elements.studentViewMain) elements.studentViewMain.style.display = 'none';
     if (elements.studentViewMissingDetail) elements.studentViewMissingDetail.style.display = 'none';
     if (elements.studentViewNextDetail) elements.studentViewNextDetail.style.display = 'block';
+    if (elements.studentViewDaysOutDetail) elements.studentViewDaysOutDetail.style.display = 'none';
+}
+
+/**
+ * Shows the days out detail view
+ */
+export function showStudentViewDaysOut() {
+    if (elements.studentViewMain) elements.studentViewMain.style.display = 'none';
+    if (elements.studentViewMissingDetail) elements.studentViewMissingDetail.style.display = 'none';
+    if (elements.studentViewNextDetail) elements.studentViewNextDetail.style.display = 'none';
+    if (elements.studentViewDaysOutDetail) elements.studentViewDaysOutDetail.style.display = 'block';
 }
 
 /**
