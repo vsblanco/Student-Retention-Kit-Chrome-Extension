@@ -4,6 +4,7 @@ import { switchTab } from './ui-manager.js';
 import { updateFive9ConnectionIndicator } from './five9-integration.js';
 import { STORAGE_KEYS } from '../constants/index.js';
 import { storageGetValue } from '../utils/storage.js';
+import { openStudentViewModal } from './modal-manager.js';
 
 /**
  * Queue Manager Class - Manages student queue operations
@@ -85,6 +86,11 @@ export class QueueManager {
             switchTab('contact');
             // Check Five9 connection when switching to contact tab
             updateFive9ConnectionIndicator(this.selectedQueue);
+        } else {
+            // Show student view modal when auto-switch is disabled
+            const campusList = await storageGetValue(STORAGE_KEYS.CAMPUS_LIST, []);
+            const hasMultipleCampuses = Array.isArray(campusList) && campusList.length > 1;
+            openStudentViewModal(entry, hasMultipleCampuses);
         }
     }
 

@@ -171,6 +171,37 @@ export function cacheDomElements() {
     elements.canvasAuthShutdownBtn = document.getElementById('canvasAuthShutdownBtn');
     elements.canvasAuthNonApiToggle = document.getElementById('canvasAuthNonApiToggle');
 
+    // Student View Modal
+    elements.studentViewModal = document.getElementById('studentViewModal');
+    elements.studentViewModalTitle = document.getElementById('studentViewModalTitle');
+    elements.closeStudentViewBtn = document.getElementById('closeStudentViewBtn');
+    elements.studentViewMain = document.getElementById('studentViewMain');
+    elements.studentViewAvatar = document.getElementById('studentViewAvatar');
+    elements.studentViewName = document.getElementById('studentViewName');
+    elements.studentViewCampus = document.getElementById('studentViewCampus');
+    elements.studentViewNewBadge = document.getElementById('studentViewNewBadge');
+    elements.studentViewDaysOut = document.getElementById('studentViewDaysOut');
+    elements.studentViewDaysOutCard = document.getElementById('studentViewDaysOutCard');
+    elements.studentViewGrade = document.getElementById('studentViewGrade');
+    elements.studentViewGradeCard = document.getElementById('studentViewGradeCard');
+    elements.studentViewMissingCard = document.getElementById('studentViewMissingCard');
+    elements.studentViewMissingCount = document.getElementById('studentViewMissingCount');
+    elements.studentViewNextCard = document.getElementById('studentViewNextCard');
+    elements.studentViewNextDate = document.getElementById('studentViewNextDate');
+    elements.studentViewEmailBtn = document.getElementById('studentViewEmailBtn');
+    elements.studentViewCallBtn = document.getElementById('studentViewCallBtn');
+    // Missing Assignments Detail View
+    elements.studentViewMissingDetail = document.getElementById('studentViewMissingDetail');
+    elements.studentViewMissingBackBtn = document.getElementById('studentViewMissingBackBtn');
+    elements.studentViewMissingList = document.getElementById('studentViewMissingList');
+    // Next Assignment Detail View
+    elements.studentViewNextDetail = document.getElementById('studentViewNextDetail');
+    elements.studentViewNextBackBtn = document.getElementById('studentViewNextBackBtn');
+    elements.studentViewNextDetailContent = document.getElementById('studentViewNextDetailContent');
+    elements.studentViewNextAssignment = document.getElementById('studentViewNextAssignment');
+    elements.studentViewNextAssignmentDate = document.getElementById('studentViewNextAssignmentDate');
+    elements.studentViewNoNextAssignment = document.getElementById('studentViewNoNextAssignment');
+
     // Connections Modal
     elements.connectionsModal = document.getElementById('connectionsModal');
     elements.closeConnectionsBtn = document.getElementById('closeConnectionsBtn');

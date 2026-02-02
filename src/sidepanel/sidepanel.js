@@ -83,6 +83,11 @@ import {
     getCampusesFromStudents,
     openCampusSelectionModal,
     closeCampusSelectionModal,
+    openStudentViewModal,
+    closeStudentViewModal,
+    showStudentViewMain,
+    showStudentViewMissing,
+    showStudentViewNext,
     openCanvasAuthErrorModal,
     closeCanvasAuthErrorModal,
     toggleCanvasAuthNonApi,
@@ -677,6 +682,52 @@ function setupEventListeners() {
         elements.closeCampusSelectionBtn.addEventListener('click', () => closeCampusSelectionModal(null));
     }
 
+    // Student View Modal
+    if (elements.closeStudentViewBtn) {
+        elements.closeStudentViewBtn.addEventListener('click', closeStudentViewModal);
+    }
+    if (elements.studentViewCallBtn) {
+        elements.studentViewCallBtn.addEventListener('click', () => {
+            closeStudentViewModal();
+            switchTab('contact');
+            // Update Five9 connection indicator when switching to contact tab
+            if (queueManager) {
+                updateFive9ConnectionIndicator(queueManager.getQueue());
+            }
+        });
+    }
+    if (elements.studentViewEmailBtn) {
+        elements.studentViewEmailBtn.addEventListener('click', () => {
+            // Email functionality to be implemented later
+            console.log('Email button clicked - functionality coming soon');
+        });
+    }
+    // Missing Assignments card click - show detail view
+    if (elements.studentViewMissingCard) {
+        elements.studentViewMissingCard.addEventListener('click', showStudentViewMissing);
+    }
+    // Next Assignment card click - show detail view
+    if (elements.studentViewNextCard) {
+        elements.studentViewNextCard.addEventListener('click', showStudentViewNext);
+    }
+    // Back buttons
+    if (elements.studentViewMissingBackBtn) {
+        elements.studentViewMissingBackBtn.addEventListener('click', showStudentViewMain);
+    }
+    if (elements.studentViewNextBackBtn) {
+        elements.studentViewNextBackBtn.addEventListener('click', showStudentViewMain);
+    }
+    // Click on non-interactive areas closes the modal
+    if (elements.studentViewModal) {
+        elements.studentViewModal.addEventListener('click', (e) => {
+            // Check if click was on an interactive element
+            const isInteractive = e.target.closest('button, .btn-primary, .btn-secondary, .icon-btn, #studentViewMissingCard, #studentViewNextCard, #studentViewMissingList a, #studentViewNextDetailContent a');
+            if (!isInteractive) {
+                closeStudentViewModal();
+            }
+        });
+    }
+
     // Canvas Auth Error Modal
     if (elements.canvasAuthContinueBtn) {
         elements.canvasAuthContinueBtn.addEventListener('click', () => closeCanvasAuthErrorModal('continue'));
@@ -710,6 +761,9 @@ function setupEventListeners() {
         }
         if (elements.campusSelectionModal && e.target === elements.campusSelectionModal) {
             closeCampusSelectionModal(null);
+        }
+        if (elements.studentViewModal && e.target === elements.studentViewModal) {
+            closeStudentViewModal();
         }
     });
 

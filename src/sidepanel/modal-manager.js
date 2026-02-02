@@ -1,5 +1,5 @@
 // Modal Manager - Handles all modal dialogs (scan filter, queue, version history, latest updates)
-import { STORAGE_KEYS, CANVAS_DOMAIN, FIVE9_CONNECTION_STATES, EXTENSION_STATES } from '../constants/index.js';
+import { STORAGE_KEYS, CANVAS_DOMAIN, FIVE9_CONNECTION_STATES, EXTENSION_STATES, GENERIC_AVATAR_URL } from '../constants/index.js';
 import { storageGet, storageSet, storageGetValue, sessionGetValue } from '../utils/storage.js';
 import { encrypt, decrypt } from '../utils/encryption.js';
 import { elements } from './ui-manager.js';
@@ -1489,6 +1489,252 @@ export function closeCampusSelectionModal(selectedCampus = null) {
         campusSelectionResolve(selectedCampus);
         campusSelectionResolve = null;
     }
+}
+
+// ============================================================================
+// STUDENT VIEW MODAL
+// ============================================================================
+
+/**
+ * Opens the student view modal with student details
+ * @param {Object} student - The student data object
+ * @param {boolean} hasMultipleCampuses - Whether there are multiple campuses in the list
+ */
+export function openStudentViewModal(student, hasMultipleCampuses = false) {
+    if (!elements.studentViewModal || !student) return;
+
+    const data = resolveStudentData(student);
+
+    // Reset to main view
+    showStudentViewMain();
+
+    // Generate initials for avatar fallback
+    const nameParts = (data.name || '').trim().split(/\s+/);
+    let initials = '';
+    if (nameParts.length > 0) {
+        const firstInitial = nameParts[0][0] || '';
+        const lastInitial = nameParts.length > 1 ? nameParts[nameParts.length - 1][0] : '';
+        initials = (firstInitial + lastInitial).toUpperCase();
+        if (!initials) initials = '?';
+    }
+
+    // Avatar
+    if (elements.studentViewAvatar) {
+        if (data.Photo && data.Photo !== GENERIC_AVATAR_URL) {
+            elements.studentViewAvatar.textContent = '';
+            elements.studentViewAvatar.style.backgroundImage = `url('${data.Photo}')`;
+            elements.studentViewAvatar.style.backgroundSize = 'cover';
+            elements.studentViewAvatar.style.backgroundPosition = 'center';
+            elements.studentViewAvatar.style.backgroundColor = 'transparent';
+        } else {
+            elements.studentViewAvatar.style.backgroundImage = 'none';
+            elements.studentViewAvatar.textContent = initials;
+            elements.studentViewAvatar.style.backgroundColor = '#e0e7ff';
+        }
+
+        // Set border color based on days out
+        const daysOut = parseInt(data.daysOut) || 0;
+        let borderColor = '#10b981'; // Green (good)
+        if (daysOut >= 10) borderColor = '#ef4444'; // Red
+        else if (daysOut >= 5) borderColor = '#f97316'; // Orange
+        else if (daysOut >= 2) borderColor = '#eab308'; // Yellow
+        elements.studentViewAvatar.style.borderColor = borderColor;
+    }
+
+    // Name
+    if (elements.studentViewName) {
+        elements.studentViewName.textContent = data.name || 'Unknown Student';
+    }
+
+    // Campus (only show if multiple campuses) - access raw student field
+    if (elements.studentViewCampus) {
+        const campusSpan = elements.studentViewCampus.querySelector('span');
+        const campus = student.campus || student.Campus || '';
+        if (hasMultipleCampuses && campus) {
+            elements.studentViewCampus.style.display = 'block';
+            if (campusSpan) campusSpan.textContent = campus;
+        } else {
+            elements.studentViewCampus.style.display = 'none';
+        }
+    }
+
+    // New badge
+    if (elements.studentViewNewBadge) {
+        elements.studentViewNewBadge.style.display = data.isNew ? 'block' : 'none';
+    }
+
+    // Days Out - with background color
+    if (elements.studentViewDaysOut && elements.studentViewDaysOutCard) {
+        const daysOut = data.daysOut !== undefined && data.daysOut !== null ? data.daysOut : '-';
+        elements.studentViewDaysOut.textContent = daysOut;
+
+        // Color code days out with background
+        const daysOutNum = parseInt(daysOut) || 0;
+        let bgColor = 'rgba(16, 185, 129, 0.15)'; // Green
+        let textColor = '#047857';
+        if (daysOutNum >= 10) {
+            bgColor = 'rgba(239, 68, 68, 0.15)';
+            textColor = '#b91c1c';
+        } else if (daysOutNum >= 5) {
+            bgColor = 'rgba(249, 115, 22, 0.15)';
+            textColor = '#c2410c';
+        } else if (daysOutNum >= 2) {
+            bgColor = 'rgba(234, 179, 8, 0.15)';
+            textColor = '#a16207';
+        }
+        elements.studentViewDaysOutCard.style.background = bgColor;
+        elements.studentViewDaysOutCard.style.color = textColor;
+    }
+
+    // Grade - access raw student field, with background color
+    if (elements.studentViewGrade && elements.studentViewGradeCard) {
+        const rawGrade = student.grade ?? student.Grade ?? student.currentGrade ?? null;
+        const grade = rawGrade !== undefined && rawGrade !== null ? rawGrade : '-';
+        elements.studentViewGrade.textContent = (typeof grade === 'number' || !isNaN(parseFloat(grade))) && grade !== '-' ? `${parseFloat(grade).toFixed(0)}%` : grade;
+
+        // Color code grade with background
+        const gradeNum = parseFloat(grade) || 0;
+        let bgColor = 'rgba(0, 90, 156, 0.1)'; // Default blue
+        let textColor = 'var(--primary-color)';
+        if (grade !== '-' && !isNaN(gradeNum)) {
+            if (gradeNum >= 80) {
+                bgColor = 'rgba(16, 185, 129, 0.15)';
+                textColor = '#047857';
+            } else if (gradeNum >= 70) {
+                bgColor = 'rgba(234, 179, 8, 0.15)';
+                textColor = '#a16207';
+            } else if (gradeNum >= 60) {
+                bgColor = 'rgba(249, 115, 22, 0.15)';
+                textColor = '#c2410c';
+            } else {
+                bgColor = 'rgba(239, 68, 68, 0.15)';
+                textColor = '#b91c1c';
+            }
+        }
+        elements.studentViewGradeCard.style.background = bgColor;
+        elements.studentViewGradeCard.style.color = textColor;
+    }
+
+    // Missing Assignments Card - show count with background color
+    const missing = student.missingAssignments || [];
+    if (elements.studentViewMissingCount && elements.studentViewMissingCard) {
+        elements.studentViewMissingCount.textContent = missing.length;
+
+        // Color code based on count
+        let bgColor = 'rgba(16, 185, 129, 0.15)'; // Green (0 missing)
+        let textColor = '#047857';
+        if (missing.length >= 5) {
+            bgColor = 'rgba(239, 68, 68, 0.15)';
+            textColor = '#b91c1c';
+        } else if (missing.length >= 3) {
+            bgColor = 'rgba(249, 115, 22, 0.15)';
+            textColor = '#c2410c';
+        } else if (missing.length >= 1) {
+            bgColor = 'rgba(234, 179, 8, 0.15)';
+            textColor = '#a16207';
+        }
+        elements.studentViewMissingCard.style.background = bgColor;
+        elements.studentViewMissingCard.style.color = textColor;
+    }
+
+    // Populate missing assignments list for detail view
+    if (elements.studentViewMissingList) {
+        if (missing.length > 0) {
+            elements.studentViewMissingList.innerHTML = missing.map((assignment, index) => {
+                const title = assignment.assignmentTitle || assignment.Assignment || assignment.name || `Assignment ${index + 1}`;
+                const dueDate = assignment.dueDate || assignment.DueDate || assignment.due_at || '';
+                return `
+                    <div style="padding: 10px 12px; background: rgba(245, 158, 11, 0.08); border-radius: 8px; margin-bottom: 8px;">
+                        <div style="color: var(--text-main); font-weight: 500; font-size: 0.9em;">${title}</div>
+                        ${dueDate ? `<div style="color: var(--text-secondary); font-size: 0.8em; margin-top: 4px;"><i class="fas fa-clock" style="margin-right: 4px;"></i>Due: ${dueDate}</div>` : ''}
+                    </div>
+                `;
+            }).join('');
+        } else {
+            elements.studentViewMissingList.innerHTML = '<div style="color: var(--text-secondary); font-size: 0.9em; text-align: center; padding: 40px 20px;"><i class="fas fa-check-circle" style="font-size: 2em; margin-bottom: 10px; opacity: 0.5; display: block;"></i>No missing assignments</div>';
+        }
+    }
+
+    // Next Assignment Card - show due date with background color
+    const nextAssignment = student.nextAssignment || null;
+    if (elements.studentViewNextDate && elements.studentViewNextCard) {
+        if (nextAssignment && nextAssignment.DueDate) {
+            elements.studentViewNextDate.textContent = nextAssignment.DueDate;
+            elements.studentViewNextCard.style.background = 'rgba(16, 185, 129, 0.15)';
+            elements.studentViewNextCard.style.color = '#047857';
+        } else {
+            elements.studentViewNextDate.textContent = '-';
+            elements.studentViewNextCard.style.background = 'rgba(0, 90, 156, 0.1)';
+            elements.studentViewNextCard.style.color = 'var(--primary-color)';
+        }
+    }
+
+    // Populate next assignment detail view
+    if (nextAssignment && nextAssignment.Assignment) {
+        if (elements.studentViewNextAssignment) {
+            elements.studentViewNextAssignment.textContent = nextAssignment.Assignment;
+        }
+        if (elements.studentViewNextAssignmentDate) {
+            elements.studentViewNextAssignmentDate.textContent = nextAssignment.DueDate ? `Due: ${nextAssignment.DueDate}` : 'No due date';
+        }
+        if (elements.studentViewNextDetailContent) {
+            elements.studentViewNextDetailContent.style.display = 'block';
+        }
+        if (elements.studentViewNoNextAssignment) {
+            elements.studentViewNoNextAssignment.style.display = 'none';
+        }
+    } else {
+        if (elements.studentViewNextDetailContent) {
+            elements.studentViewNextDetailContent.style.display = 'none';
+        }
+        if (elements.studentViewNoNextAssignment) {
+            elements.studentViewNoNextAssignment.style.display = 'block';
+        }
+    }
+
+    // Store current student reference for button actions
+    elements.studentViewModal.dataset.studentName = data.name || '';
+
+    // Show modal
+    elements.studentViewModal.style.display = 'flex';
+}
+
+/**
+ * Shows the main view of the student modal
+ */
+export function showStudentViewMain() {
+    if (elements.studentViewMain) elements.studentViewMain.style.display = 'block';
+    if (elements.studentViewMissingDetail) elements.studentViewMissingDetail.style.display = 'none';
+    if (elements.studentViewNextDetail) elements.studentViewNextDetail.style.display = 'none';
+}
+
+/**
+ * Shows the missing assignments detail view
+ */
+export function showStudentViewMissing() {
+    if (elements.studentViewMain) elements.studentViewMain.style.display = 'none';
+    if (elements.studentViewMissingDetail) elements.studentViewMissingDetail.style.display = 'block';
+    if (elements.studentViewNextDetail) elements.studentViewNextDetail.style.display = 'none';
+}
+
+/**
+ * Shows the next assignment detail view
+ */
+export function showStudentViewNext() {
+    if (elements.studentViewMain) elements.studentViewMain.style.display = 'none';
+    if (elements.studentViewMissingDetail) elements.studentViewMissingDetail.style.display = 'none';
+    if (elements.studentViewNextDetail) elements.studentViewNextDetail.style.display = 'block';
+}
+
+/**
+ * Closes the student view modal
+ */
+export function closeStudentViewModal() {
+    if (elements.studentViewModal) {
+        elements.studentViewModal.style.display = 'none';
+    }
+    // Reset to main view for next time
+    showStudentViewMain();
 }
 
 // Canvas Auth Error Modal state
