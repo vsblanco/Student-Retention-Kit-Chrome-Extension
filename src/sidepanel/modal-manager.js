@@ -1505,6 +1505,9 @@ export function openStudentViewModal(student, hasMultipleCampuses = false) {
 
     const data = resolveStudentData(student);
 
+    // Reset to main view
+    showStudentViewMain();
+
     // Generate initials for avatar fallback
     const nameParts = (data.name || '').trim().split(/\s+/);
     let initials = '';
@@ -1585,7 +1588,6 @@ export function openStudentViewModal(student, hasMultipleCampuses = false) {
 
     // Grade - access raw student field, with background color
     if (elements.studentViewGrade && elements.studentViewGradeCard) {
-        // Access grade from raw student object (not resolved data)
         const rawGrade = student.grade ?? student.Grade ?? student.currentGrade ?? null;
         const grade = rawGrade !== undefined && rawGrade !== null ? rawGrade : '-';
         elements.studentViewGrade.textContent = (typeof grade === 'number' || !isNaN(parseFloat(grade))) && grade !== '-' ? `${parseFloat(grade).toFixed(0)}%` : grade;
@@ -1613,38 +1615,80 @@ export function openStudentViewModal(student, hasMultipleCampuses = false) {
         elements.studentViewGradeCard.style.color = textColor;
     }
 
-    // Next Assignment - access raw student field
-    if (elements.studentViewNextAssignmentSection) {
-        const nextAssignment = student.nextAssignment || null;
-        if (nextAssignment && nextAssignment.Assignment) {
-            elements.studentViewNextAssignmentSection.style.display = 'block';
-            if (elements.studentViewNextAssignment) {
-                elements.studentViewNextAssignment.textContent = nextAssignment.Assignment;
-            }
-            if (elements.studentViewNextAssignmentDate) {
-                elements.studentViewNextAssignmentDate.textContent = nextAssignment.DueDate ? `Due: ${nextAssignment.DueDate}` : '';
-            }
-        } else {
-            elements.studentViewNextAssignmentSection.style.display = 'none';
+    // Missing Assignments Card - show count with background color
+    const missing = student.missingAssignments || [];
+    if (elements.studentViewMissingCount && elements.studentViewMissingCard) {
+        elements.studentViewMissingCount.textContent = missing.length;
+
+        // Color code based on count
+        let bgColor = 'rgba(16, 185, 129, 0.15)'; // Green (0 missing)
+        let textColor = '#047857';
+        if (missing.length >= 5) {
+            bgColor = 'rgba(239, 68, 68, 0.15)';
+            textColor = '#b91c1c';
+        } else if (missing.length >= 3) {
+            bgColor = 'rgba(249, 115, 22, 0.15)';
+            textColor = '#c2410c';
+        } else if (missing.length >= 1) {
+            bgColor = 'rgba(234, 179, 8, 0.15)';
+            textColor = '#a16207';
         }
+        elements.studentViewMissingCard.style.background = bgColor;
+        elements.studentViewMissingCard.style.color = textColor;
     }
 
-    // Missing Assignments - access raw student field
+    // Populate missing assignments list for detail view
     if (elements.studentViewMissingList) {
-        const missing = student.missingAssignments || [];
         if (missing.length > 0) {
             elements.studentViewMissingList.innerHTML = missing.map((assignment, index) => {
                 const title = assignment.assignmentTitle || assignment.Assignment || assignment.name || `Assignment ${index + 1}`;
                 const dueDate = assignment.dueDate || assignment.DueDate || assignment.due_at || '';
                 return `
-                    <div style="padding: 8px 10px; background: rgba(245, 158, 11, 0.08); border-radius: 6px; margin-bottom: 6px; font-size: 0.85em;">
-                        <div style="color: var(--text-main); font-weight: 500;">${title}</div>
-                        ${dueDate ? `<div style="color: var(--text-secondary); font-size: 0.9em; margin-top: 2px;">Due: ${dueDate}</div>` : ''}
+                    <div style="padding: 10px 12px; background: rgba(245, 158, 11, 0.08); border-radius: 8px; margin-bottom: 8px;">
+                        <div style="color: var(--text-main); font-weight: 500; font-size: 0.9em;">${title}</div>
+                        ${dueDate ? `<div style="color: var(--text-secondary); font-size: 0.8em; margin-top: 4px;"><i class="fas fa-clock" style="margin-right: 4px;"></i>Due: ${dueDate}</div>` : ''}
                     </div>
                 `;
             }).join('');
         } else {
-            elements.studentViewMissingList.innerHTML = '<div style="color: var(--text-secondary); font-size: 0.9em; padding: 8px 0;">No missing assignments</div>';
+            elements.studentViewMissingList.innerHTML = '<div style="color: var(--text-secondary); font-size: 0.9em; text-align: center; padding: 40px 20px;"><i class="fas fa-check-circle" style="font-size: 2em; margin-bottom: 10px; opacity: 0.5; display: block;"></i>No missing assignments</div>';
+        }
+    }
+
+    // Next Assignment Card - show due date with background color
+    const nextAssignment = student.nextAssignment || null;
+    if (elements.studentViewNextDate && elements.studentViewNextCard) {
+        if (nextAssignment && nextAssignment.DueDate) {
+            elements.studentViewNextDate.textContent = nextAssignment.DueDate;
+            elements.studentViewNextCard.style.background = 'rgba(16, 185, 129, 0.15)';
+            elements.studentViewNextCard.style.color = '#047857';
+        } else {
+            elements.studentViewNextDate.textContent = '-';
+            elements.studentViewNextCard.style.background = 'rgba(0, 90, 156, 0.1)';
+            elements.studentViewNextCard.style.color = 'var(--primary-color)';
+        }
+    }
+
+    // Populate next assignment detail view
+    if (nextAssignment && nextAssignment.Assignment) {
+        if (elements.studentViewNextAssignment) {
+            elements.studentViewNextAssignment.textContent = nextAssignment.Assignment;
+        }
+        if (elements.studentViewNextAssignmentDate) {
+            elements.studentViewNextAssignmentDate.textContent = nextAssignment.DueDate ? `Due: ${nextAssignment.DueDate}` : 'No due date';
+        }
+        if (elements.studentViewNextDetailContent) {
+            elements.studentViewNextDetailContent.style.display = 'block';
+        }
+        if (elements.studentViewNoNextAssignment) {
+            elements.studentViewNoNextAssignment.style.display = 'none';
+        }
+    } else {
+        if (elements.studentViewNextDetailContent) {
+            elements.studentViewNextDetailContent.style.display = 'none';
+        }
+        if (elements.studentViewNoNextAssignment) {
+            elements.studentViewNoNextAssignment.style.display = 'block';
         }
     }
 
@@ -1656,12 +1700,41 @@ export function openStudentViewModal(student, hasMultipleCampuses = false) {
 }
 
 /**
+ * Shows the main view of the student modal
+ */
+export function showStudentViewMain() {
+    if (elements.studentViewMain) elements.studentViewMain.style.display = 'block';
+    if (elements.studentViewMissingDetail) elements.studentViewMissingDetail.style.display = 'none';
+    if (elements.studentViewNextDetail) elements.studentViewNextDetail.style.display = 'none';
+}
+
+/**
+ * Shows the missing assignments detail view
+ */
+export function showStudentViewMissing() {
+    if (elements.studentViewMain) elements.studentViewMain.style.display = 'none';
+    if (elements.studentViewMissingDetail) elements.studentViewMissingDetail.style.display = 'block';
+    if (elements.studentViewNextDetail) elements.studentViewNextDetail.style.display = 'none';
+}
+
+/**
+ * Shows the next assignment detail view
+ */
+export function showStudentViewNext() {
+    if (elements.studentViewMain) elements.studentViewMain.style.display = 'none';
+    if (elements.studentViewMissingDetail) elements.studentViewMissingDetail.style.display = 'none';
+    if (elements.studentViewNextDetail) elements.studentViewNextDetail.style.display = 'block';
+}
+
+/**
  * Closes the student view modal
  */
 export function closeStudentViewModal() {
     if (elements.studentViewModal) {
         elements.studentViewModal.style.display = 'none';
     }
+    // Reset to main view for next time
+    showStudentViewMain();
 }
 
 // Canvas Auth Error Modal state

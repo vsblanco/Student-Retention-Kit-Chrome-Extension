@@ -85,6 +85,9 @@ import {
     closeCampusSelectionModal,
     openStudentViewModal,
     closeStudentViewModal,
+    showStudentViewMain,
+    showStudentViewMissing,
+    showStudentViewNext,
     openCanvasAuthErrorModal,
     closeCanvasAuthErrorModal,
     toggleCanvasAuthNonApi,
@@ -698,6 +701,21 @@ function setupEventListeners() {
             // Email functionality to be implemented later
             console.log('Email button clicked - functionality coming soon');
         });
+    }
+    // Missing Assignments card click - show detail view
+    if (elements.studentViewMissingCard) {
+        elements.studentViewMissingCard.addEventListener('click', showStudentViewMissing);
+    }
+    // Next Assignment card click - show detail view
+    if (elements.studentViewNextCard) {
+        elements.studentViewNextCard.addEventListener('click', showStudentViewNext);
+    }
+    // Back buttons
+    if (elements.studentViewMissingBackBtn) {
+        elements.studentViewMissingBackBtn.addEventListener('click', showStudentViewMain);
+    }
+    if (elements.studentViewNextBackBtn) {
+        elements.studentViewNextBackBtn.addEventListener('click', showStudentViewMain);
     }
 
     // Canvas Auth Error Modal
