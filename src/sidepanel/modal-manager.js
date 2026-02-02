@@ -1790,6 +1790,9 @@ export function generateStudentEmailTemplate(student) {
         return null;
     }
 
+    // Get personal email for CC - try various field names
+    const personalEmail = student.personalEmail || student.PersonalEmail || student.otherEmail || student.OtherEmail || '';
+
     const data = resolveStudentData(student);
     const firstName = getFirstName(data.name);
     const greeting = getTimeOfDayGreeting();
@@ -1819,12 +1822,17 @@ export function generateStudentEmailTemplate(student) {
     }
     body += '.\n';
 
-    // Add missing assignments bullet list if any
+    // Add missing assignments bullet list with links if any
     if (missingCount > 0) {
         body += '\nMissing Assignments:\n';
         missingAssignments.forEach(assignment => {
             const title = assignment.assignmentTitle || assignment.Assignment || assignment.title || assignment.name || 'Untitled Assignment';
-            body += `• ${title}\n`;
+            const link = assignment.submissionLink || assignment.SubmissionLink || assignment.link || '';
+            if (link) {
+                body += `• ${title}\n  ${link}\n`;
+            } else {
+                body += `• ${title}\n`;
+            }
         });
     }
 
@@ -1832,8 +1840,12 @@ export function generateStudentEmailTemplate(student) {
     body += '\nWould you be able to submit an assignment today?\n\n';
     body += 'Sincerely,\n';
 
-    // Build mailto URL
-    const mailtoUrl = `mailto:${encodeURIComponent(studentEmail)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    // Build mailto URL with CC if personal email exists
+    let mailtoUrl = `mailto:${encodeURIComponent(studentEmail)}?`;
+    if (personalEmail) {
+        mailtoUrl += `cc=${encodeURIComponent(personalEmail)}&`;
+    }
+    mailtoUrl += `subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
 
     return mailtoUrl;
 }
