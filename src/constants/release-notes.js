@@ -22,7 +22,15 @@
 export const RELEASE_NOTES = {
     // Add new version entries here (newest first)
     // The key should match the version in manifest.json
-
+	'11.1': {
+        title: 'Latest Updates',
+        date: 'February 2, 2026',
+        updates: [
+            'Added next assignment feature',
+            'Improved Context Menu UI',
+			'Added Recheck Grade Book in the conext menu',
+        ]
+    },
     '11.0': {
         title: 'Latest Updates',
         date: 'January 30, 2026',
