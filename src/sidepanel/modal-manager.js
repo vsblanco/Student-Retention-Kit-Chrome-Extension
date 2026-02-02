@@ -1827,7 +1827,7 @@ export function generateStudentEmailTemplate(student) {
         body += '\nMissing Assignments:\n';
         missingAssignments.forEach(assignment => {
             const title = assignment.assignmentTitle || assignment.Assignment || assignment.title || assignment.name || 'Untitled Assignment';
-            const link = assignment.submissionLink || assignment.SubmissionLink || assignment.link || '';
+            const link = assignment.assignmentLink || assignment.AssignmentLink || assignment.link || '';
             if (link) {
                 body += `• ${title}\n  ${link}\n`;
             } else {
@@ -1837,8 +1837,7 @@ export function generateStudentEmailTemplate(student) {
     }
 
     // Closing
-    body += '\nWould you be able to submit an assignment today?\n\n';
-    body += 'Sincerely,\n';
+    body += '\nWould you be able to submit an assignment today?\n';
 
     // Build mailto URL with CC if personal email exists
     let mailtoUrl = `mailto:${encodeURIComponent(studentEmail)}?`;
