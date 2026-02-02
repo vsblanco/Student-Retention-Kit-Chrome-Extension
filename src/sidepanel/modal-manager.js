@@ -339,6 +339,7 @@ export async function openConnectionsModal(connectionType) {
         STORAGE_KEYS.HIGHLIGHT_COLOR,
         STORAGE_KEYS.CANVAS_CACHE_ENABLED,
         STORAGE_KEYS.NON_API_COURSE_FETCH,
+        STORAGE_KEYS.NEXT_ASSIGNMENT_ENABLED,
         STORAGE_KEYS.CALL_DEMO,
         STORAGE_KEYS.HIGHLIGHT_START_COL,
         STORAGE_KEYS.HIGHLIGHT_END_COL,
@@ -397,6 +398,9 @@ export async function openConnectionsModal(connectionType) {
 
     const nonApiCourseFetch = result[STORAGE_KEYS.NON_API_COURSE_FETCH] !== undefined ? result[STORAGE_KEYS.NON_API_COURSE_FETCH] : false;
     updateNonApiCourseFetchUI(nonApiCourseFetch);
+
+    const nextAssignmentEnabled = result[STORAGE_KEYS.NEXT_ASSIGNMENT_ENABLED] !== undefined ? result[STORAGE_KEYS.NEXT_ASSIGNMENT_ENABLED] : false;
+    updateNextAssignmentUI(nextAssignmentEnabled);
 
     // Load Five9 settings (Call Demo mode, formerly debugMode)
     const callDemo = result[STORAGE_KEYS.CALL_DEMO] || false;
@@ -484,6 +488,22 @@ function updateNonApiCourseFetchUI(isEnabled) {
     } else {
         elements.nonApiCourseFetchToggle.className = 'fas fa-toggle-off';
         elements.nonApiCourseFetchToggle.style.color = 'gray';
+    }
+}
+
+/**
+ * Updates the next assignment toggle UI in the modal
+ * @param {boolean} isEnabled - Whether next assignment feature is enabled
+ */
+function updateNextAssignmentUI(isEnabled) {
+    if (!elements.nextAssignmentToggle) return;
+
+    if (isEnabled) {
+        elements.nextAssignmentToggle.className = 'fas fa-toggle-on';
+        elements.nextAssignmentToggle.style.color = 'var(--primary-color)';
+    } else {
+        elements.nextAssignmentToggle.className = 'fas fa-toggle-off';
+        elements.nextAssignmentToggle.style.color = 'gray';
     }
 }
 
@@ -696,6 +716,12 @@ export async function saveConnectionsSettings() {
         const nonApiCourseFetch = elements.nonApiCourseFetchToggle.classList.contains('fa-toggle-on');
         settingsToSave[STORAGE_KEYS.NON_API_COURSE_FETCH] = nonApiCourseFetch;
         console.log(`Non API Course Fetch setting saved: ${nonApiCourseFetch}`);
+    }
+
+    if (elements.nextAssignmentToggle) {
+        const nextAssignmentEnabled = elements.nextAssignmentToggle.classList.contains('fa-toggle-on');
+        settingsToSave[STORAGE_KEYS.NEXT_ASSIGNMENT_ENABLED] = nextAssignmentEnabled;
+        console.log(`Next Assignment setting saved: ${nextAssignmentEnabled}`);
     }
 
     // Save Five9 settings (Call Demo mode)
@@ -1003,6 +1029,16 @@ export function toggleNonApiCourseFetch() {
 
     const isCurrentlyOn = elements.nonApiCourseFetchToggle.classList.contains('fa-toggle-on');
     updateNonApiCourseFetchUI(!isCurrentlyOn);
+}
+
+/**
+ * Toggles the next assignment setting in the modal
+ */
+export function toggleNextAssignment() {
+    if (!elements.nextAssignmentToggle) return;
+
+    const isCurrentlyOn = elements.nextAssignmentToggle.classList.contains('fa-toggle-on');
+    updateNextAssignmentUI(!isCurrentlyOn);
 }
 
 /**

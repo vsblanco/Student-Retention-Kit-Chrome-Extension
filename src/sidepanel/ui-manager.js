@@ -211,6 +211,7 @@ export function cacheDomElements() {
     elements.highlightColorPickerModal = document.getElementById('highlightColorPickerModal');
     elements.canvasCacheToggleModal = document.getElementById('canvasCacheToggleModal');
     elements.nonApiCourseFetchToggle = document.getElementById('nonApiCourseFetchToggle');
+    elements.nextAssignmentToggle = document.getElementById('nextAssignmentToggle');
     elements.cacheSettingsContainer = document.getElementById('cacheSettingsContainer');
     elements.cacheStatsTextModal = document.getElementById('cacheStatsTextModal');
     elements.clearCacheBtnModal = document.getElementById('clearCacheBtnModal');
