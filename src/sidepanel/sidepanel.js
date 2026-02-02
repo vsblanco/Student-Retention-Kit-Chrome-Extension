@@ -717,6 +717,16 @@ function setupEventListeners() {
     if (elements.studentViewNextBackBtn) {
         elements.studentViewNextBackBtn.addEventListener('click', showStudentViewMain);
     }
+    // Click on non-interactive areas closes the modal
+    if (elements.studentViewModal) {
+        elements.studentViewModal.addEventListener('click', (e) => {
+            // Check if click was on an interactive element
+            const isInteractive = e.target.closest('button, .btn-primary, .btn-secondary, .icon-btn, #studentViewMissingCard, #studentViewNextCard, #studentViewMissingList a, #studentViewNextDetailContent a');
+            if (!isInteractive) {
+                closeStudentViewModal();
+            }
+        });
+    }
 
     // Canvas Auth Error Modal
     if (elements.canvasAuthContinueBtn) {
