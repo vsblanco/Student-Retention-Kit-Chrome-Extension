@@ -2,6 +2,8 @@
 import { setActiveStudent, setAutomationModeUI } from './student-renderer.js';
 import { switchTab } from './ui-manager.js';
 import { updateFive9ConnectionIndicator } from './five9-integration.js';
+import { STORAGE_KEYS } from '../constants/index.js';
+import { storageGetValue } from '../utils/storage.js';
 
 /**
  * Queue Manager Class - Manages student queue operations
@@ -64,7 +66,7 @@ export class QueueManager {
      * @param {Object} entry - Student data
      * @param {HTMLElement} liElement - List item element
      */
-    setSingleStudent(entry, liElement) {
+    async setSingleStudent(entry, liElement) {
         this.selectedQueue = [entry];
 
         if (this.callManager) {
@@ -76,9 +78,14 @@ export class QueueManager {
         liElement.classList.add('multi-selected');
 
         setActiveStudent(entry, this.callManager);
-        switchTab('contact');
-        // Check Five9 connection when switching to contact tab
-        updateFive9ConnectionIndicator(this.selectedQueue);
+
+        // Check if auto-switch to Call tab is enabled
+        const autoSwitchEnabled = await storageGetValue(STORAGE_KEYS.AUTO_SWITCH_TO_CALL_TAB, false);
+        if (autoSwitchEnabled) {
+            switchTab('contact');
+            // Check Five9 connection when switching to contact tab
+            updateFive9ConnectionIndicator(this.selectedQueue);
+        }
     }
 
     /**

@@ -65,6 +65,7 @@ import {
     togglePowerAutomateEnabled,
     togglePowerAutomateDebug,
     toggleDebugModeModal,
+    toggleAutoSwitchCallTabModal,
     toggleSyncActiveStudentModal,
     toggleSendMasterListModal,
     toggleReformatNameModal,
@@ -547,6 +548,10 @@ function setupEventListeners() {
     // Five9 Modal Settings
     if (elements.debugModeToggleModal) {
         elements.debugModeToggleModal.addEventListener('click', toggleDebugModeModal);
+    }
+
+    if (elements.autoSwitchCallTabToggle) {
+        elements.autoSwitchCallTabToggle.addEventListener('click', toggleAutoSwitchCallTabModal);
     }
 
     // Excel Modal Settings
