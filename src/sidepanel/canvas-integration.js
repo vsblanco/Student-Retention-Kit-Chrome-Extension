@@ -788,7 +788,7 @@ function findNextAssignment(submissions, courseId, origin, referenceDate = new D
         // Skip if no assignment data
         if (!sub.assignment) return;
 
-        const dueDate = sub.cached_due_date ? new Date(sub.cached_due_date) : null;
+        const dueDate = sub.assignment.due_at ? new Date(sub.assignment.due_at) : null;
 
         // Skip assignments without a due date or with due dates before today
         if (!dueDate || dueDate < todayStart) return;
