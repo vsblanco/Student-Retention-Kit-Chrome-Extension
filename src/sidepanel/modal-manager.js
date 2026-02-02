@@ -1526,10 +1526,23 @@ export function openStudentViewModal(student, hasMultipleCampuses = false) {
             elements.studentViewAvatar.style.backgroundSize = 'cover';
             elements.studentViewAvatar.style.backgroundPosition = 'center';
             elements.studentViewAvatar.style.backgroundColor = 'transparent';
+            elements.studentViewAvatar.style.color = 'transparent';
         } else {
             elements.studentViewAvatar.style.backgroundImage = 'none';
             elements.studentViewAvatar.textContent = initials;
-            elements.studentViewAvatar.style.backgroundColor = '#e0e7ff';
+
+            // Gender-based avatar colors
+            const gender = (student.Gender || student.gender || '').toLowerCase();
+            if (gender === 'male' || gender === 'm' || gender === 'boy') {
+                elements.studentViewAvatar.style.backgroundColor = 'rgb(18, 120, 255)'; // Blue
+                elements.studentViewAvatar.style.color = 'rgb(255, 255, 255)'; // White
+            } else if (gender === 'female' || gender === 'f' || gender === 'girl') {
+                elements.studentViewAvatar.style.backgroundColor = 'rgb(255, 145, 175)'; // Pastel pink
+                elements.studentViewAvatar.style.color = 'rgb(255, 255, 255)'; // White
+            } else {
+                elements.studentViewAvatar.style.backgroundColor = '#e5e7eb'; // Gray
+                elements.studentViewAvatar.style.color = '#6b7280';
+            }
         }
     }
 
@@ -1555,27 +1568,19 @@ export function openStudentViewModal(student, hasMultipleCampuses = false) {
         elements.studentViewNewBadge.style.display = data.isNew ? 'block' : 'none';
     }
 
-    // Days Out - with background color
+    // Days Out - gray by default, red if >= 14
     if (elements.studentViewDaysOut && elements.studentViewDaysOutCard) {
         const daysOut = data.daysOut !== undefined && data.daysOut !== null ? data.daysOut : '-';
         elements.studentViewDaysOut.textContent = daysOut;
 
-        // Color code days out with background
         const daysOutNum = parseInt(daysOut) || 0;
-        let bgColor = 'rgba(16, 185, 129, 0.15)'; // Green
-        let textColor = '#047857';
-        if (daysOutNum >= 10) {
-            bgColor = 'rgba(239, 68, 68, 0.15)';
-            textColor = '#b91c1c';
-        } else if (daysOutNum >= 5) {
-            bgColor = 'rgba(249, 115, 22, 0.15)';
-            textColor = '#c2410c';
-        } else if (daysOutNum >= 2) {
-            bgColor = 'rgba(234, 179, 8, 0.15)';
-            textColor = '#a16207';
+        if (daysOutNum >= 14) {
+            elements.studentViewDaysOutCard.style.background = 'rgba(239, 68, 68, 0.15)';
+            elements.studentViewDaysOutCard.style.color = '#b91c1c';
+        } else {
+            elements.studentViewDaysOutCard.style.background = 'rgba(107, 114, 128, 0.15)';
+            elements.studentViewDaysOutCard.style.color = '#4b5563';
         }
-        elements.studentViewDaysOutCard.style.background = bgColor;
-        elements.studentViewDaysOutCard.style.color = textColor;
     }
 
     // Days Out Detail View population
@@ -1599,48 +1604,25 @@ export function openStudentViewModal(student, hasMultipleCampuses = false) {
         elements.studentViewDeadlineText.textContent = `They have until ${formattedDate} to submit work.`;
     }
 
-    // Grade - access raw student field, with background color
+    // Grade - access raw student field, always gray
     if (elements.studentViewGrade && elements.studentViewGradeCard) {
         const rawGrade = student.grade ?? student.Grade ?? student.currentGrade ?? null;
         const grade = rawGrade !== undefined && rawGrade !== null ? rawGrade : '-';
         elements.studentViewGrade.textContent = (typeof grade === 'number' || !isNaN(parseFloat(grade))) && grade !== '-' ? `${parseFloat(grade).toFixed(0)}%` : grade;
 
-        // Color code grade with background
-        const gradeNum = parseFloat(grade) || 0;
-        let bgColor = 'rgba(0, 90, 156, 0.1)'; // Default blue
-        let textColor = 'var(--primary-color)';
-        if (grade !== '-' && !isNaN(gradeNum)) {
-            if (gradeNum >= 80) {
-                bgColor = 'rgba(16, 185, 129, 0.15)';
-                textColor = '#047857';
-            } else if (gradeNum >= 70) {
-                bgColor = 'rgba(234, 179, 8, 0.15)';
-                textColor = '#a16207';
-            } else if (gradeNum >= 60) {
-                bgColor = 'rgba(249, 115, 22, 0.15)';
-                textColor = '#c2410c';
-            } else {
-                bgColor = 'rgba(239, 68, 68, 0.15)';
-                textColor = '#b91c1c';
-            }
-        }
-        elements.studentViewGradeCard.style.background = bgColor;
-        elements.studentViewGradeCard.style.color = textColor;
+        // Always gray
+        elements.studentViewGradeCard.style.background = 'rgba(107, 114, 128, 0.15)';
+        elements.studentViewGradeCard.style.color = '#4b5563';
     }
 
-    // Missing Assignments Card - show count with simplified colors
+    // Missing Assignments Card - show count, always gray
     const missing = student.missingAssignments || [];
     if (elements.studentViewMissingCount && elements.studentViewMissingCard) {
         elements.studentViewMissingCount.textContent = missing.length;
 
-        // Simple color: green for 0, gray otherwise
-        if (missing.length === 0) {
-            elements.studentViewMissingCard.style.background = 'rgba(16, 185, 129, 0.15)';
-            elements.studentViewMissingCard.style.color = '#047857';
-        } else {
-            elements.studentViewMissingCard.style.background = 'rgba(0, 90, 156, 0.1)';
-            elements.studentViewMissingCard.style.color = 'var(--primary-color)';
-        }
+        // Always gray
+        elements.studentViewMissingCard.style.background = 'rgba(107, 114, 128, 0.15)';
+        elements.studentViewMissingCard.style.color = '#4b5563';
     }
 
     // Populate missing assignments list for detail view
@@ -1669,9 +1651,9 @@ export function openStudentViewModal(student, hasMultipleCampuses = false) {
         } else {
             elements.studentViewNextDate.textContent = '-';
         }
-        // Always use gray/default color
-        elements.studentViewNextCard.style.background = 'rgba(0, 90, 156, 0.1)';
-        elements.studentViewNextCard.style.color = 'var(--primary-color)';
+        // Always use gray color
+        elements.studentViewNextCard.style.background = 'rgba(107, 114, 128, 0.15)';
+        elements.studentViewNextCard.style.color = '#4b5563';
     }
 
     // Populate next assignment detail view
