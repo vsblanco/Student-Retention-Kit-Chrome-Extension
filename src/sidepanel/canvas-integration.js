@@ -769,10 +769,80 @@ function analyzeMissingAssignments(submissions, userObject, studentName, courseI
 }
 
 /**
+ * Finds the next upcoming assignment that hasn't been submitted yet
+ * @param {Array} submissions - Array of submission objects from Canvas API
+ * @param {string} courseId - The course ID
+ * @param {string} origin - The Canvas domain origin
+ * @param {Date} referenceDate - The date to use as "today" (defaults to now)
+ * @returns {Object|null} Next assignment object with Assignment, DueDate, AssignmentLink or null if none found
+ */
+function findNextAssignment(submissions, courseId, origin, referenceDate = new Date()) {
+    const now = referenceDate;
+    // Set time to start of day for comparison
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+    // Filter and collect upcoming assignments that haven't been submitted
+    const upcomingAssignments = [];
+
+    submissions.forEach(sub => {
+        // Skip if no assignment data
+        if (!sub.assignment) return;
+
+        const dueDate = sub.cached_due_date ? new Date(sub.cached_due_date) : null;
+
+        // Skip assignments without a due date or with due dates before today
+        if (!dueDate || dueDate < todayStart) return;
+
+        // Check if the assignment has already been submitted
+        // A submission is considered "submitted" if:
+        // - workflow_state is 'submitted', 'graded', or 'pending_review'
+        // - submitted_at has a value
+        // - score is not null and score > 0 (has been graded with a passing score)
+        const submittedStates = ['submitted', 'graded', 'pending_review'];
+        const isSubmitted = submittedStates.includes(sub.workflow_state) ||
+                           sub.submitted_at !== null ||
+                           (sub.score !== null && sub.score > 0);
+
+        // Also check for "complete" grade which indicates completion
+        const scoreStr = String(sub.score || sub.grade || '').toLowerCase();
+        const isComplete = scoreStr === 'complete';
+
+        // Skip if already submitted or complete
+        if (isSubmitted || isComplete) return;
+
+        // Generate assignment URL
+        const assignmentId = sub.assignment.id;
+        const assignmentUrl = assignmentId ? `${origin}/courses/${courseId}/assignments/${assignmentId}` : '';
+
+        upcomingAssignments.push({
+            Assignment: sub.assignment.name || 'Unknown Assignment',
+            DueDate: dueDate.toLocaleDateString(),
+            AssignmentLink: assignmentUrl,
+            _dueDateObj: dueDate // Keep for sorting, will be removed before returning
+        });
+    });
+
+    // If no upcoming assignments found, return null
+    if (upcomingAssignments.length === 0) {
+        return null;
+    }
+
+    // Sort by due date (nearest first)
+    upcomingAssignments.sort((a, b) => a._dueDateObj - b._dueDateObj);
+
+    // Get the nearest assignment and remove the internal sorting field
+    const nextAssignment = upcomingAssignments[0];
+    delete nextAssignment._dueDateObj;
+
+    return nextAssignment;
+}
+
+/**
  * Fetches missing assignments for a single student
  * @param {Date} referenceDate - The date to use for checking if assignments are past due
+ * @param {boolean} includeNextAssignment - Whether to also find the next upcoming assignment
  */
-async function fetchMissingAssignments(student, referenceDate = new Date()) {
+async function fetchMissingAssignments(student, referenceDate = new Date(), includeNextAssignment = false) {
     // Check if shutdown was requested before processing
     checkShutdown();
 
@@ -781,13 +851,13 @@ async function fetchMissingAssignments(student, referenceDate = new Date()) {
 
     if (!gradebookUrl) {
         console.log(`[Step 3] ${student.name}: No gradebook URL, skipping`);
-        return { ...student, missingCount: 0, missingAssignments: [] };
+        return { ...student, missingCount: 0, missingAssignments: [], nextAssignment: null };
     }
 
     const parsed = parseGradebookUrl(gradebookUrl);
     if (!parsed) {
         console.warn(`[Step 3] ${student.name}: Failed to parse gradebook URL: ${gradebookUrl}`);
-        return { ...student, missingCount: 0, missingAssignments: [] };
+        return { ...student, missingCount: 0, missingAssignments: [], nextAssignment: null };
     }
 
     const { origin, courseId, studentId } = parsed;
@@ -806,11 +876,21 @@ async function fetchMissingAssignments(student, referenceDate = new Date()) {
             console.log(`[Step 3] ${student.name}: Found ${result.count} missing assignment(s), Grade: ${result.currentGrade || 'N/A'}`);
         }
 
+        // Find next assignment if enabled
+        let nextAssignment = null;
+        if (includeNextAssignment) {
+            nextAssignment = findNextAssignment(submissions, courseId, origin, referenceDate);
+            if (nextAssignment) {
+                console.log(`[Step 3] ${student.name}: Next assignment due: ${nextAssignment.Assignment} (${nextAssignment.DueDate})`);
+            }
+        }
+
         return {
             ...student,
             missingCount: result.count,
             missingAssignments: result.assignments,
-            currentGrade: result.currentGrade
+            currentGrade: result.currentGrade,
+            nextAssignment: nextAssignment
         };
 
     } catch (e) {
@@ -819,7 +899,7 @@ async function fetchMissingAssignments(student, referenceDate = new Date()) {
             throw e;
         }
         console.error(`[Step 3] ${student.name}: Error fetching data:`, e);
-        return { ...student, missingCount: 0, missingAssignments: [] };
+        return { ...student, missingCount: 0, missingAssignments: [], nextAssignment: null };
     }
 }
 
@@ -840,9 +920,19 @@ export async function processStep3(students, renderCallback) {
         console.log(`[Step 3] Processing ${students.length} students in batches of 20`);
 
         // Check if using specific date (Time Machine mode) for missing assignments check
-        const settings = await chrome.storage.local.get([STORAGE_KEYS.USE_SPECIFIC_DATE, STORAGE_KEYS.SPECIFIC_SUBMISSION_DATE]);
+        // Also check if Next Assignment feature is enabled
+        const settings = await chrome.storage.local.get([
+            STORAGE_KEYS.USE_SPECIFIC_DATE,
+            STORAGE_KEYS.SPECIFIC_SUBMISSION_DATE,
+            STORAGE_KEYS.NEXT_ASSIGNMENT_ENABLED
+        ]);
         const useSpecificDate = settings[STORAGE_KEYS.USE_SPECIFIC_DATE] || false;
         const specificDateStr = settings[STORAGE_KEYS.SPECIFIC_SUBMISSION_DATE];
+        const nextAssignmentEnabled = settings[STORAGE_KEYS.NEXT_ASSIGNMENT_ENABLED] || false;
+
+        if (nextAssignmentEnabled) {
+            console.log(`[Step 3] Next Assignment feature enabled - will find next due assignment for each student`);
+        }
 
         let referenceDate;
         if (useSpecificDate && specificDateStr) {
@@ -872,7 +962,7 @@ export async function processStep3(students, renderCallback) {
             console.log(`[Step 3] Processing batch ${batchNumber}/${totalBatches} (students ${i + 1}-${Math.min(i + BATCH_SIZE, updatedStudents.length)})`);
 
             // Use Promise.allSettled to handle auth errors gracefully
-            const promises = batch.map(student => fetchMissingAssignments(student, referenceDate));
+            const promises = batch.map(student => fetchMissingAssignments(student, referenceDate, nextAssignmentEnabled));
             const settledResults = await Promise.allSettled(promises);
 
             // Check for shutdown errors
@@ -886,7 +976,7 @@ export async function processStep3(students, renderCallback) {
                 // If fulfilled, use the result; if rejected (but not shutdown), keep original student with zeros
                 updatedStudents[i + index] = result.status === 'fulfilled'
                     ? result.value
-                    : { ...batch[index], missingCount: 0, missingAssignments: [] };
+                    : { ...batch[index], missingCount: 0, missingAssignments: [], nextAssignment: null };
             });
 
             processedCount += batch.length;

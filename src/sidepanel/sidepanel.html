@@ -693,6 +693,19 @@
                         When enabled, fetches course data by scraping the Canvas web page instead of using the API. Use this if the API returns unauthorized errors for course lists.
                     </div>
                 </div>
+
+                <!-- Next Assignment -->
+                <div style="margin-bottom: 20px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                        <label style="font-size:0.95em; font-weight:500; color:var(--text-main);">
+                            <i class="fas fa-calendar-alt" style="color:var(--primary-color);"></i> Next Assignment
+                        </label>
+                        <i id="nextAssignmentToggle" class="fas fa-toggle-off" style="color:gray; font-size:2em; cursor: pointer;"></i>
+                    </div>
+                    <div style="font-size:0.8em; color:var(--text-secondary);">
+                        When enabled, identifies the next upcoming assignment due for each student during master list updates. Shows the nearest assignment that hasn't been submitted yet.
+                    </div>
+                </div>
             </div>
 
             <!-- Five9 Configuration -->

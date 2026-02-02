@@ -61,6 +61,7 @@ import {
     toggleEmbedHelperModal,
     toggleCanvasCacheModal,
     toggleNonApiCourseFetch,
+    toggleNextAssignment,
     togglePowerAutomateEnabled,
     togglePowerAutomateDebug,
     toggleDebugModeModal,
@@ -511,6 +512,10 @@ function setupEventListeners() {
 
     if (elements.nonApiCourseFetchToggle) {
         elements.nonApiCourseFetchToggle.addEventListener('click', toggleNonApiCourseFetch);
+    }
+
+    if (elements.nextAssignmentToggle) {
+        elements.nextAssignmentToggle.addEventListener('click', toggleNextAssignment);
     }
 
     if (elements.clearCacheBtnModal) {
