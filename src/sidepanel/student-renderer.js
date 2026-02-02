@@ -356,30 +356,12 @@ export async function renderMasterList(rawEntries, onStudentClick) {
 
         let missingPillHtml = '';
         if (data.missing > 0) {
-            missingPillHtml = `<span class="missing-pill">${data.missing} Missing <i class="fas fa-chevron-down" style="font-size:0.8em; margin-left:4px;"></i></span>`;
+            missingPillHtml = `<span class="missing-pill">${data.missing} Missing</span>`;
         }
 
         let newTagHtml = '';
         if (data.isNew) {
             newTagHtml = `<span style="background:#e0f2fe; color:#0369a1; font-size:0.7em; padding:2px 6px; border-radius:8px; margin-left:6px; font-weight:bold; border:1px solid #bae6fd;">New</span>`;
-        }
-
-        // Build missing assignments details HTML
-        let missingDetailsHtml = '<li><em>No missing assignments found.</em></li>';
-        if (rawEntry.missingAssignments && rawEntry.missingAssignments.length > 0) {
-            missingDetailsHtml = rawEntry.missingAssignments.map(assignment => {
-                // Handle both old (title) and new (assignmentTitle) field names
-                const title = assignment.assignmentTitle || assignment.title || 'Unknown Assignment';
-                const linkHtml = assignment.submissionLink
-                    ? `<a href="${assignment.submissionLink}" target="_blank" style="color:#2563eb; text-decoration:none;">${title}</a>`
-                    : title;
-                return `<li style="margin-bottom:6px;">
-                    ${linkHtml}
-                    <div style="font-size:0.9em; color:#6b7280; margin-top:2px;">
-                        Due: ${assignment.dueDate} | Score: ${assignment.score}
-                    </div>
-                </li>`;
-            }).join('');
         }
 
         li.innerHTML = `
@@ -395,11 +377,6 @@ export async function renderMasterList(rawEntries, onStudentClick) {
                     </div>
                     <span style="font-size:0.8em; color:gray;">${data.daysOut} Days Out</span>
                 </div>
-            </div>
-            <div class="missing-details" style="display: none; margin-top: 10px; border-top: 1px solid rgba(0,0,0,0.05); padding-top: 8px; cursor: default;">
-                <ul style="padding: 0; margin: 0; font-size: 0.85em; color: #4b5563; list-style-type: none;">
-                    ${missingDetailsHtml}
-                </ul>
             </div>
         `;
 
@@ -425,29 +402,6 @@ export async function renderMasterList(rawEntries, onStudentClick) {
             nameLink.addEventListener('mouseleave', () => {
                 nameLink.style.textDecoration = 'none';
                 nameLink.style.color = 'var(--text-main)';
-            });
-        }
-
-        // Missing pill click - toggle details
-        const pill = li.querySelector('.missing-pill');
-        if (pill) {
-            pill.addEventListener('click', (e) => {
-                e.stopPropagation();
-                const details = li.querySelector('.missing-details');
-                const icon = pill.querySelector('i');
-                if (details) {
-                    const isHidden = details.style.display === 'none' || !details.style.display;
-                    details.style.display = isHidden ? 'block' : 'none';
-                    if (icon) icon.style.transform = isHidden ? 'rotate(180deg)' : 'rotate(0deg)';
-                }
-            });
-        }
-
-        // Prevent click propagation on details div
-        const detailsDiv = li.querySelector('.missing-details');
-        if (detailsDiv) {
-            detailsDiv.addEventListener('click', (e) => {
-                e.stopPropagation();
             });
         }
 
