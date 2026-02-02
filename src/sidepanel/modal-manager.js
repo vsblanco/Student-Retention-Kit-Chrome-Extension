@@ -341,6 +341,7 @@ export async function openConnectionsModal(connectionType) {
         STORAGE_KEYS.NON_API_COURSE_FETCH,
         STORAGE_KEYS.NEXT_ASSIGNMENT_ENABLED,
         STORAGE_KEYS.CALL_DEMO,
+        STORAGE_KEYS.AUTO_SWITCH_TO_CALL_TAB,
         STORAGE_KEYS.HIGHLIGHT_START_COL,
         STORAGE_KEYS.HIGHLIGHT_END_COL,
         STORAGE_KEYS.HIGHLIGHT_EDIT_COLUMN,
@@ -405,6 +406,10 @@ export async function openConnectionsModal(connectionType) {
     // Load Five9 settings (Call Demo mode, formerly debugMode)
     const callDemo = result[STORAGE_KEYS.CALL_DEMO] || false;
     updateDebugModeModalUI(callDemo);
+
+    // Load Auto Switch to Call Tab setting
+    const autoSwitchCallTab = result[STORAGE_KEYS.AUTO_SWITCH_TO_CALL_TAB] || false;
+    updateAutoSwitchCallTabUI(autoSwitchCallTab);
 
     // Load Highlight Student Row settings
     if (elements.highlightStartColInput) {
@@ -520,6 +525,22 @@ function updateDebugModeModalUI(isEnabled) {
     } else {
         elements.debugModeToggleModal.className = 'fas fa-toggle-off';
         elements.debugModeToggleModal.style.color = 'gray';
+    }
+}
+
+/**
+ * Updates the auto switch to call tab toggle UI in the modal
+ * @param {boolean} isEnabled - Whether auto switch to call tab is enabled
+ */
+function updateAutoSwitchCallTabUI(isEnabled) {
+    if (!elements.autoSwitchCallTabToggle) return;
+
+    if (isEnabled) {
+        elements.autoSwitchCallTabToggle.className = 'fas fa-toggle-on';
+        elements.autoSwitchCallTabToggle.style.color = 'var(--primary-color)';
+    } else {
+        elements.autoSwitchCallTabToggle.className = 'fas fa-toggle-off';
+        elements.autoSwitchCallTabToggle.style.color = 'gray';
     }
 }
 
@@ -729,6 +750,13 @@ export async function saveConnectionsSettings() {
         const callDemoEnabled = elements.debugModeToggleModal.classList.contains('fa-toggle-on');
         settingsToSave[STORAGE_KEYS.CALL_DEMO] = callDemoEnabled;
         console.log(`Call Demo mode setting saved: ${callDemoEnabled}`);
+    }
+
+    // Save Auto Switch to Call Tab setting
+    if (elements.autoSwitchCallTabToggle) {
+        const autoSwitchEnabled = elements.autoSwitchCallTabToggle.classList.contains('fa-toggle-on');
+        settingsToSave[STORAGE_KEYS.AUTO_SWITCH_TO_CALL_TAB] = autoSwitchEnabled;
+        console.log(`Auto Switch to Call Tab setting saved: ${autoSwitchEnabled}`);
     }
 
     // Save Highlight Student Row settings
@@ -1069,6 +1097,16 @@ export function toggleDebugModeModal() {
 
     const isCurrentlyOn = elements.debugModeToggleModal.classList.contains('fa-toggle-on');
     updateDebugModeModalUI(!isCurrentlyOn);
+}
+
+/**
+ * Toggles the auto switch to call tab setting in the modal
+ */
+export function toggleAutoSwitchCallTabModal() {
+    if (!elements.autoSwitchCallTabToggle) return;
+
+    const isCurrentlyOn = elements.autoSwitchCallTabToggle.classList.contains('fa-toggle-on');
+    updateAutoSwitchCallTabUI(!isCurrentlyOn);
 }
 
 /**

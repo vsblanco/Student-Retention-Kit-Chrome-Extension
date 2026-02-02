@@ -141,6 +141,7 @@ export const STORAGE_KEYS = {
 
     // Five9 settings (settings.five9.*)
     CALL_DEMO: 'settings.five9.callDemo',
+    AUTO_SWITCH_TO_CALL_TAB: 'settings.five9.autoSwitchToCallTab',
 
     // Submission Checker settings (settings.submissionChecker.*)
     LOOPER_DAYS_OUT_FILTER: 'settings.submissionChecker.looperDaysOutFilter',
@@ -219,6 +220,7 @@ export const DEFAULT_SETTINGS = {
 
     // Five9 settings
     [STORAGE_KEYS.CALL_DEMO]: false, // Call demo mode (was debugMode)
+    [STORAGE_KEYS.AUTO_SWITCH_TO_CALL_TAB]: false, // Auto switch to Call tab when clicking student
 
     // Submission Checker settings
     [STORAGE_KEYS.LOOPER_DAYS_OUT_FILTER]: '>=5',

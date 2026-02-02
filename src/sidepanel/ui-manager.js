@@ -217,6 +217,7 @@ export function cacheDomElements() {
     elements.cacheStatsTextModal = document.getElementById('cacheStatsTextModal');
     elements.clearCacheBtnModal = document.getElementById('clearCacheBtnModal');
     elements.debugModeToggleModal = document.getElementById('debugModeToggleModal');
+    elements.autoSwitchCallTabToggle = document.getElementById('autoSwitchCallTabToggle');
     elements.saveConnectionsBtn = document.getElementById('saveConnectionsBtn');
 
     // Cache Management (old reference for compatibility)
