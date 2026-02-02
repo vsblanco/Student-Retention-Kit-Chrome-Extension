@@ -789,10 +789,7 @@ function setupEventListeners() {
 
             if (!elements.updateMasterContextMenu) return;
 
-            // Position the context menu at the mouse position
-            elements.updateMasterContextMenu.style.left = `${e.pageX}px`;
-            elements.updateMasterContextMenu.style.top = `${e.pageY}px`;
-            elements.updateMasterContextMenu.style.display = 'block';
+            positionContextMenu(elements.updateMasterContextMenu, e.pageX, e.pageY);
         });
     }
 
@@ -956,6 +953,48 @@ function setupEventListeners() {
     // Variable to track the selected student entry for context menu
     let selectedStudentEntry = null;
 
+    /**
+     * Positions a context menu at the mouse position, adjusting if it would overflow the viewport
+     * @param {HTMLElement} menu - The context menu element
+     * @param {number} mouseX - The mouse X position (e.pageX)
+     * @param {number} mouseY - The mouse Y position (e.pageY)
+     */
+    function positionContextMenu(menu, mouseX, mouseY) {
+        // First, show the menu off-screen to measure its dimensions
+        menu.style.visibility = 'hidden';
+        menu.style.display = 'block';
+
+        const menuWidth = menu.offsetWidth;
+        const menuHeight = menu.offsetHeight;
+
+        // Get viewport dimensions
+        const viewportWidth = window.innerWidth;
+        const viewportHeight = window.innerHeight;
+
+        // Calculate position, adjusting if menu would overflow viewport
+        let left = mouseX;
+        let top = mouseY;
+
+        // Check right edge overflow
+        if (left + menuWidth > viewportWidth) {
+            left = mouseX - menuWidth;
+        }
+
+        // Check bottom edge overflow - position above cursor if needed
+        if (top + menuHeight > viewportHeight) {
+            top = mouseY - menuHeight;
+        }
+
+        // Ensure menu doesn't go off the left or top edges
+        if (left < 0) left = 5;
+        if (top < 0) top = 5;
+
+        // Apply calculated position and show menu
+        menu.style.left = `${left}px`;
+        menu.style.top = `${top}px`;
+        menu.style.visibility = 'visible';
+    }
+
     // Right-click context menu for Checker Tab
     const checkerTab = document.getElementById('checker');
     if (checkerTab) {
@@ -972,10 +1011,7 @@ function setupEventListeners() {
                 selectedStudentEntry = JSON.parse(listItem.dataset.entryData);
                 elements.checkerContextMenuText.textContent = 'Resend Highlight Ping';
 
-                // Position the context menu at the mouse position
-                elements.checkerContextMenu.style.left = `${e.pageX}px`;
-                elements.checkerContextMenu.style.top = `${e.pageY}px`;
-                elements.checkerContextMenu.style.display = 'block';
+                positionContextMenu(elements.checkerContextMenu, e.pageX, e.pageY);
             } else {
                 // Right-clicked elsewhere on checker tab - check if there are any students
                 const data = await chrome.storage.local.get(STORAGE_KEYS.FOUND_ENTRIES);
@@ -986,10 +1022,7 @@ function setupEventListeners() {
                     selectedStudentEntry = null;
                     elements.checkerContextMenuText.textContent = 'Resend All Highlight Pings';
 
-                    // Position the context menu at the mouse position
-                    elements.checkerContextMenu.style.left = `${e.pageX}px`;
-                    elements.checkerContextMenu.style.top = `${e.pageY}px`;
-                    elements.checkerContextMenu.style.display = 'block';
+                    positionContextMenu(elements.checkerContextMenu, e.pageX, e.pageY);
                 }
                 // If no students, don't show the context menu
             }
