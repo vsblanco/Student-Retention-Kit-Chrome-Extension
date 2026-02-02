@@ -1645,9 +1645,14 @@ export function openStudentViewModal(student, hasMultipleCampuses = false) {
             elements.studentViewMissingList.innerHTML = missing.map((assignment, index) => {
                 const title = assignment.assignmentTitle || assignment.Assignment || assignment.name || `Assignment ${index + 1}`;
                 const dueDate = assignment.dueDate || assignment.DueDate || assignment.due_at || '';
+                const submissionLink = assignment.submissionLink || '';
+                // Make title a clickable link if submission link exists
+                const titleHtml = submissionLink
+                    ? `<a href="${submissionLink}" target="_blank" style="color: var(--text-main); font-weight: 500; font-size: 0.9em; text-decoration: none;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">${title}</a>`
+                    : `<div style="color: var(--text-main); font-weight: 500; font-size: 0.9em;">${title}</div>`;
                 return `
                     <div style="padding: 10px 12px; background: rgba(245, 158, 11, 0.08); border-radius: 8px; margin-bottom: 8px;">
-                        <div style="color: var(--text-main); font-weight: 500; font-size: 0.9em;">${title}</div>
+                        ${titleHtml}
                         ${dueDate ? `<div style="color: var(--text-secondary); font-size: 0.8em; margin-top: 4px;"><i class="fas fa-clock" style="margin-right: 4px;"></i>Due: ${dueDate}</div>` : ''}
                     </div>
                 `;
@@ -1673,7 +1678,12 @@ export function openStudentViewModal(student, hasMultipleCampuses = false) {
     // Populate next assignment detail view
     if (nextAssignment && nextAssignment.Assignment) {
         if (elements.studentViewNextAssignment) {
-            elements.studentViewNextAssignment.textContent = nextAssignment.Assignment;
+            // Make title a clickable link if assignment link exists
+            if (nextAssignment.AssignmentLink) {
+                elements.studentViewNextAssignment.innerHTML = `<a href="${nextAssignment.AssignmentLink}" target="_blank" style="color: inherit; text-decoration: none;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">${nextAssignment.Assignment}</a>`;
+            } else {
+                elements.studentViewNextAssignment.textContent = nextAssignment.Assignment;
+            }
         }
         if (elements.studentViewNextAssignmentDate) {
             elements.studentViewNextAssignmentDate.textContent = nextAssignment.DueDate ? `Due: ${nextAssignment.DueDate}` : 'No due date';
