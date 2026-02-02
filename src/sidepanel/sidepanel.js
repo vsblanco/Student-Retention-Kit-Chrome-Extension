@@ -684,9 +684,6 @@ function setupEventListeners() {
     }
 
     // Student View Modal
-    if (elements.closeStudentViewBtn) {
-        elements.closeStudentViewBtn.addEventListener('click', closeStudentViewModal);
-    }
     if (elements.studentViewCallBtn) {
         elements.studentViewCallBtn.addEventListener('click', () => {
             closeStudentViewModal();

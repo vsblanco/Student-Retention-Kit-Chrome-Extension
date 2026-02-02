@@ -173,8 +173,6 @@ export function cacheDomElements() {
 
     // Student View Modal
     elements.studentViewModal = document.getElementById('studentViewModal');
-    elements.studentViewModalTitle = document.getElementById('studentViewModalTitle');
-    elements.closeStudentViewBtn = document.getElementById('closeStudentViewBtn');
     elements.studentViewMain = document.getElementById('studentViewMain');
     elements.studentViewAvatar = document.getElementById('studentViewAvatar');
     elements.studentViewName = document.getElementById('studentViewName');
