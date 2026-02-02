@@ -769,13 +769,13 @@
 
                 <!-- Quick Stats -->
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px;">
-                    <div style="background: rgba(0, 90, 156, 0.08); padding: 12px; border-radius: 10px; text-align: center;">
-                        <div style="font-size: 0.75em; color: var(--text-secondary); margin-bottom: 4px;">Days Out</div>
-                        <div id="studentViewDaysOut" style="font-size: 1.3em; font-weight: 700; color: var(--primary-color);">-</div>
+                    <div id="studentViewDaysOutCard" style="padding: 12px; border-radius: 10px; text-align: center;">
+                        <div style="font-size: 0.75em; margin-bottom: 4px;">Days Out</div>
+                        <div id="studentViewDaysOut" style="font-size: 1.3em; font-weight: 700;">-</div>
                     </div>
-                    <div style="background: rgba(0, 90, 156, 0.08); padding: 12px; border-radius: 10px; text-align: center;">
-                        <div style="font-size: 0.75em; color: var(--text-secondary); margin-bottom: 4px;">Grade</div>
-                        <div id="studentViewGrade" style="font-size: 1.3em; font-weight: 700; color: var(--primary-color);">-</div>
+                    <div id="studentViewGradeCard" style="padding: 12px; border-radius: 10px; text-align: center;">
+                        <div style="font-size: 0.75em; margin-bottom: 4px;">Grade</div>
+                        <div id="studentViewGrade" style="font-size: 1.3em; font-weight: 700;">-</div>
                     </div>
                 </div>
 
@@ -800,11 +800,11 @@
             </div>
 
             <div class="modal-footer" style="display: flex; gap: 10px;">
-                <button class="btn-secondary" id="studentViewEmailBtn" style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px;">
-                    <i class="fas fa-envelope"></i> Email
-                </button>
                 <button class="btn-primary" id="studentViewCallBtn" style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px;">
                     <i class="fas fa-phone-alt"></i> Call
+                </button>
+                <button class="btn-secondary" id="studentViewEmailBtn" style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px;">
+                    <i class="fas fa-envelope"></i> Email
                 </button>
             </div>
         </div>

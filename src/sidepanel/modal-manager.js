@@ -1543,12 +1543,13 @@ export function openStudentViewModal(student, hasMultipleCampuses = false) {
         elements.studentViewName.textContent = data.name || 'Unknown Student';
     }
 
-    // Campus (only show if multiple campuses)
+    // Campus (only show if multiple campuses) - access raw student field
     if (elements.studentViewCampus) {
         const campusSpan = elements.studentViewCampus.querySelector('span');
-        if (hasMultipleCampuses && data.campus) {
+        const campus = student.campus || student.Campus || '';
+        if (hasMultipleCampuses && campus) {
             elements.studentViewCampus.style.display = 'block';
-            if (campusSpan) campusSpan.textContent = data.campus;
+            if (campusSpan) campusSpan.textContent = campus;
         } else {
             elements.studentViewCampus.style.display = 'none';
         }
@@ -1559,57 +1560,82 @@ export function openStudentViewModal(student, hasMultipleCampuses = false) {
         elements.studentViewNewBadge.style.display = data.isNew ? 'block' : 'none';
     }
 
-    // Days Out
-    if (elements.studentViewDaysOut) {
+    // Days Out - with background color
+    if (elements.studentViewDaysOut && elements.studentViewDaysOutCard) {
         const daysOut = data.daysOut !== undefined && data.daysOut !== null ? data.daysOut : '-';
         elements.studentViewDaysOut.textContent = daysOut;
 
-        // Color code days out
+        // Color code days out with background
         const daysOutNum = parseInt(daysOut) || 0;
-        let color = 'var(--primary-color)';
-        if (daysOutNum >= 10) color = '#ef4444';
-        else if (daysOutNum >= 5) color = '#f97316';
-        else if (daysOutNum >= 2) color = '#eab308';
-        elements.studentViewDaysOut.style.color = color;
+        let bgColor = 'rgba(16, 185, 129, 0.15)'; // Green
+        let textColor = '#047857';
+        if (daysOutNum >= 10) {
+            bgColor = 'rgba(239, 68, 68, 0.15)';
+            textColor = '#b91c1c';
+        } else if (daysOutNum >= 5) {
+            bgColor = 'rgba(249, 115, 22, 0.15)';
+            textColor = '#c2410c';
+        } else if (daysOutNum >= 2) {
+            bgColor = 'rgba(234, 179, 8, 0.15)';
+            textColor = '#a16207';
+        }
+        elements.studentViewDaysOutCard.style.background = bgColor;
+        elements.studentViewDaysOutCard.style.color = textColor;
     }
 
-    // Grade
-    if (elements.studentViewGrade) {
-        const grade = data.grade !== undefined && data.grade !== null ? data.grade : '-';
-        elements.studentViewGrade.textContent = typeof grade === 'number' ? `${grade}%` : grade;
+    // Grade - access raw student field, with background color
+    if (elements.studentViewGrade && elements.studentViewGradeCard) {
+        // Access grade from raw student object (not resolved data)
+        const rawGrade = student.grade ?? student.Grade ?? student.currentGrade ?? null;
+        const grade = rawGrade !== undefined && rawGrade !== null ? rawGrade : '-';
+        elements.studentViewGrade.textContent = (typeof grade === 'number' || !isNaN(parseFloat(grade))) && grade !== '-' ? `${parseFloat(grade).toFixed(0)}%` : grade;
 
-        // Color code grade
+        // Color code grade with background
         const gradeNum = parseFloat(grade) || 0;
-        let color = 'var(--primary-color)';
-        if (gradeNum > 0 && gradeNum < 60) color = '#ef4444';
-        else if (gradeNum >= 60 && gradeNum < 70) color = '#f97316';
-        else if (gradeNum >= 70 && gradeNum < 80) color = '#eab308';
-        else if (gradeNum >= 80) color = '#10b981';
-        elements.studentViewGrade.style.color = color;
+        let bgColor = 'rgba(0, 90, 156, 0.1)'; // Default blue
+        let textColor = 'var(--primary-color)';
+        if (grade !== '-' && !isNaN(gradeNum)) {
+            if (gradeNum >= 80) {
+                bgColor = 'rgba(16, 185, 129, 0.15)';
+                textColor = '#047857';
+            } else if (gradeNum >= 70) {
+                bgColor = 'rgba(234, 179, 8, 0.15)';
+                textColor = '#a16207';
+            } else if (gradeNum >= 60) {
+                bgColor = 'rgba(249, 115, 22, 0.15)';
+                textColor = '#c2410c';
+            } else {
+                bgColor = 'rgba(239, 68, 68, 0.15)';
+                textColor = '#b91c1c';
+            }
+        }
+        elements.studentViewGradeCard.style.background = bgColor;
+        elements.studentViewGradeCard.style.color = textColor;
     }
 
-    // Next Assignment
+    // Next Assignment - access raw student field
     if (elements.studentViewNextAssignmentSection) {
-        if (data.nextAssignment && data.nextAssignment.Assignment) {
+        const nextAssignment = student.nextAssignment || null;
+        if (nextAssignment && nextAssignment.Assignment) {
             elements.studentViewNextAssignmentSection.style.display = 'block';
             if (elements.studentViewNextAssignment) {
-                elements.studentViewNextAssignment.textContent = data.nextAssignment.Assignment;
+                elements.studentViewNextAssignment.textContent = nextAssignment.Assignment;
             }
             if (elements.studentViewNextAssignmentDate) {
-                elements.studentViewNextAssignmentDate.textContent = data.nextAssignment.DueDate ? `Due: ${data.nextAssignment.DueDate}` : '';
+                elements.studentViewNextAssignmentDate.textContent = nextAssignment.DueDate ? `Due: ${nextAssignment.DueDate}` : '';
             }
         } else {
             elements.studentViewNextAssignmentSection.style.display = 'none';
         }
     }
 
-    // Missing Assignments
+    // Missing Assignments - access raw student field
     if (elements.studentViewMissingList) {
-        const missing = data.missingAssignments || [];
+        const missing = student.missingAssignments || [];
         if (missing.length > 0) {
             elements.studentViewMissingList.innerHTML = missing.map((assignment, index) => {
-                const title = assignment.assignmentTitle || assignment.Assignment || `Assignment ${index + 1}`;
-                const dueDate = assignment.dueDate || assignment.DueDate || '';
+                const title = assignment.assignmentTitle || assignment.Assignment || assignment.name || `Assignment ${index + 1}`;
+                const dueDate = assignment.dueDate || assignment.DueDate || assignment.due_at || '';
                 return `
                     <div style="padding: 8px 10px; background: rgba(245, 158, 11, 0.08); border-radius: 6px; margin-bottom: 6px; font-size: 0.85em;">
                         <div style="color: var(--text-main); font-weight: 500;">${title}</div>

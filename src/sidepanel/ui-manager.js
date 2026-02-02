@@ -179,7 +179,9 @@ export function cacheDomElements() {
     elements.studentViewCampus = document.getElementById('studentViewCampus');
     elements.studentViewNewBadge = document.getElementById('studentViewNewBadge');
     elements.studentViewDaysOut = document.getElementById('studentViewDaysOut');
+    elements.studentViewDaysOutCard = document.getElementById('studentViewDaysOutCard');
     elements.studentViewGrade = document.getElementById('studentViewGrade');
+    elements.studentViewGradeCard = document.getElementById('studentViewGradeCard');
     elements.studentViewNextAssignmentSection = document.getElementById('studentViewNextAssignmentSection');
     elements.studentViewNextAssignment = document.getElementById('studentViewNextAssignment');
     elements.studentViewNextAssignmentDate = document.getElementById('studentViewNextAssignmentDate');
