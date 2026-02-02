@@ -1495,6 +1495,17 @@ export function closeCampusSelectionModal(selectedCampus = null) {
 // STUDENT VIEW MODAL
 // ============================================================================
 
+// Store the current student for the student view modal
+let currentStudentViewStudent = null;
+
+/**
+ * Gets the current student displayed in the student view modal
+ * @returns {Object|null} The current student data or null
+ */
+export function getCurrentStudentViewStudent() {
+    return currentStudentViewStudent;
+}
+
 /**
  * Opens the student view modal with student details
  * @param {Object} student - The student data object
@@ -1502,6 +1513,9 @@ export function closeCampusSelectionModal(selectedCampus = null) {
  */
 export function openStudentViewModal(student, hasMultipleCampuses = false) {
     if (!elements.studentViewModal || !student) return;
+
+    // Store the current student for access by email button
+    currentStudentViewStudent = student;
 
     const data = resolveStudentData(student);
 
@@ -1733,8 +1747,106 @@ export function closeStudentViewModal() {
     if (elements.studentViewModal) {
         elements.studentViewModal.style.display = 'none';
     }
+    // Clear the stored student reference
+    currentStudentViewStudent = null;
     // Reset to main view for next time
     showStudentViewMain();
+}
+
+/**
+ * Gets the appropriate greeting based on time of day
+ * @returns {string} "Good Morning", "Good Afternoon", or "Good Evening"
+ */
+function getTimeOfDayGreeting() {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'Good Morning';
+    if (hour < 17) return 'Good Afternoon';
+    return 'Good Evening';
+}
+
+/**
+ * Gets the first name from a full name
+ * @param {string} fullName - The full name
+ * @returns {string} The first name
+ */
+function getFirstName(fullName) {
+    if (!fullName) return '';
+    const parts = fullName.trim().split(/\s+/);
+    return parts[0] || '';
+}
+
+/**
+ * Generates a mailto: URL with pre-filled email template for student outreach
+ * @param {Object} student - The student data object
+ * @returns {string|null} The mailto: URL or null if no student email available
+ */
+export function generateStudentEmailTemplate(student) {
+    if (!student) return null;
+
+    // Get student email - try various field names
+    const studentEmail = student.studentEmail || student.StudentEmail || student.email || student.Email || '';
+
+    if (!studentEmail) {
+        return null;
+    }
+
+    // Get personal email for CC - try various field names
+    const personalEmail = student.personalEmail || student.PersonalEmail || student.otherEmail || student.OtherEmail || '';
+
+    const data = resolveStudentData(student);
+    const firstName = getFirstName(data.name);
+    const greeting = getTimeOfDayGreeting();
+    const daysOut = data.daysOut || 0;
+    const missingAssignments = student.missingAssignments || [];
+    const missingCount = missingAssignments.length;
+
+    // Get grade from raw student object
+    const rawGrade = student.grade ?? student.Grade ?? student.currentGrade ?? null;
+    const grade = rawGrade !== undefined && rawGrade !== null ? parseFloat(rawGrade).toFixed(0) : null;
+
+    // Build subject line
+    const subject = `Checking In - ${data.name}`;
+
+    // Build email body
+    let body = `${greeting} ${firstName},\n\n`;
+
+    // Main message
+    body += `It has been ${daysOut} day${daysOut !== 1 ? 's' : ''} since you last submitted`;
+
+    if (missingCount > 0) {
+        body += ` and you currently have ${missingCount} missing assignment${missingCount !== 1 ? 's' : ''}`;
+    }
+
+    if (grade !== null) {
+        body += `. Your class grade is ${grade}%`;
+    }
+    body += '.\n';
+
+    // Add missing assignments bullet list with links if any
+    if (missingCount > 0) {
+        body += '\nMissing Assignments:\n';
+        missingAssignments.forEach(assignment => {
+            const title = assignment.assignmentTitle || assignment.Assignment || assignment.title || assignment.name || 'Untitled Assignment';
+            const link = assignment.assignmentLink || assignment.AssignmentLink || assignment.link || '';
+            if (link) {
+                body += `• ${title}\n  ${link}\n`;
+            } else {
+                body += `• ${title}\n`;
+            }
+        });
+    }
+
+    // Closing
+    body += '\nWould you be able to submit an assignment today?\n';
+
+    // Build mailto URL with CC if personal email exists
+    let mailtoUrl = `mailto:${encodeURIComponent(studentEmail)}?`;
+    if (personalEmail) {
+        mailtoUrl += `cc=${encodeURIComponent(personalEmail)}&`;
+    }
+    mailtoUrl += `subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+
+    return mailtoUrl;
 }
 
 // Canvas Auth Error Modal state
