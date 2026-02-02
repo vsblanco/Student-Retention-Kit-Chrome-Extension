@@ -960,7 +960,8 @@ export async function processStep3(students, renderCallback) {
 
         // Check if using specific date (Time Machine mode) for missing assignments check
         // Also check if Next Assignment feature is enabled
-        const settings = await chrome.storage.local.get([
+        // Use storageGet to properly handle nested storage paths (e.g., settings.canvas.nextAssignmentEnabled)
+        const settings = await storageGet([
             STORAGE_KEYS.USE_SPECIFIC_DATE,
             STORAGE_KEYS.SPECIFIC_SUBMISSION_DATE,
             STORAGE_KEYS.NEXT_ASSIGNMENT_ENABLED
