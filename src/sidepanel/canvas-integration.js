@@ -848,11 +848,11 @@ function findNextAssignment(submissions, courseId, origin, referenceDate = new D
         const assignmentId = sub.assignment.id;
         const assignmentUrl = assignmentId ? `${origin}/courses/${courseId}/assignments/${assignmentId}` : '';
 
-        console.log(`[findNextAssignment] ✓ Found upcoming: "${sub.assignment.name}" due ${dueDate.toLocaleDateString()}`);
+        console.log(`[findNextAssignment] ✓ Found upcoming: "${sub.assignment.name}" due ${dueDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`);
 
         upcomingAssignments.push({
             Assignment: sub.assignment.name || 'Unknown Assignment',
-            DueDate: dueDate.toLocaleDateString(),
+            DueDate: dueDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
             AssignmentLink: assignmentUrl,
             _dueDateObj: dueDate // Keep for sorting, will be removed before returning
         });
