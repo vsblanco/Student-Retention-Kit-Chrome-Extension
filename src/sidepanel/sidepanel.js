@@ -89,6 +89,8 @@ import {
     showStudentViewMissing,
     showStudentViewNext,
     showStudentViewDaysOut,
+    getCurrentStudentViewStudent,
+    generateStudentEmailTemplate,
     openCanvasAuthErrorModal,
     closeCanvasAuthErrorModal,
     toggleCanvasAuthNonApi,
@@ -696,8 +698,19 @@ function setupEventListeners() {
     }
     if (elements.studentViewEmailBtn) {
         elements.studentViewEmailBtn.addEventListener('click', () => {
-            // Email functionality to be implemented later
-            console.log('Email button clicked - functionality coming soon');
+            const student = getCurrentStudentViewStudent();
+            if (!student) {
+                console.warn('No student data available for email');
+                return;
+            }
+
+            const mailtoUrl = generateStudentEmailTemplate(student);
+            if (mailtoUrl) {
+                window.open(mailtoUrl, '_blank');
+            } else {
+                // No email available - show alert
+                alert('No email address found for this student.');
+            }
         });
     }
     // Days Out card click - show detail view
