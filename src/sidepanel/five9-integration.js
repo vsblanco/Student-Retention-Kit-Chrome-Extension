@@ -47,15 +47,19 @@ export async function checkFive9Connection() {
  * @param {boolean} [debugModeOverride] - Optional debug mode override (if not provided, fetches from storage)
  */
 export async function updateFive9ConnectionIndicator(selectedQueue, debugModeOverride = null) {
+    console.log('[Five9Debug] updateFive9ConnectionIndicator called, debugModeOverride:', debugModeOverride);
+
     // Get debug mode from storage if not provided
     let isDebugMode = debugModeOverride;
     if (isDebugMode === null) {
         const data = await chrome.storage.local.get(STORAGE_KEYS.CALL_DEMO);
         isDebugMode = data[STORAGE_KEYS.CALL_DEMO] || false;
+        console.log('[Five9Debug] Read CALL_DEMO from storage:', data[STORAGE_KEYS.CALL_DEMO], '-> isDebugMode:', isDebugMode);
     }
 
     // Skip Five9 monitoring entirely in demo mode
     if (isDebugMode) {
+        console.log('[Five9Debug] Demo mode active - skipping Five9 monitoring, clearing error, calling updateCallTabDisplay with debugMode:true');
         // Clear any lingering Five9 error state
         clearConnectionError();
         await updateCallTabDisplay({
@@ -64,6 +68,8 @@ export async function updateFive9ConnectionIndicator(selectedQueue, debugModeOve
         });
         return;
     }
+
+    console.log('[Five9Debug] Demo mode NOT active - proceeding with Five9 monitoring');
 
     // Log connection state changes
     const connectionState = await checkFive9Connection();
