@@ -94,7 +94,9 @@ import {
     openCanvasAuthErrorModal,
     closeCanvasAuthErrorModal,
     toggleCanvasAuthNonApi,
-    updateStartButtonForMasterList
+    updateStartButtonForMasterList,
+    openGuidesModal,
+    closeGuidesModal
 } from './modal-manager.js';
 
 import { QueueManager } from './queue-manager.js';
@@ -642,6 +644,15 @@ function setupEventListeners() {
         elements.closeQueueModalBtn.addEventListener('click', closeQueueModal);
     }
 
+    // Guides Modal
+    if (elements.openGuidesBtn) {
+        elements.openGuidesBtn.addEventListener('click', openGuidesModal);
+    }
+
+    if (elements.closeGuidesModalBtn) {
+        elements.closeGuidesModalBtn.addEventListener('click', closeGuidesModal);
+    }
+
     // Daily Update Modal
     if (elements.closeDailyUpdateBtn) {
         elements.closeDailyUpdateBtn.addEventListener('click', closeDailyUpdateModal);
@@ -782,6 +793,9 @@ function setupEventListeners() {
         }
         if (elements.studentViewModal && e.target === elements.studentViewModal) {
             closeStudentViewModal();
+        }
+        if (elements.guidesModal && e.target === elements.guidesModal) {
+            closeGuidesModal();
         }
     });
 

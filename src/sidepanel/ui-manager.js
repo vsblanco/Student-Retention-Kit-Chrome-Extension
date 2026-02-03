@@ -138,6 +138,12 @@ export function cacheDomElements() {
     elements.queueList = document.getElementById('queueList');
     elements.queueCount = document.getElementById('queueCount');
 
+    // Guides Modal
+    elements.guidesModal = document.getElementById('guidesModal');
+    elements.openGuidesBtn = document.getElementById('openGuidesBtn');
+    elements.closeGuidesModalBtn = document.getElementById('closeGuidesModalBtn');
+    elements.guidesContainer = document.getElementById('guidesContainer');
+
     // Daily Update Modal
     elements.dailyUpdateModal = document.getElementById('dailyUpdateModal');
     elements.closeDailyUpdateBtn = document.getElementById('closeDailyUpdateBtn');
