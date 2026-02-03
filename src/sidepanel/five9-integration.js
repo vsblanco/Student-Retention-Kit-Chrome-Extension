@@ -123,7 +123,11 @@ export function setupFive9StatusListeners(callManager, getSelectedQueue) {
                 }
 
                 // Check if this is a connection error (receiving end doesn't exist)
-                if (message.error && (
+                // Skip in demo mode since it doesn't use Five9
+                const demoData = await chrome.storage.local.get(STORAGE_KEYS.CALL_DEMO);
+                const isDemo = demoData[STORAGE_KEYS.CALL_DEMO] || false;
+
+                if (!isDemo && message.error && (
                     message.error.includes('disconnected') ||
                     message.error.includes('Receiving end does not exist') ||
                     message.error.includes('Could not establish connection')
