@@ -86,8 +86,15 @@ async function refreshFive9Tab() {
         const tabs = await chrome.tabs.query({ url: "https://app-atl.five9.com/*" });
         if (tabs.length > 0) {
             await chrome.tabs.reload(tabs[0].id);
-            // Clear error state after refresh
+            // Clear error state and show awaiting connection message
             clearConnectionError();
+            // Reset the bypass so user sees awaiting connection
+            five9BypassActive = false;
+            // Force show the awaiting agent connection message
+            currentPlaceholderMessage = null;
+            renderPlaceholder(PLACEHOLDER_MESSAGES.FIVE9_AWAITING_AGENT);
+            showPlaceholder();
+            hideCallSection();
             return true;
         }
         return false;
