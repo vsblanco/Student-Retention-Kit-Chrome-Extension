@@ -30,6 +30,14 @@ export const PLACEHOLDER_MESSAGES = {
         iconStyle: 'font-size:3em; margin-bottom:15px; opacity:0.4;',
         header: 'Awaiting Agent Connection',
         message: 'Five9 tab detected. Waiting for<br>agent to connect...'
+    },
+    FIVE9_CONNECTION_ERROR: {
+        id: 'five9_error',
+        priority: 3,
+        icon: 'fa-exclamation-triangle',
+        iconStyle: 'font-size:3em; margin-bottom:15px; color:#ef4444;',
+        header: 'Five9 Connection Error',
+        message: 'Could not establish connection.<br>The Five9 tab may need to be refreshed.'
     }
 };
 
@@ -38,6 +46,9 @@ let currentPlaceholderMessage = null;
 
 // Track if user has bypassed the Five9 awaiting check
 let five9BypassActive = false;
+
+// Track if there's a Five9 connection error
+let five9ConnectionError = false;
 
 /**
  * Checks Five9 connection status (duplicated here to avoid circular dependency)
@@ -67,6 +78,26 @@ async function checkFive9ConnectionState() {
 }
 
 /**
+ * Refreshes the Five9 tab if one exists
+ * @returns {Promise<boolean>} True if tab was refreshed, false if no tab found
+ */
+async function refreshFive9Tab() {
+    try {
+        const tabs = await chrome.tabs.query({ url: "https://app-atl.five9.com/*" });
+        if (tabs.length > 0) {
+            await chrome.tabs.reload(tabs[0].id);
+            // Clear error state after refresh
+            clearConnectionError();
+            return true;
+        }
+        return false;
+    } catch (error) {
+        console.error("Error refreshing Five9 tab:", error);
+        return false;
+    }
+}
+
+/**
  * Updates the unified placeholder content
  * @param {Object} messageConfig - The message configuration from PLACEHOLDER_MESSAGES
  */
@@ -78,15 +109,18 @@ function renderPlaceholder(messageConfig) {
     currentPlaceholderMessage = messageConfig.id;
 
     // Add "Continue Anyways" button for awaiting agent message
-    const continueButton = messageConfig.id === 'five9_awaiting'
-        ? `<button id="continueAnywaysBtn" style="margin-top:15px; background:none; border:none; color:#3b82f6; cursor:pointer; font-size:0.85em; text-decoration:underline;">Continue Anyways</button>`
-        : '';
+    let actionButton = '';
+    if (messageConfig.id === 'five9_awaiting') {
+        actionButton = `<button id="continueAnywaysBtn" style="margin-top:15px; background:none; border:none; color:#3b82f6; cursor:pointer; font-size:0.85em; text-decoration:underline;">Continue Anyways</button>`;
+    } else if (messageConfig.id === 'five9_error') {
+        actionButton = `<button id="refreshFive9Btn" style="margin-top:15px; padding:8px 16px; background:var(--primary-color); color:white; border:none; border-radius:6px; cursor:pointer; font-size:0.9em; display:flex; align-items:center; gap:6px;"><i class="fas fa-sync-alt"></i> Refresh Five9 Tab</button>`;
+    }
 
     elements.callTabPlaceholder.innerHTML = `
         <i class="fas ${messageConfig.icon}" style="${messageConfig.iconStyle}"></i>
         <span style="font-size:1.1em; font-weight:500;">${messageConfig.header}</span>
         <span style="font-size:0.9em; margin-top:5px; color:#6b7280;">${messageConfig.message}</span>
-        ${continueButton}
+        ${actionButton}
     `;
 
     // Add click handler for continue button
@@ -95,6 +129,22 @@ function renderPlaceholder(messageConfig) {
         if (btn) {
             btn.addEventListener('click', () => {
                 bypassFive9Check();
+            });
+        }
+    }
+
+    // Add click handler for refresh button
+    if (messageConfig.id === 'five9_error') {
+        const btn = document.getElementById('refreshFive9Btn');
+        if (btn) {
+            btn.addEventListener('click', async () => {
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Refreshing...';
+                const refreshed = await refreshFive9Tab();
+                if (!refreshed) {
+                    // No Five9 tab found, show the no tab message
+                    showConnectionError(false);
+                }
             });
         }
     }
@@ -136,6 +186,33 @@ export function resetFive9Bypass() {
 }
 
 /**
+ * Shows the Five9 connection error placeholder
+ * @param {boolean} hasFive9Tab - Whether a Five9 tab exists
+ */
+export async function showConnectionError(hasFive9Tab = true) {
+    five9ConnectionError = true;
+    currentPlaceholderMessage = null; // Force re-render
+
+    if (hasFive9Tab) {
+        // Show error with refresh button
+        renderPlaceholder(PLACEHOLDER_MESSAGES.FIVE9_CONNECTION_ERROR);
+    } else {
+        // No Five9 tab - show the no tab message
+        renderPlaceholder(PLACEHOLDER_MESSAGES.FIVE9_NO_TAB);
+    }
+    showPlaceholder();
+    hideCallSection();
+}
+
+/**
+ * Clears the Five9 connection error state
+ */
+export function clearConnectionError() {
+    five9ConnectionError = false;
+    currentPlaceholderMessage = null; // Allow next render
+}
+
+/**
  * Shows the call section (student card, call interface, etc.)
  */
 function showCallSection() {
@@ -170,9 +247,10 @@ function hideCallSection() {
 /**
  * Determines which placeholder message should be shown based on current state
  * Priority order (highest to lowest):
- * 1. Five9 NO_TAB - always shows first regardless of student selection
- * 2. No student selected
- * 3. Five9 AWAITING_CONNECTION - only when student is selected
+ * 1. Five9 Connection Error - highest priority when error occurred
+ * 2. Five9 NO_TAB - always shows first regardless of student selection
+ * 3. No student selected
+ * 4. Five9 AWAITING_CONNECTION - only when student is selected
  *
  * @param {Object} state - Current state object
  * @param {Array} state.selectedQueue - Currently selected students
@@ -182,6 +260,18 @@ function hideCallSection() {
 export async function determineCallTabState(state = {}) {
     const { selectedQueue = [], debugMode = false } = state;
     const hasStudentSelected = selectedQueue && selectedQueue.length > 0;
+
+    // Check for connection error first - highest priority
+    if (five9ConnectionError && !debugMode) {
+        // Re-check if Five9 tab still exists
+        const tabs = await chrome.tabs.query({ url: "https://app-atl.five9.com/*" });
+        const hasFive9Tab = tabs.length > 0;
+
+        return {
+            showPlaceholder: true,
+            message: hasFive9Tab ? PLACEHOLDER_MESSAGES.FIVE9_CONNECTION_ERROR : PLACEHOLDER_MESSAGES.FIVE9_NO_TAB
+        };
+    }
 
     // Check Five9 NO_TAB first - highest priority, shows regardless of student selection
     if (!debugMode) {

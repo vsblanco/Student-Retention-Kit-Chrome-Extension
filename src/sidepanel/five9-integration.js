@@ -1,7 +1,7 @@
 // Five9 Integration - Monitors Five9 connection status
 import { STORAGE_KEYS, FIVE9_CONNECTION_STATES } from '../constants/index.js';
 import { elements } from './ui-manager.js';
-import { updateCallTabDisplay } from './call-tab-placeholder.js';
+import { updateCallTabDisplay, showConnectionError } from './call-tab-placeholder.js';
 
 let five9ConnectionCheckInterval = null;
 let lastFive9ConnectionState = FIVE9_CONNECTION_STATES.NO_TAB;
@@ -110,7 +110,7 @@ export function stopFive9ConnectionMonitor() {
  * Setup Five9 status listeners from background.js
  */
 export function setupFive9StatusListeners(callManager, getSelectedQueue) {
-    chrome.runtime.onMessage.addListener((message, sender) => {
+    chrome.runtime.onMessage.addListener(async (message, sender) => {
         // Handle Five9 call initiation status
         if (message.type === 'callStatus') {
             if (message.success) {
@@ -120,6 +120,18 @@ export function setupFive9StatusListeners(callManager, getSelectedQueue) {
                 // Revert call UI state if call failed
                 if (callManager && callManager.getCallActiveState()) {
                     callManager.toggleCallState(true);
+                }
+
+                // Check if this is a connection error (receiving end doesn't exist)
+                if (message.error && (
+                    message.error.includes('disconnected') ||
+                    message.error.includes('Receiving end does not exist') ||
+                    message.error.includes('Could not establish connection')
+                )) {
+                    // Check if Five9 tab still exists
+                    const tabs = await chrome.tabs.query({ url: "https://app-atl.five9.com/*" });
+                    const hasFive9Tab = tabs.length > 0;
+                    showConnectionError(hasFive9Tab);
                 }
             }
         }
