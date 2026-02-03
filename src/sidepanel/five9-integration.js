@@ -54,6 +54,15 @@ export async function updateFive9ConnectionIndicator(selectedQueue, debugModeOve
         isDebugMode = data[STORAGE_KEYS.CALL_DEMO] || false;
     }
 
+    // Skip Five9 monitoring entirely in demo mode
+    if (isDebugMode) {
+        await updateCallTabDisplay({
+            selectedQueue: selectedQueue || [],
+            debugMode: true
+        });
+        return;
+    }
+
     // Log connection state changes
     const connectionState = await checkFive9Connection();
     if (connectionState !== lastFive9ConnectionState) {
@@ -75,7 +84,7 @@ export async function updateFive9ConnectionIndicator(selectedQueue, debugModeOve
     // Use the unified placeholder system to update the display
     await updateCallTabDisplay({
         selectedQueue: selectedQueue || [],
-        debugMode: isDebugMode
+        debugMode: false
     });
 }
 
