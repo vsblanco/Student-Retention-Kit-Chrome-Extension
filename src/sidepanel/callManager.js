@@ -141,7 +141,8 @@ export default class CallManager {
             }
             // -------------------------
 
-            this.elements.dialBtn.style.background = '#10b981';
+            // Set button to gray while awaiting disposition
+            this.elements.dialBtn.style.background = '#6b7280';
             this.elements.dialBtn.style.transform = 'rotate(0deg)';
 
             // Check the interaction state
@@ -156,9 +157,10 @@ export default class CallManager {
                 this.isCallActive = true;
                 this.waitingForDisposition = true;
 
-                // Keep disposition UI open
+                // Keep disposition UI open - button stays gray
             } else {
                 // Call fully completed (shouldn't normally happen without disposition)
+                this.elements.dialBtn.style.background = '#10b981'; // Turn green when ready
                 this.elements.callStatusText.innerHTML = '<span class="status-indicator ready"></span> Ready to Connect';
                 this.isCallActive = false;
                 this.waitingForDisposition = false;
