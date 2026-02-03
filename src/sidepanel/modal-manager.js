@@ -155,6 +155,22 @@ export function closeQueueModal() {
 }
 
 /**
+ * Opens the guides modal
+ */
+export function openGuidesModal() {
+    if (!elements.guidesModal) return;
+    elements.guidesModal.style.display = 'flex';
+}
+
+/**
+ * Closes the guides modal
+ */
+export function closeGuidesModal() {
+    if (!elements.guidesModal) return;
+    elements.guidesModal.style.display = 'none';
+}
+
+/**
  * Renders the queue modal content
  */
 export async function renderQueueModal(selectedQueue, onReorder, onRemove) {

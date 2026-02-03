@@ -364,11 +364,43 @@
             </button>
         </div>
 
-        <h3>Guides</h3>
-        <div id="guidesContainer">
-            <!-- Guides will be dynamically populated here -->
+        <h3>Resources</h3>
+        <div class="setting-card" style="cursor: pointer;" id="openGuidesBtn">
+            <div style="display:flex; align-items:center; gap:10px; flex-grow:1;">
+                <i class="fas fa-book" style="color:var(--primary-color); font-size:1.5em; width:28px; text-align:center;"></i>
+                <span style="font-weight:500;">Guides</span>
+            </div>
+            <i class="fas fa-chevron-right" style="color:var(--text-secondary); font-size:1em;"></i>
         </div>
+        <a href="https://forms.office.com/r/PdqWgqTN8F" target="_blank" class="setting-card" style="cursor: pointer; text-decoration: none; color: inherit;">
+            <div style="display:flex; align-items:center; gap:10px; flex-grow:1;">
+                <i class="fas fa-bug" style="color:#ef4444; font-size:1.5em; width:28px; text-align:center;"></i>
+                <span style="font-weight:500;">Report an Issue</span>
+            </div>
+            <i class="fas fa-external-link-alt" style="color:var(--text-secondary); font-size:1em;"></i>
+        </a>
+        <a href="https://forms.office.com/r/NqtF2kT2S0" target="_blank" class="setting-card" style="cursor: pointer; text-decoration: none; color: inherit;">
+            <div style="display:flex; align-items:center; gap:10px; flex-grow:1;">
+                <i class="fas fa-lightbulb" style="color:#f59e0b; font-size:1.5em; width:28px; text-align:center;"></i>
+                <span style="font-weight:500;">Request a New Feature</span>
+            </div>
+            <i class="fas fa-external-link-alt" style="color:var(--text-secondary); font-size:1em;"></i>
+        </a>
       </div>
+    </div>
+
+    <div id="guidesModal" class="modal-overlay" style="display:none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Guides</h3>
+                <button class="icon-btn" id="closeGuidesModalBtn" title="Close"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body">
+                <div id="guidesContainer">
+                    <!-- Guides will be dynamically populated here -->
+                </div>
+            </div>
+        </div>
     </div>
 
     <div id="queueModal" class="modal-overlay" style="display:none;">
