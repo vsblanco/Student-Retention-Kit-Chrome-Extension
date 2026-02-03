@@ -1,7 +1,7 @@
 // Five9 Integration - Monitors Five9 connection status
 import { STORAGE_KEYS, FIVE9_CONNECTION_STATES } from '../constants/index.js';
 import { elements } from './ui-manager.js';
-import { updateCallTabDisplay, showConnectionError } from './call-tab-placeholder.js';
+import { updateCallTabDisplay, showConnectionError, clearConnectionError } from './call-tab-placeholder.js';
 
 let five9ConnectionCheckInterval = null;
 let lastFive9ConnectionState = FIVE9_CONNECTION_STATES.NO_TAB;
@@ -47,12 +47,29 @@ export async function checkFive9Connection() {
  * @param {boolean} [debugModeOverride] - Optional debug mode override (if not provided, fetches from storage)
  */
 export async function updateFive9ConnectionIndicator(selectedQueue, debugModeOverride = null) {
+    console.log('[Five9Debug] updateFive9ConnectionIndicator called, debugModeOverride:', debugModeOverride);
+
     // Get debug mode from storage if not provided
     let isDebugMode = debugModeOverride;
     if (isDebugMode === null) {
         const data = await chrome.storage.local.get(STORAGE_KEYS.CALL_DEMO);
         isDebugMode = data[STORAGE_KEYS.CALL_DEMO] || false;
+        console.log('[Five9Debug] Read CALL_DEMO from storage:', data[STORAGE_KEYS.CALL_DEMO], '-> isDebugMode:', isDebugMode);
     }
+
+    // Skip Five9 monitoring entirely in demo mode
+    if (isDebugMode) {
+        console.log('[Five9Debug] Demo mode active - skipping Five9 monitoring, clearing error, calling updateCallTabDisplay with debugMode:true');
+        // Clear any lingering Five9 error state
+        clearConnectionError();
+        await updateCallTabDisplay({
+            selectedQueue: selectedQueue || [],
+            debugMode: true
+        });
+        return;
+    }
+
+    console.log('[Five9Debug] Demo mode NOT active - proceeding with Five9 monitoring');
 
     // Log connection state changes
     const connectionState = await checkFive9Connection();
@@ -75,7 +92,7 @@ export async function updateFive9ConnectionIndicator(selectedQueue, debugModeOve
     // Use the unified placeholder system to update the display
     await updateCallTabDisplay({
         selectedQueue: selectedQueue || [],
-        debugMode: isDebugMode
+        debugMode: false
     });
 }
 
