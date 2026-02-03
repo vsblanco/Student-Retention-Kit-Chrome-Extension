@@ -13,6 +13,7 @@ export default class CallManager {
         this.elements = elements;
         this.isCallActive = false;
         this.callTimerInterval = null;
+        this.dispositionTimerInterval = null; // Timer for disposition wait time
         this.selectedQueue = [];
         this.debugMode = false;
         this.automationMode = false;
@@ -157,7 +158,13 @@ export default class CallManager {
                 this.isCallActive = true;
                 this.waitingForDisposition = true;
 
-                // Keep disposition UI open - button stays gray
+                // Start disposition timer to show waiting time
+                this.startDispositionTimer();
+
+                // Focus Five9 tab for disposition (only in non-demo mode)
+                if (!this.debugMode) {
+                    this.focusFive9Tab();
+                }
             } else {
                 // Call fully completed (shouldn't normally happen without disposition)
                 this.elements.dialBtn.style.background = '#10b981'; // Turn green when ready
@@ -401,6 +408,7 @@ export default class CallManager {
         // End the current call
         this.isCallActive = false;
         this.stopCallTimer();
+        this.stopDispositionTimer();
 
         // Exit automation mode
         this.automationMode = false;
@@ -466,11 +474,55 @@ export default class CallManager {
     }
 
     /**
+     * Starts the disposition timer to show time waiting for disposition
+     */
+    startDispositionTimer() {
+        let seconds = 0;
+        this.elements.callTimer.textContent = "00:00";
+        clearInterval(this.dispositionTimerInterval);
+
+        this.dispositionTimerInterval = setInterval(() => {
+            seconds++;
+            const m = Math.floor(seconds / 60).toString().padStart(2, '0');
+            const s = (seconds % 60).toString().padStart(2, '0');
+            this.elements.callTimer.textContent = `${m}:${s}`;
+        }, 1000);
+    }
+
+    /**
+     * Stops the disposition timer and resets display
+     */
+    stopDispositionTimer() {
+        clearInterval(this.dispositionTimerInterval);
+        this.dispositionTimerInterval = null;
+        this.elements.callTimer.textContent = "00:00";
+    }
+
+    /**
+     * Focuses the Five9 tab (for setting disposition in Five9)
+     */
+    async focusFive9Tab() {
+        try {
+            const tabs = await chrome.tabs.query({ url: "https://app-atl.five9.com/*" });
+            if (tabs.length > 0) {
+                await chrome.tabs.update(tabs[0].id, { active: true });
+                await chrome.windows.update(tabs[0].windowId, { focused: true });
+                console.log("✓ Focused Five9 tab for disposition");
+            }
+        } catch (error) {
+            console.error("Error focusing Five9 tab:", error);
+        }
+    }
+
+    /**
      * Handles call disposition selection and ends the call
      * @param {string} type - The disposition type selected
      */
     async handleDisposition(type) {
         console.log("Logged Disposition:", type);
+
+        // Stop disposition timer if running
+        this.stopDispositionTimer();
 
         // TODO: Store disposition data
         // Future implementation:
@@ -810,6 +862,7 @@ export default class CallManager {
      */
     cleanup() {
         this.stopCallTimer();
+        this.stopDispositionTimer();
         this.selectedQueue = [];
         this.isCallActive = false;
     }
