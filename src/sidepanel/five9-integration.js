@@ -1,5 +1,6 @@
 // Five9 Integration - Monitors Five9 connection status
 import { STORAGE_KEYS, FIVE9_CONNECTION_STATES } from '../constants/index.js';
+import { storageGet } from '../utils/storage.js';
 import { elements } from './ui-manager.js';
 import { updateCallTabDisplay, showConnectionError, clearConnectionError } from './call-tab-placeholder.js';
 
@@ -52,7 +53,7 @@ export async function updateFive9ConnectionIndicator(selectedQueue, debugModeOve
     // Get debug mode from storage if not provided
     let isDebugMode = debugModeOverride;
     if (isDebugMode === null) {
-        const data = await chrome.storage.local.get(STORAGE_KEYS.CALL_DEMO);
+        const data = await storageGet(STORAGE_KEYS.CALL_DEMO);
         isDebugMode = data[STORAGE_KEYS.CALL_DEMO] || false;
         console.log('[Five9Debug] Read CALL_DEMO from storage:', data[STORAGE_KEYS.CALL_DEMO], '-> isDebugMode:', isDebugMode);
     }
@@ -141,7 +142,7 @@ export function setupFive9StatusListeners(callManager, getSelectedQueue) {
 
                 // Check if this is a connection error (receiving end doesn't exist)
                 // Skip in demo mode since it doesn't use Five9
-                const demoData = await chrome.storage.local.get(STORAGE_KEYS.CALL_DEMO);
+                const demoData = await storageGet(STORAGE_KEYS.CALL_DEMO);
                 const isDemo = demoData[STORAGE_KEYS.CALL_DEMO] || false;
 
                 if (!isDemo && message.error && (
