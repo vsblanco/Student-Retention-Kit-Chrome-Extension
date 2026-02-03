@@ -1,7 +1,7 @@
 // Five9 Integration - Monitors Five9 connection status
 import { STORAGE_KEYS, FIVE9_CONNECTION_STATES } from '../constants/index.js';
 import { elements } from './ui-manager.js';
-import { updateCallTabDisplay, showConnectionError } from './call-tab-placeholder.js';
+import { updateCallTabDisplay, showConnectionError, clearConnectionError } from './call-tab-placeholder.js';
 
 let five9ConnectionCheckInterval = null;
 let lastFive9ConnectionState = FIVE9_CONNECTION_STATES.NO_TAB;
@@ -56,6 +56,8 @@ export async function updateFive9ConnectionIndicator(selectedQueue, debugModeOve
 
     // Skip Five9 monitoring entirely in demo mode
     if (isDebugMode) {
+        // Clear any lingering Five9 error state
+        clearConnectionError();
         await updateCallTabDisplay({
             selectedQueue: selectedQueue || [],
             debugMode: true
