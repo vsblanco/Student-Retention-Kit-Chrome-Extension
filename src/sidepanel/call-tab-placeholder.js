@@ -247,9 +247,10 @@ function hideCallSection() {
 /**
  * Determines which placeholder message should be shown based on current state
  * Priority order (highest to lowest):
- * 1. Five9 NO_TAB - always shows first regardless of student selection
- * 2. No student selected
- * 3. Five9 AWAITING_CONNECTION - only when student is selected
+ * 1. Five9 Connection Error - highest priority when error occurred
+ * 2. Five9 NO_TAB - always shows first regardless of student selection
+ * 3. No student selected
+ * 4. Five9 AWAITING_CONNECTION - only when student is selected
  *
  * @param {Object} state - Current state object
  * @param {Array} state.selectedQueue - Currently selected students
@@ -259,6 +260,18 @@ function hideCallSection() {
 export async function determineCallTabState(state = {}) {
     const { selectedQueue = [], debugMode = false } = state;
     const hasStudentSelected = selectedQueue && selectedQueue.length > 0;
+
+    // Check for connection error first - highest priority
+    if (five9ConnectionError && !debugMode) {
+        // Re-check if Five9 tab still exists
+        const tabs = await chrome.tabs.query({ url: "https://app-atl.five9.com/*" });
+        const hasFive9Tab = tabs.length > 0;
+
+        return {
+            showPlaceholder: true,
+            message: hasFive9Tab ? PLACEHOLDER_MESSAGES.FIVE9_CONNECTION_ERROR : PLACEHOLDER_MESSAGES.FIVE9_NO_TAB
+        };
+    }
 
     // Check Five9 NO_TAB first - highest priority, shows regardless of student selection
     if (!debugMode) {
