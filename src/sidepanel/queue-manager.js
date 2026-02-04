@@ -101,11 +101,24 @@ export class QueueManager {
      * @param {Event} event - Click event
      */
     handleStudentClick(entry, liElement, event) {
-        // If waiting for disposition, ignore selection and redirect to call tab
-        if (this.callManager && this.callManager.getWaitingForDisposition()) {
-            console.log('[QueueManager] Ignoring student selection - awaiting disposition');
-            switchTab('contact');
-            return;
+        // Block student selection during active call, automation mode, or awaiting disposition
+        // This prevents accidentally changing the active student mid-call
+        if (this.callManager) {
+            if (this.callManager.getCallActiveState()) {
+                console.log('[QueueManager] Ignoring student selection - call is active');
+                switchTab('contact');
+                return;
+            }
+            if (this.callManager.getAutomationModeState()) {
+                console.log('[QueueManager] Ignoring student selection - automation mode active');
+                switchTab('contact');
+                return;
+            }
+            if (this.callManager.getWaitingForDisposition()) {
+                console.log('[QueueManager] Ignoring student selection - awaiting disposition');
+                switchTab('contact');
+                return;
+            }
         }
 
         if (event.ctrlKey || event.metaKey) {
