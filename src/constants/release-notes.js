@@ -22,6 +22,15 @@
 export const RELEASE_NOTES = {
     // Add new version entries here (newest first)
     // The key should match the version in manifest.json
+	'11.2': {
+        title: 'Latest Updates',
+        date: 'February 4, 2026',
+        updates: [
+            'Refactored modal system for improved performance and maintainability',
+            'Added automated testing infrastructure with 115 tests',
+            'Improved code organization in the sidepanel'
+        ]
+    },
 	'11.1': {
         title: 'Latest Updates',
         date: 'February 4, 2026',
