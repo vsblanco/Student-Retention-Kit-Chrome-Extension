@@ -1,7 +1,7 @@
 // Canvas Integration - Handles all Canvas API calls for student data and assignments
 import { STORAGE_KEYS, CANVAS_DOMAIN, GENERIC_AVATAR_URL, normalizeCanvasUrl } from '../constants/index.js';
 import { getCachedData, setCachedData, hasCachedData, getCache } from '../utils/canvasCache.js';
-import { openCanvasAuthErrorModal, isCanvasAuthError, isCanvasAuthErrorBody } from './modal-manager.js';
+import { openCanvasAuthErrorModal, isCanvasAuthError, isCanvasAuthErrorBody } from './modals/canvas-auth-modal.js';
 import { storageGet } from '../utils/storage.js';
 
 /**
