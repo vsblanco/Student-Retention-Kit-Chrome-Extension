@@ -424,7 +424,7 @@ export async function openConnectionsModal(connectionType) {
     updateDebugModeModalUI(callDemo);
 
     // Load Auto Switch to Call Tab setting
-    const autoSwitchCallTab = result[STORAGE_KEYS.AUTO_SWITCH_TO_CALL_TAB] || false;
+    const autoSwitchCallTab = result[STORAGE_KEYS.AUTO_SWITCH_TO_CALL_TAB] !== undefined ? result[STORAGE_KEYS.AUTO_SWITCH_TO_CALL_TAB] : true;
     updateAutoSwitchCallTabUI(autoSwitchCallTab);
 
     // Load Highlight Student Row settings
@@ -889,7 +889,7 @@ export async function updateCanvasStatus() {
 
     try {
         // Check if user is logged in by attempting to fetch current user profile
-        const response = await fetch('https://northbridge.instructure.com/api/v1/users/self', {
+        const response = await fetch(`${CANVAS_DOMAIN}/api/v1/users/self`, {
             headers: { 'Accept': 'application/json' },
             credentials: 'include'
         });

@@ -251,14 +251,21 @@ export const ADVANCED_FILTER_REGEX = /^\s*([><]=?|=)\s*(\d+)\s*$/;
 export const SHAREPOINT_URL = "https://edukgroup3_sharepoint.com/sites/SM-StudentServices/SitePages/CollabHome.aspx";
 
 /**
+ * Canvas LMS subdomain (the part before .instructure.com).
+ * Change this value to update the Canvas domain across the extension.
+ * Note: Also update manifest.json host_permissions and content_scripts manually.
+ */
+export const CANVAS_SUBDOMAIN = "northbridge";
+
+/**
  * Canvas LMS domain URL.
  */
-export const CANVAS_DOMAIN = "https://northbridge.instructure.com";
+export const CANVAS_DOMAIN = `https://${CANVAS_SUBDOMAIN}.instructure.com`;
 
 /**
  * Generic avatar URL used by Canvas for users without custom avatars.
  */
-export const GENERIC_AVATAR_URL = "https://northbridge.instructure.com/images/messages/avatar-50.png";
+export const GENERIC_AVATAR_URL = `https://${CANVAS_SUBDOMAIN}.instructure.com/images/messages/avatar-50.png`;
 
 /**
  * Guide resources available in the extension.
