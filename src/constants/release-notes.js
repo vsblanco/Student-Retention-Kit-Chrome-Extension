@@ -30,7 +30,7 @@ export const RELEASE_NOTES = {
             'Improved Context Menu UI',
 			'Added Recheck Grade Book in the conext menu',
 			'Implemented Student Details view',
-			'Adjusted for school rebranding to North Bridge University',
+			'Adjusted for school rebranding to Northbridge University',
 			'Implemented Issue and Feature Request reporting in settings'
         ]
     },
