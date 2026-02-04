@@ -2,7 +2,7 @@
 
 ## Overview
 
-The Student Retention Kit is a comprehensive Chrome extension designed to help North Bridge University retention teams track student engagement, identify at-risk students, and streamline outreach efforts through automated workflows.
+The Student Retention Kit is a comprehensive Chrome extension designed to help Northbridge University retention teams track student engagement, identify at-risk students, and streamline outreach efforts through automated workflows.
 
 ## Core Features
 
@@ -24,4 +24,4 @@ The Student Retention Kit is a comprehensive Chrome extension designed to help N
 
 ---
 
-Built for North Bridge University; Created by Victor Blanco
+Built for Northbridge University; Created by Victor Blanco

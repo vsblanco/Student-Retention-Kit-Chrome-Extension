@@ -322,7 +322,7 @@ chrome.webRequest.onErrorOccurred.addListener(
         console.warn('API Connection Error:', details.error);
     }
   },
-  { urls: ["https://nuc.instructure.com/api/*"] }
+  { urls: ["https://northbridge.instructure.com/api/*"] }
 );
 
 // Five9 Network Monitoring - Detect agent connection
