@@ -182,18 +182,20 @@ export function setupFive9StatusListeners(callManager, getSelectedQueue) {
         }
 
         // Handle disposition set externally (through Five9 UI)
+        // Skip if in demo mode - demo mode doesn't use Five9
         if (message.type === 'FIVE9_DISPOSITION_SET') {
             console.log('📋 Five9 disposition was set externally');
-            if (callManager && callManager.getCallActiveState()) {
+            if (callManager && callManager.getCallActiveState() && !callManager.debugMode) {
                 // Call was disposed through Five9 UI - reset our state
                 callManager.handleExternalDisposition();
             }
         }
 
         // Handle call disconnected externally (through Five9 UI)
+        // Skip if in demo mode - demo mode doesn't use Five9
         if (message.type === 'FIVE9_CALL_DISCONNECTED') {
             console.log('📞 Five9 call was disconnected externally');
-            if (callManager && callManager.getCallActiveState() && !callManager.waitingForDisposition) {
+            if (callManager && callManager.getCallActiveState() && !callManager.waitingForDisposition && !callManager.debugMode) {
                 // Call was disconnected through Five9 UI - update to awaiting disposition
                 callManager.handleExternalDisconnect();
             }
