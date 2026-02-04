@@ -64,23 +64,3 @@ export function updateStepIcon(stepElement, status) {
 
     icon.className = iconClasses[status] || iconClasses.circle;
 }
-
-/**
- * Updates a step element's content with icon and message
- * @param {HTMLElement} stepElement - The step container element
- * @param {'spinner' | 'check' | 'error'} status - The status to display
- * @param {string} message - The message to display
- */
-export function updateStepContent(stepElement, status, message) {
-    if (!stepElement) return;
-    const content = stepElement.querySelector('.queue-content');
-    if (!content) return;
-
-    const icons = {
-        spinner: '<i class="fas fa-spinner fa-spin"></i>',
-        check: '<i class="fas fa-check"></i>',
-        error: '<i class="fas fa-times"></i>'
-    };
-
-    content.innerHTML = `${icons[status] || ''} ${message}`;
-}

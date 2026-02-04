@@ -613,7 +613,6 @@ function finishLoop() {
 
 // --- Public Exports ---
 
-export function getActiveTabs() { return new Map(); }
 export function addToFoundUrlCache(url) { if (url) foundUrlCache.add(url); }
 
 export async function startLoop(options = {}) {
