@@ -515,6 +515,78 @@ export default class CallManager {
     }
 
     /**
+     * Handles disposition set externally (through Five9 UI)
+     * Resets the call state to ready
+     */
+    async handleExternalDisposition() {
+        console.log("📋 Handling external disposition");
+
+        // Stop any running timers
+        this.stopCallTimer();
+        this.stopDispositionTimer();
+
+        // Reset call state
+        this.isCallActive = false;
+        this.waitingForDisposition = false;
+
+        // Update UI to ready state
+        if (this.elements.dialBtn) {
+            this.elements.dialBtn.style.background = '#10b981';
+            this.elements.dialBtn.style.transform = 'rotate(0deg)';
+        }
+
+        if (this.elements.callStatusText) {
+            this.elements.callStatusText.innerHTML = '<span class="status-indicator ready"></span> Ready to Connect';
+        }
+
+        // Hide disposition section
+        if (this.elements.callDispositionSection) {
+            this.elements.callDispositionSection.style.display = 'none';
+        }
+
+        // Hide custom input area if it was open
+        if (this.elements.otherInputArea) {
+            this.elements.otherInputArea.style.display = 'none';
+        }
+
+        // Update last call timestamp
+        await this.updateLastCallTimestamp();
+
+        // If in automation mode, move to next student
+        if (this.automationMode) {
+            this.currentAutomationIndex++;
+            this.callNextStudentInQueue();
+        }
+    }
+
+    /**
+     * Handles call disconnected externally (through Five9 UI)
+     * Updates state to awaiting disposition
+     */
+    handleExternalDisconnect() {
+        console.log("📞 Handling external disconnect");
+
+        // Stop call timer, start disposition timer
+        this.stopCallTimer();
+        this.startDispositionTimer();
+
+        // Update state
+        this.waitingForDisposition = true;
+
+        // Update UI to awaiting disposition
+        if (this.elements.dialBtn) {
+            this.elements.dialBtn.style.background = '#6b7280';
+            this.elements.dialBtn.style.transform = 'rotate(0deg)';
+        }
+
+        if (this.elements.callStatusText) {
+            this.elements.callStatusText.innerHTML = '<span class="status-indicator" style="background:#f59e0b;"></span> Awaiting Disposition';
+        }
+
+        // Keep disposition section visible if it was showing
+    }
+
+    /**
      * Handles call disposition selection and ends the call
      * @param {string} type - The disposition type selected
      */
