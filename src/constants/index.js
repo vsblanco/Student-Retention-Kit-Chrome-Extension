@@ -253,12 +253,12 @@ export const SHAREPOINT_URL = "https://edukgroup3_sharepoint.com/sites/SM-Studen
 /**
  * Canvas LMS domain URL.
  */
-export const CANVAS_DOMAIN = "https://nuc.instructure.com";
+export const CANVAS_DOMAIN = "https://northbridge.instructure.com";
 
 /**
  * Generic avatar URL used by Canvas for users without custom avatars.
  */
-export const GENERIC_AVATAR_URL = "https://nuc.instructure.com/images/messages/avatar-50.png";
+export const GENERIC_AVATAR_URL = "https://northbridge.instructure.com/images/messages/avatar-50.png";
 
 /**
  * Guide resources available in the extension.

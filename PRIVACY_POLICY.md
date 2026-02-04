@@ -17,18 +17,18 @@ This extension is designed **exclusively for authorized NUC University retention
 ### What Data We Collect
 - **Student Information:** Names, student ID numbers, phone numbers, Canvas user IDs of NUC University students
 - **Academic Data:** Grades, missing assignments, course enrollment, and submission history from NUC University Canvas courses
-- **Canvas Activity:** Page visits and assignment submissions within NUC University Canvas LMS (nuc.instructure.com)
+- **Canvas Activity:** Page visits and assignment submissions within NUC University Canvas LMS (northbridge.instructure.com)
 - **Call Records:** Call dispositions and notes for student outreach (stored locally)
 
 ### How We Collect Data
 - Data is imported from NUC University student information systems (CSV/Excel files)
 - Academic data is fetched via NUC University Canvas LMS API using your authenticated NUC credentials
-- Canvas activity is monitored only on the authorized NUC University Canvas domain (nuc.instructure.com)
+- Canvas activity is monitored only on the authorized NUC University Canvas domain (northbridge.instructure.com)
 
 ## Data Storage
 - **All student data is stored locally** in your browser using Chrome's storage API
 - **No data is transmitted** to external servers except:
-  - Authenticated API calls to NUC University Canvas LMS (nuc.instructure.com)
+  - Authenticated API calls to NUC University Canvas LMS (northbridge.instructure.com)
   - Authenticated API calls to NUC University Five9 call center (app-atl.five9.com)
   - Optional exports to Microsoft Office/SharePoint (user-initiated, for internal NUC reporting)
 
@@ -58,7 +58,7 @@ This extension is designed **exclusively for authorized NUC University retention
 
 ## Third-Party Services
 The extension integrates exclusively with NUC University authorized systems:
-- **NUC University Canvas LMS** (nuc.instructure.com) - For student academic data
+- **NUC University Canvas LMS** (northbridge.instructure.com) - For student academic data
 - **NUC University Five9** (app-atl.five9.com) - For call center functionality
 - **Microsoft Office/SharePoint** (optional) - For internal NUC reporting and data export
 

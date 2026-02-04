@@ -17,7 +17,7 @@
     "scripting"
   ],
 "host_permissions": [
-    "https://nuc.instructure.com/*",
+    "https://northbridge.instructure.com/*",
     "https://excel.office.com/*",
     "https://*.officeapps.live.com/*",
     "https://*.sharepoint.com/*",
@@ -32,12 +32,12 @@
   },
   "content_scripts": [
     {
-      "matches": ["https://nuc.instructure.com/courses/*"],
+      "matches": ["https://northbridge.instructure.com/courses/*"],
       "js": ["src/content/canvasGradebookInspector.js"],
       "run_at": "document_idle"
     },
     {
-      "matches": ["https://nuc.instructure.com/courses/*/grades/*"],
+      "matches": ["https://northbridge.instructure.com/courses/*/grades/*"],
       "js": ["src/content/canvasGradebookInjector.js"],
       "run_at": "document_idle"
     },
