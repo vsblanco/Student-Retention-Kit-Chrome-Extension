@@ -158,6 +158,11 @@ export default class CallManager {
                 this.isCallActive = true;
                 this.waitingForDisposition = true;
 
+                // Disable dial button while awaiting disposition
+                this.elements.dialBtn.disabled = true;
+                this.elements.dialBtn.style.cursor = 'not-allowed';
+                this.elements.dialBtn.style.opacity = '0.6';
+
                 // Start disposition timer to show waiting time
                 this.startDispositionTimer();
 
@@ -533,6 +538,9 @@ export default class CallManager {
         if (this.elements.dialBtn) {
             this.elements.dialBtn.style.background = '#10b981';
             this.elements.dialBtn.style.transform = 'rotate(0deg)';
+            this.elements.dialBtn.disabled = false;
+            this.elements.dialBtn.style.cursor = 'pointer';
+            this.elements.dialBtn.style.opacity = '1';
         }
 
         if (this.elements.callStatusText) {
@@ -577,6 +585,9 @@ export default class CallManager {
         if (this.elements.dialBtn) {
             this.elements.dialBtn.style.background = '#6b7280';
             this.elements.dialBtn.style.transform = 'rotate(0deg)';
+            this.elements.dialBtn.disabled = true;
+            this.elements.dialBtn.style.cursor = 'not-allowed';
+            this.elements.dialBtn.style.opacity = '0.6';
         }
 
         if (this.elements.callStatusText) {
@@ -687,6 +698,9 @@ export default class CallManager {
             // Single call mode - update UI to end the call
             this.elements.dialBtn.style.background = '#10b981';
             this.elements.dialBtn.style.transform = 'rotate(0deg)';
+            this.elements.dialBtn.disabled = false;
+            this.elements.dialBtn.style.cursor = 'pointer';
+            this.elements.dialBtn.style.opacity = '1';
             this.elements.callStatusText.innerHTML = '<span class="status-indicator ready"></span> Ready to Connect';
 
             // Hide Disposition Grid
