@@ -889,7 +889,7 @@ export async function updateCanvasStatus() {
 
     try {
         // Check if user is logged in by attempting to fetch current user profile
-        const response = await fetch('https://northbridge.instructure.com/api/v1/users/self', {
+        const response = await fetch(`${CANVAS_DOMAIN}/api/v1/users/self`, {
             headers: { 'Accept': 'application/json' },
             credentials: 'include'
         });

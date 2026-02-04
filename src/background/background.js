@@ -1,7 +1,7 @@
 // [2025-12-17 01:25 PM]
 // Version: 14.5 - Organized Storage Structure
 import { startLoop, stopLoop, addToFoundUrlCache } from './looper.js';
-import { STORAGE_KEYS, CHECKER_MODES, MESSAGE_TYPES, EXTENSION_STATES, CONNECTION_TYPES, FIVE9_CONNECTION_STATES } from '../constants/index.js';
+import { STORAGE_KEYS, CHECKER_MODES, MESSAGE_TYPES, EXTENSION_STATES, CONNECTION_TYPES, FIVE9_CONNECTION_STATES, CANVAS_DOMAIN } from '../constants/index.js';
 import { storageGet, storageSet, storageGetValue, migrateStorage, sessionGet, sessionSet, sessionGetValue } from '../utils/storage.js';
 import { decrypt } from '../utils/encryption.js';
 
@@ -322,7 +322,7 @@ chrome.webRequest.onErrorOccurred.addListener(
         console.warn('API Connection Error:', details.error);
     }
   },
-  { urls: ["https://northbridge.instructure.com/api/*"] }
+  { urls: [`${CANVAS_DOMAIN}/api/*`] }
 );
 
 // Five9 Network Monitoring - Detect agent connection
