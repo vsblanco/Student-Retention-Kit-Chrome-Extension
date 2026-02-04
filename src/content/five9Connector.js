@@ -11,6 +11,11 @@ const DISPOSITION_CODES = {
     "Disconnected": ""      // TODO: Add Five9 disposition code
 };
 
+// Call state tracking for monitoring
+let currentCallState = null; // null = no call, 'ACTIVE' = in call, 'WRAP_UP' = awaiting disposition
+let currentInteractionId = null;
+let callStateMonitorInterval = null;
+
 /**
  * Gets the disposition code for a given disposition type
  * @param {string} dispositionType - The disposition type (e.g., "Left Voicemail")
@@ -20,6 +25,113 @@ function getDispositionCode(dispositionType) {
     const code = DISPOSITION_CODES[dispositionType];
     return (code && code !== "") ? code : null;
 }
+
+/**
+ * Monitors call state changes and notifies the extension
+ */
+async function monitorCallState() {
+    try {
+        const metadataResp = await fetch("https://app-atl.five9.com/appsvcs/rs/svc/auth/metadata");
+        if (!metadataResp.ok) return;
+        const metadata = await metadataResp.json();
+
+        const interactionsResp = await fetch(`https://app-atl.five9.com/appsvcs/rs/svc/agents/${metadata.userId}/interactions`);
+        if (!interactionsResp.ok) return;
+        const interactions = await interactionsResp.json();
+
+        const activeCall = interactions.find(i => i.channelType === 'CALL');
+
+        if (activeCall) {
+            const newState = activeCall.state; // ACTIVE, WRAP_UP, FINISHED, etc.
+            const newInteractionId = activeCall.interactionId;
+
+            // Detect state changes
+            if (currentInteractionId === newInteractionId && currentCallState !== newState) {
+                console.log(`SRK: Call state changed: ${currentCallState} -> ${newState}`);
+
+                // Notify extension of state change
+                chrome.runtime.sendMessage({
+                    type: 'FIVE9_CALL_STATE_CHANGED',
+                    previousState: currentCallState,
+                    newState: newState,
+                    interactionId: newInteractionId
+                });
+
+                // If state changed to FINISHED, the disposition was set
+                if (newState === 'FINISHED') {
+                    console.log("SRK: Disposition was set (detected FINISHED state)");
+                    chrome.runtime.sendMessage({
+                        type: 'FIVE9_DISPOSITION_SET',
+                        interactionId: newInteractionId
+                    });
+                }
+
+                // If state changed to WRAP_UP from ACTIVE, call was disconnected
+                if (currentCallState === 'ACTIVE' && newState === 'WRAP_UP') {
+                    console.log("SRK: Call disconnected (detected WRAP_UP state)");
+                    chrome.runtime.sendMessage({
+                        type: 'FIVE9_CALL_DISCONNECTED',
+                        interactionId: newInteractionId
+                    });
+                }
+            }
+
+            currentCallState = newState;
+            currentInteractionId = newInteractionId;
+        } else {
+            // No active call
+            if (currentCallState !== null) {
+                console.log("SRK: No active call (call ended or disposed)");
+
+                // If we had a call before and now we don't, disposition was completed
+                if (currentCallState === 'WRAP_UP') {
+                    chrome.runtime.sendMessage({
+                        type: 'FIVE9_DISPOSITION_SET',
+                        interactionId: currentInteractionId
+                    });
+                }
+
+                chrome.runtime.sendMessage({
+                    type: 'FIVE9_CALL_STATE_CHANGED',
+                    previousState: currentCallState,
+                    newState: null,
+                    interactionId: currentInteractionId
+                });
+            }
+            currentCallState = null;
+            currentInteractionId = null;
+        }
+    } catch (error) {
+        // Silently fail - don't spam console during polling
+    }
+}
+
+/**
+ * Starts monitoring call state
+ */
+function startCallStateMonitor() {
+    if (callStateMonitorInterval) return; // Already running
+
+    console.log("SRK: Starting call state monitor");
+    // Poll every 2 seconds
+    callStateMonitorInterval = setInterval(monitorCallState, 2000);
+    // Run immediately too
+    monitorCallState();
+}
+
+/**
+ * Stops monitoring call state
+ */
+function stopCallStateMonitor() {
+    if (callStateMonitorInterval) {
+        clearInterval(callStateMonitorInterval);
+        callStateMonitorInterval = null;
+        console.log("SRK: Stopped call state monitor");
+    }
+}
+
+// Start monitoring when the content script loads
+startCallStateMonitor();
 
 console.log("SRK: Five9 Connector Loaded");
 

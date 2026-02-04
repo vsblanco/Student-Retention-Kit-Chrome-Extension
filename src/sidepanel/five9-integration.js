@@ -175,5 +175,28 @@ export function setupFive9StatusListeners(callManager, getSelectedQueue) {
                 updateFive9ConnectionIndicator(getSelectedQueue());
             }
         }
+
+        // Handle Five9 call state changes (from call state monitor)
+        if (message.type === 'FIVE9_CALL_STATE_CHANGED') {
+            console.log(`📞 Five9 call state: ${message.previousState} -> ${message.newState}`);
+        }
+
+        // Handle disposition set externally (through Five9 UI)
+        if (message.type === 'FIVE9_DISPOSITION_SET') {
+            console.log('📋 Five9 disposition was set externally');
+            if (callManager && callManager.getCallActiveState()) {
+                // Call was disposed through Five9 UI - reset our state
+                callManager.handleExternalDisposition();
+            }
+        }
+
+        // Handle call disconnected externally (through Five9 UI)
+        if (message.type === 'FIVE9_CALL_DISCONNECTED') {
+            console.log('📞 Five9 call was disconnected externally');
+            if (callManager && callManager.getCallActiveState() && !callManager.waitingForDisposition) {
+                // Call was disconnected through Five9 UI - update to awaiting disposition
+                callManager.handleExternalDisconnect();
+            }
+        }
     });
 }
