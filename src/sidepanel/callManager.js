@@ -57,6 +57,14 @@ export default class CallManager {
     }
 
     /**
+     * Gets whether we're waiting for disposition after a call
+     * @returns {boolean} Whether we're awaiting disposition selection
+     */
+    getWaitingForDisposition() {
+        return this.waitingForDisposition;
+    }
+
+    /**
      * Extracts phone number from student object
      * @param {Object} student - Student object with phone property
      * @returns {string} Phone number or "No Phone Listed"

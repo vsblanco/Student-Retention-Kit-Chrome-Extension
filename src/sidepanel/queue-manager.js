@@ -101,6 +101,13 @@ export class QueueManager {
      * @param {Event} event - Click event
      */
     handleStudentClick(entry, liElement, event) {
+        // If waiting for disposition, ignore selection and redirect to call tab
+        if (this.callManager && this.callManager.getWaitingForDisposition()) {
+            console.log('[QueueManager] Ignoring student selection - awaiting disposition');
+            switchTab('contact');
+            return;
+        }
+
         if (event.ctrlKey || event.metaKey) {
             this.toggleMultiSelection(entry, liElement);
         } else {
