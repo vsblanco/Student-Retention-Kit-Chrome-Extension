@@ -104,15 +104,57 @@ async function restartFive9Station() {
                 return { success: false, error: response?.error || "Restart failed" };
             }
         } catch (messageError) {
-            // Content script not available - fall back to refreshing the tab
-            console.log("Content script not available, refreshing Five9 tab instead...");
-            await chrome.tabs.reload(tabs[0].id);
+            // Content script not available - refresh tab and then call restart station
+            console.log("Content script not available, refreshing Five9 tab...");
+
+            const tabId = tabs[0].id;
+
+            // Set up listener for when tab finishes loading
+            const waitForTabLoad = new Promise((resolve) => {
+                const listener = (updatedTabId, changeInfo) => {
+                    if (updatedTabId === tabId && changeInfo.status === 'complete') {
+                        chrome.tabs.onUpdated.removeListener(listener);
+                        resolve();
+                    }
+                };
+                chrome.tabs.onUpdated.addListener(listener);
+
+                // Timeout after 30 seconds
+                setTimeout(() => {
+                    chrome.tabs.onUpdated.removeListener(listener);
+                    resolve();
+                }, 30000);
+            });
+
+            // Reload the tab
+            await chrome.tabs.reload(tabId);
+
             // Clear error state and show awaiting connection message
             clearConnectionError();
             currentPlaceholderMessage = null;
             renderPlaceholder(PLACEHOLDER_MESSAGES.FIVE9_AWAITING_AGENT);
             showPlaceholder();
             hideCallSection();
+
+            // Wait for tab to finish loading
+            await waitForTabLoad;
+
+            // Small delay to ensure content script is fully initialized
+            await new Promise(r => setTimeout(r, 1500));
+
+            // Now try to restart station with the newly loaded content script
+            try {
+                console.log("Tab reloaded, sending restart station request...");
+                const retryResponse = await chrome.tabs.sendMessage(tabId, {
+                    type: 'executeFive9RestartStation'
+                });
+                if (retryResponse && retryResponse.success) {
+                    console.log("Station restart successful after tab reload");
+                }
+            } catch (retryError) {
+                console.log("Restart station after reload failed (user may need to reconnect manually):", retryError.message);
+            }
+
             return { success: true };
         }
     } catch (error) {
