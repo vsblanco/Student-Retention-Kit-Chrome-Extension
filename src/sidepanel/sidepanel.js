@@ -1017,12 +1017,11 @@ function setupEventListeners() {
             }
 
             // Run Step 3 only
+            // Note: Don't pass a render callback here - the storage.onChanged listener
+            // already handles re-rendering when MASTER_ENTRIES is updated in processStep3.
+            // Passing a callback would cause a double render (duplicate students bug).
             try {
-                const updatedStudents = await processStep3(students, (finalStudents) => {
-                    renderMasterList(finalStudents, (entry, li, evt) => {
-                        queueManager.handleStudentClick(entry, li, evt);
-                    });
-                });
+                const updatedStudents = await processStep3(students);
 
                 // Show total time
                 if (queueTotalTime && queueTotalTime.dataset.processStartTime) {
@@ -1194,17 +1193,13 @@ function setupEventListeners() {
                 renderMasterList(students, (entry, li, evt) => {
                     queueManager.handleStudentClick(entry, li, evt);
                 });
-                processStep2(students, (updatedStudents) => {
-                    renderMasterList(updatedStudents, (entry, li, evt) => {
-                        queueManager.handleStudentClick(entry, li, evt);
-                    });
-                    processStep3(updatedStudents, async (finalStudents) => {
-                        renderMasterList(finalStudents, (entry, li, evt) => {
-                            queueManager.handleStudentClick(entry, li, evt);
-                        });
-                        // Send master list with missing assignments to Excel
-                        await processStep4(finalStudents);
-                    });
+                // Note: Don't pass render callbacks here - the storage.onChanged listener
+                // already handles re-rendering when MASTER_ENTRIES is updated.
+                // Passing callbacks that also render would cause double renders (duplicate students bug).
+                processStep2(students, async (updatedStudents) => {
+                    const finalStudents = await processStep3(updatedStudents);
+                    // Send master list with missing assignments to Excel
+                    await processStep4(finalStudents);
                 });
             });
         });
