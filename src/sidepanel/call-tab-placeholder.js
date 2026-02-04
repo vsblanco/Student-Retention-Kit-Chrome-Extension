@@ -76,6 +76,7 @@ async function checkFive9ConnectionState() {
 
 /**
  * Restarts the Five9 station to re-establish connection
+ * Falls back to refreshing the tab if content script isn't available
  * @returns {Promise<{success: boolean, error?: string}>} Result of restart attempt
  */
 async function restartFive9Station() {
@@ -85,12 +86,27 @@ async function restartFive9Station() {
             return { success: false, error: "No Five9 tab found" };
         }
 
-        // Send restart request to the Five9 content script
-        const response = await chrome.tabs.sendMessage(tabs[0].id, {
-            type: 'executeFive9RestartStation'
-        });
+        // Try to send restart request to the Five9 content script
+        try {
+            const response = await chrome.tabs.sendMessage(tabs[0].id, {
+                type: 'executeFive9RestartStation'
+            });
 
-        if (response && response.success) {
+            if (response && response.success) {
+                // Clear error state and show awaiting connection message
+                clearConnectionError();
+                currentPlaceholderMessage = null;
+                renderPlaceholder(PLACEHOLDER_MESSAGES.FIVE9_AWAITING_AGENT);
+                showPlaceholder();
+                hideCallSection();
+                return { success: true };
+            } else {
+                return { success: false, error: response?.error || "Restart failed" };
+            }
+        } catch (messageError) {
+            // Content script not available - fall back to refreshing the tab
+            console.log("Content script not available, refreshing Five9 tab instead...");
+            await chrome.tabs.reload(tabs[0].id);
             // Clear error state and show awaiting connection message
             clearConnectionError();
             currentPlaceholderMessage = null;
@@ -98,8 +114,6 @@ async function restartFive9Station() {
             showPlaceholder();
             hideCallSection();
             return { success: true };
-        } else {
-            return { success: false, error: response?.error || "Restart failed" };
         }
     } catch (error) {
         console.error("Error restarting Five9 station:", error);
