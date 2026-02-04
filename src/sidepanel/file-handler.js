@@ -752,11 +752,24 @@ function getFieldWithAlias(obj, fieldName, defaultValue = null) {
 /**
  * Helper function to get field value with fallback support
  * Now uses alias-based matching for better field resolution
+ * Supports nested field access with dot notation (e.g., 'nextAssignment.DueDate')
  */
 function getFieldValue(obj, field, fallback) {
-    let value = getFieldWithAlias(obj, field);
+    let value;
+
+    // Check for nested field access (dot notation)
+    if (field && field.includes('.')) {
+        value = getNestedValue(obj, field);
+    } else {
+        value = getFieldWithAlias(obj, field);
+    }
+
     if ((value === null || value === undefined || value === '') && fallback) {
-        value = getFieldWithAlias(obj, fallback);
+        if (fallback.includes('.')) {
+            value = getNestedValue(obj, fallback);
+        } else {
+            value = getFieldWithAlias(obj, fallback);
+        }
     }
     return value !== null && value !== undefined ? value : '';
 }

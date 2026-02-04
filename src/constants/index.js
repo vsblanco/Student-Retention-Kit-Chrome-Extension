@@ -528,6 +528,7 @@ export const MASTER_LIST_COLUMNS = [
     { header: 'Grade Book', field: 'url', hyperlink: true, hyperlinkText: 'Grade Book', width: 9 },
     { header: 'Grade', field: 'grade', fallback: 'currentGrade', conditionalFormatting: 'grade', width: 6 },
     { header: 'Missing Assignments', field: 'missingCount', width: 10 },
+    { header: 'Next Assignment Due', field: 'nextAssignment.DueDate', width: 15 },
     { header: 'LDA', field: 'lda', width: 8 },
     { header: 'Days Out', field: 'daysOut', width: 8 },
     { header: 'Gender', field: 'gender', hidden: true },
