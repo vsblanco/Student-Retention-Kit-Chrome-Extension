@@ -36,6 +36,10 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         handleFive9DisposeOnly(request.dispositionType, sendResponse);
         return true; // Keep channel open
     }
+    if (request.type === 'executeFive9RestartStation') {
+        handleFive9RestartStation(sendResponse);
+        return true; // Keep channel open
+    }
 });
 
 async function handleFive9Call(phoneNumber, sendResponse) {
@@ -241,6 +245,39 @@ async function handleFive9DisposeOnly(dispositionType, sendResponse) {
 
     } catch (error) {
         console.error("SRK Dispose-Only Error:", error);
+        sendResponse({ success: false, error: error.message });
+    }
+}
+
+/**
+ * Handles restarting the Five9 station to re-establish connection
+ */
+async function handleFive9RestartStation(sendResponse) {
+    try {
+        console.log("SRK: Restarting Five9 station...");
+
+        const metadataResp = await fetch("https://app-atl.five9.com/appsvcs/rs/svc/auth/metadata");
+        if (!metadataResp.ok) throw new Error("Could not fetch User Metadata");
+        const metadata = await metadataResp.json();
+
+        const restartUrl = `https://app-atl.five9.com/appsvcs/rs/svc/agents/${metadata.userId}/station/restart`;
+
+        const restartResp = await fetch(restartUrl, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" }
+        });
+
+        if (restartResp.ok || restartResp.status === 204) {
+            console.log("SRK: Station restart successful");
+            sendResponse({ success: true });
+        } else {
+            const errorText = await restartResp.text();
+            console.error("SRK Station Restart Error:", restartResp.status, errorText);
+            sendResponse({ success: false, error: `${restartResp.status} - ${errorText}` });
+        }
+
+    } catch (error) {
+        console.error("SRK Station Restart Error:", error);
         sendResponse({ success: false, error: error.message });
     }
 }

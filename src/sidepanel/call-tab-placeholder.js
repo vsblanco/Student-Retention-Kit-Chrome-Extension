@@ -37,7 +37,7 @@ export const PLACEHOLDER_MESSAGES = {
         icon: 'fa-exclamation-triangle',
         iconStyle: 'font-size:3em; margin-bottom:15px; color:#ef4444;',
         header: 'Five9 Connection Error',
-        message: 'Could not establish connection.<br>The Five9 tab may need to be refreshed.'
+        message: 'Could not establish connection.<br>Try restarting the station.'
     }
 };
 
@@ -75,27 +75,35 @@ async function checkFive9ConnectionState() {
 }
 
 /**
- * Refreshes the Five9 tab if one exists
- * @returns {Promise<boolean>} True if tab was refreshed, false if no tab found
+ * Restarts the Five9 station to re-establish connection
+ * @returns {Promise<{success: boolean, error?: string}>} Result of restart attempt
  */
-async function refreshFive9Tab() {
+async function restartFive9Station() {
     try {
         const tabs = await chrome.tabs.query({ url: "https://app-atl.five9.com/*" });
-        if (tabs.length > 0) {
-            await chrome.tabs.reload(tabs[0].id);
+        if (tabs.length === 0) {
+            return { success: false, error: "No Five9 tab found" };
+        }
+
+        // Send restart request to the Five9 content script
+        const response = await chrome.tabs.sendMessage(tabs[0].id, {
+            type: 'executeFive9RestartStation'
+        });
+
+        if (response && response.success) {
             // Clear error state and show awaiting connection message
             clearConnectionError();
-            // Force show the awaiting agent connection message
             currentPlaceholderMessage = null;
             renderPlaceholder(PLACEHOLDER_MESSAGES.FIVE9_AWAITING_AGENT);
             showPlaceholder();
             hideCallSection();
-            return true;
+            return { success: true };
+        } else {
+            return { success: false, error: response?.error || "Restart failed" };
         }
-        return false;
     } catch (error) {
-        console.error("Error refreshing Five9 tab:", error);
-        return false;
+        console.error("Error restarting Five9 station:", error);
+        return { success: false, error: error.message };
     }
 }
 
@@ -110,10 +118,10 @@ function renderPlaceholder(messageConfig) {
     if (currentPlaceholderMessage === messageConfig.id) return;
     currentPlaceholderMessage = messageConfig.id;
 
-    // Add refresh button for awaiting agent and error messages
+    // Add restart station button for awaiting agent and error messages
     let actionButton = '';
     if (messageConfig.id === 'five9_awaiting' || messageConfig.id === 'five9_error') {
-        actionButton = `<button id="refreshFive9Btn" style="margin-top:15px; padding:8px 16px; background:var(--primary-color); color:white; border:none; border-radius:6px; cursor:pointer; font-size:0.9em; display:flex; align-items:center; gap:6px;"><i class="fas fa-sync-alt"></i> Refresh Five9 Tab</button>`;
+        actionButton = `<button id="restartStationBtn" style="margin-top:18px; padding:8px 14px; background:transparent; color:#6b7280; border:1px solid #d1d5db; border-radius:6px; cursor:pointer; font-size:0.8em; display:flex; align-items:center; gap:6px; transition:all 0.15s ease;"><i class="fas fa-redo" style="font-size:0.85em;"></i> Restart Station</button>`;
     }
 
     elements.callTabPlaceholder.innerHTML = `
@@ -123,17 +131,42 @@ function renderPlaceholder(messageConfig) {
         ${actionButton}
     `;
 
-    // Add click handler for refresh button
+    // Add click handler for restart station button
     if (messageConfig.id === 'five9_awaiting' || messageConfig.id === 'five9_error') {
-        const btn = document.getElementById('refreshFive9Btn');
+        const btn = document.getElementById('restartStationBtn');
         if (btn) {
+            // Add hover effect
+            btn.addEventListener('mouseenter', () => {
+                btn.style.background = '#f3f4f6';
+                btn.style.borderColor = '#9ca3af';
+                btn.style.color = '#374151';
+            });
+            btn.addEventListener('mouseleave', () => {
+                if (!btn.disabled) {
+                    btn.style.background = 'transparent';
+                    btn.style.borderColor = '#d1d5db';
+                    btn.style.color = '#6b7280';
+                }
+            });
+
             btn.addEventListener('click', async () => {
                 btn.disabled = true;
-                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Refreshing...';
-                const refreshed = await refreshFive9Tab();
-                if (!refreshed) {
-                    // No Five9 tab found, show the no tab message
-                    showConnectionError(false);
+                btn.style.opacity = '0.6';
+                btn.style.cursor = 'not-allowed';
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin" style="font-size:0.85em;"></i> Restarting...';
+                const result = await restartFive9Station();
+                if (!result.success) {
+                    // Show error or no tab message
+                    if (result.error?.includes("No Five9 tab")) {
+                        showConnectionError(false);
+                    } else {
+                        // Reset button to allow retry
+                        btn.disabled = false;
+                        btn.style.opacity = '1';
+                        btn.style.cursor = 'pointer';
+                        btn.innerHTML = '<i class="fas fa-redo" style="font-size:0.85em;"></i> Restart Station';
+                        console.error("Station restart failed:", result.error);
+                    }
                 }
             });
         }
