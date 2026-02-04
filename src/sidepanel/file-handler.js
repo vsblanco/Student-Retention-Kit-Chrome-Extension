@@ -12,6 +12,7 @@ import {
     parseDate,
     formatDateToMMDDYY
 } from '../constants/index.js';
+import { updateStepIcon } from '../utils/ui-helpers.js';
 import { elements } from './ui-manager.js';
 import { formatDuration, updateTotalTime } from './canvas-integration.js';
 
@@ -620,7 +621,7 @@ export function handleFileImport(file, onSuccess) {
             }, async () => {
                 const durationSeconds = (Date.now() - startTime) / 1000;
                 step1.className = 'queue-item completed';
-                step1.querySelector('i').className = 'fas fa-check';
+                updateStepIcon(step1, 'check');
                 timeSpan.textContent = formatDuration(durationSeconds);
 
                 // Update total time counter
@@ -640,7 +641,7 @@ export function handleFileImport(file, onSuccess) {
 
         } catch (error) {
             console.error("Error parsing file:", error);
-            step1.querySelector('i').className = 'fas fa-times';
+            updateStepIcon(step1, 'error');
             step1.style.color = '#ef4444';
             timeSpan.textContent = 'Error: ' + error.message;
         }
@@ -664,7 +665,7 @@ export function resetQueueUI() {
         const el = document.getElementById(id);
         if (!el) return;
         el.className = 'queue-item';
-        el.querySelector('i').className = 'far fa-circle';
+        updateStepIcon(el, 'pending');
         el.querySelector('.step-time').textContent = '';
         el.style.color = '';
     });
