@@ -750,21 +750,6 @@ function getFieldWithAlias(obj, fieldName, defaultValue = null) {
 }
 
 /**
- * Helper function to get nested field value using dot notation
- * e.g., 'nextAssignment.DueDate' will access obj.nextAssignment.DueDate
- */
-function getNestedValue(obj, path) {
-    if (!obj || !path) return null;
-    const parts = path.split('.');
-    let current = obj;
-    for (const part of parts) {
-        if (current === null || current === undefined) return null;
-        current = current[part];
-    }
-    return current;
-}
-
-/**
  * Helper function to get field value with fallback support
  * Now uses alias-based matching for better field resolution
  * Supports nested field access with dot notation (e.g., 'nextAssignment.DueDate')
