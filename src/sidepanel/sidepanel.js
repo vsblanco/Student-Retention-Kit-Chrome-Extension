@@ -1,6 +1,7 @@
 // Sidepanel Main - Orchestrates all modules and manages app lifecycle
 import { STORAGE_KEYS, EXTENSION_STATES, MESSAGE_TYPES, GUIDES, UI_FEATURES } from '../constants/index.js';
 import { storageGet, storageSet, storageGetValue, migrateStorage, sessionGet, sessionSet, sessionGetValue } from '../utils/storage.js';
+import { updateStepIcon } from '../utils/ui-helpers.js';
 import { hasDispositionCode } from '../constants/dispositions.js';
 import { getCacheStats, clearAllCache } from '../utils/canvasCache.js';
 import { loadAndRenderMarkdown } from '../utils/markdownRenderer.js';
@@ -1327,7 +1328,7 @@ async function handleUpdateMasterList() {
         const step1 = document.getElementById('step1');
         if (step1) {
             step1.className = 'queue-item active';
-            step1.querySelector('i').className = 'fas fa-spinner';
+            updateStepIcon(step1, 'spinner');
         }
 
         if (elements.studentPopFile) {

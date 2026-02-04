@@ -1,5 +1,6 @@
 // UI Manager - Handles DOM element caching, tab switching, and UI state updates
 import { EXTENSION_STATES } from '../constants/index.js';
+import { updateToggleUI } from '../utils/ui-helpers.js';
 
 // --- DOM ELEMENTS CACHE ---
 export const elements = {};
@@ -334,15 +335,7 @@ export function updateButtonVisuals(state) {
  * @param {boolean} isDebugMode - Whether debug mode is enabled
  */
 export function updateDebugModeUI(isDebugMode) {
-    if (!elements.debugModeToggle) return;
-
-    if (isDebugMode) {
-        elements.debugModeToggle.className = 'fas fa-toggle-on';
-        elements.debugModeToggle.style.color = 'var(--primary-color)';
-    } else {
-        elements.debugModeToggle.className = 'fas fa-toggle-off';
-        elements.debugModeToggle.style.color = 'gray';
-    }
+    updateToggleUI(elements.debugModeToggle, isDebugMode);
 }
 
 /**
@@ -350,15 +343,7 @@ export function updateDebugModeUI(isDebugMode) {
  * @param {boolean} isEnabled - Whether embed helper is enabled
  */
 export function updateEmbedHelperUI(isEnabled) {
-    if (!elements.embedHelperToggle) return;
-
-    if (isEnabled) {
-        elements.embedHelperToggle.className = 'fas fa-toggle-on';
-        elements.embedHelperToggle.style.color = 'var(--primary-color)';
-    } else {
-        elements.embedHelperToggle.className = 'fas fa-toggle-off';
-        elements.embedHelperToggle.style.color = 'gray';
-    }
+    updateToggleUI(elements.embedHelperToggle, isEnabled);
 }
 
 /**

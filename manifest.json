@@ -65,11 +65,6 @@
       "matches": ["https://app-atl.five9.com/*"],
       "js": ["src/content/five9Connector.js"],
       "run_at": "document_idle"
-    },
-    {
-      "matches": ["https://m365.cloud.microsoft/*"],
-      "js": ["src/content/microsoftSSOAuto.js"],
-      "run_at": "document_idle"
     }
   ],
   "action": {

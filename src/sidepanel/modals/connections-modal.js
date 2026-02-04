@@ -2,6 +2,7 @@
 import { STORAGE_KEYS, CANVAS_DOMAIN, FIVE9_CONNECTION_STATES, EXTENSION_STATES } from '../../constants/index.js';
 import { storageGet, storageSet, storageGetValue, sessionGetValue } from '../../utils/storage.js';
 import { encrypt, decrypt } from '../../utils/encryption.js';
+import { updateToggleUI, isToggleEnabled, setElementEnabled } from '../../utils/ui-helpers.js';
 import { elements } from '../ui-manager.js';
 
 /**
@@ -196,32 +197,24 @@ export async function saveConnectionsSettings() {
     }
 
     // Save sync active student setting
-    if (elements.syncActiveStudentToggleModal) {
-        const syncEnabled = elements.syncActiveStudentToggleModal.classList.contains('fa-toggle-on');
-        settingsToSave[STORAGE_KEYS.SYNC_ACTIVE_STUDENT] = syncEnabled;
-        console.log(`Sync Active Student setting saved: ${syncEnabled}`);
-    }
+    const syncEnabled = isToggleEnabled(elements.syncActiveStudentToggleModal);
+    settingsToSave[STORAGE_KEYS.SYNC_ACTIVE_STUDENT] = syncEnabled;
+    console.log(`Sync Active Student setting saved: ${syncEnabled}`);
 
     // Save send master list to Excel setting
-    if (elements.sendMasterListToggleModal) {
-        const sendEnabled = elements.sendMasterListToggleModal.classList.contains('fa-toggle-on');
-        settingsToSave[STORAGE_KEYS.SEND_MASTER_LIST_TO_EXCEL] = sendEnabled;
-        console.log(`Send Master List to Excel setting saved: ${sendEnabled}`);
-    }
+    const sendEnabled = isToggleEnabled(elements.sendMasterListToggleModal);
+    settingsToSave[STORAGE_KEYS.SEND_MASTER_LIST_TO_EXCEL] = sendEnabled;
+    console.log(`Send Master List to Excel setting saved: ${sendEnabled}`);
 
     // Save reformat name setting
-    if (elements.reformatNameToggleModal) {
-        const reformatEnabled = elements.reformatNameToggleModal.classList.contains('fa-toggle-on');
-        settingsToSave[STORAGE_KEYS.REFORMAT_NAME_ENABLED] = reformatEnabled;
-        console.log(`Reformat Name setting saved: ${reformatEnabled}`);
-    }
+    const reformatEnabled = isToggleEnabled(elements.reformatNameToggleModal);
+    settingsToSave[STORAGE_KEYS.REFORMAT_NAME_ENABLED] = reformatEnabled;
+    console.log(`Reformat Name setting saved: ${reformatEnabled}`);
 
     // Save highlight student row enabled setting
-    if (elements.highlightStudentRowToggleModal) {
-        const highlightEnabled = elements.highlightStudentRowToggleModal.classList.contains('fa-toggle-on');
-        settingsToSave[STORAGE_KEYS.HIGHLIGHT_STUDENT_ROW_ENABLED] = highlightEnabled;
-        console.log(`Highlight Student Row enabled setting saved: ${highlightEnabled}`);
-    }
+    const highlightEnabled = isToggleEnabled(elements.highlightStudentRowToggleModal);
+    settingsToSave[STORAGE_KEYS.HIGHLIGHT_STUDENT_ROW_ENABLED] = highlightEnabled;
+    console.log(`Highlight Student Row enabled setting saved: ${highlightEnabled}`);
 
     // Save Power Automate settings (encrypt the URL)
     if (elements.powerAutomateUrlInput) {
@@ -231,18 +224,13 @@ export async function saveConnectionsSettings() {
         console.log(`Power Automate URL saved: ${paUrl ? 'URL configured (encrypted)' : 'URL cleared'}`);
     }
 
-    let paEnabled = false;
-    if (elements.powerAutomateEnabledToggle) {
-        paEnabled = elements.powerAutomateEnabledToggle.classList.contains('fa-toggle-on');
-        settingsToSave[STORAGE_KEYS.POWER_AUTOMATE_ENABLED] = paEnabled;
-        console.log(`Power Automate Enabled saved: ${paEnabled}`);
-    }
+    const paEnabled = isToggleEnabled(elements.powerAutomateEnabledToggle);
+    settingsToSave[STORAGE_KEYS.POWER_AUTOMATE_ENABLED] = paEnabled;
+    console.log(`Power Automate Enabled saved: ${paEnabled}`);
 
-    if (elements.powerAutomateDebugToggle) {
-        const paDebug = elements.powerAutomateDebugToggle.classList.contains('fa-toggle-on');
-        settingsToSave[STORAGE_KEYS.POWER_AUTOMATE_DEBUG] = paDebug;
-        console.log(`Power Automate Debug saved: ${paDebug}`);
-    }
+    const paDebug = isToggleEnabled(elements.powerAutomateDebugToggle);
+    settingsToSave[STORAGE_KEYS.POWER_AUTOMATE_DEBUG] = paDebug;
+    console.log(`Power Automate Debug saved: ${paDebug}`);
 
     // Update status text immediately with enabled state
     if (elements.powerAutomateUrlInput) {
@@ -250,11 +238,9 @@ export async function saveConnectionsSettings() {
     }
 
     // Save Canvas settings
-    if (elements.embedHelperToggleModal) {
-        const embedEnabled = elements.embedHelperToggleModal.classList.contains('fa-toggle-on');
-        settingsToSave[STORAGE_KEYS.EMBED_IN_CANVAS] = embedEnabled;
-        console.log(`Embed Helper setting saved: ${embedEnabled}`);
-    }
+    const embedEnabled = isToggleEnabled(elements.embedHelperToggleModal);
+    settingsToSave[STORAGE_KEYS.EMBED_IN_CANVAS] = embedEnabled;
+    console.log(`Embed Helper setting saved: ${embedEnabled}`);
 
     if (elements.highlightColorPickerModal) {
         const highlightColor = elements.highlightColorPickerModal.value;
@@ -262,37 +248,27 @@ export async function saveConnectionsSettings() {
         console.log(`Highlight Color saved: ${highlightColor}`);
     }
 
-    if (elements.canvasCacheToggleModal) {
-        const cacheEnabled = elements.canvasCacheToggleModal.classList.contains('fa-toggle-on');
-        settingsToSave[STORAGE_KEYS.CANVAS_CACHE_ENABLED] = cacheEnabled;
-        console.log(`Canvas Cache setting saved: ${cacheEnabled}`);
-    }
+    const cacheEnabled = isToggleEnabled(elements.canvasCacheToggleModal);
+    settingsToSave[STORAGE_KEYS.CANVAS_CACHE_ENABLED] = cacheEnabled;
+    console.log(`Canvas Cache setting saved: ${cacheEnabled}`);
 
-    if (elements.nonApiCourseFetchToggle) {
-        const nonApiCourseFetch = elements.nonApiCourseFetchToggle.classList.contains('fa-toggle-on');
-        settingsToSave[STORAGE_KEYS.NON_API_COURSE_FETCH] = nonApiCourseFetch;
-        console.log(`Non API Course Fetch setting saved: ${nonApiCourseFetch}`);
-    }
+    const nonApiCourseFetch = isToggleEnabled(elements.nonApiCourseFetchToggle);
+    settingsToSave[STORAGE_KEYS.NON_API_COURSE_FETCH] = nonApiCourseFetch;
+    console.log(`Non API Course Fetch setting saved: ${nonApiCourseFetch}`);
 
-    if (elements.nextAssignmentToggle) {
-        const nextAssignmentEnabled = elements.nextAssignmentToggle.classList.contains('fa-toggle-on');
-        settingsToSave[STORAGE_KEYS.NEXT_ASSIGNMENT_ENABLED] = nextAssignmentEnabled;
-        console.log(`Next Assignment setting saved: ${nextAssignmentEnabled}`);
-    }
+    const nextAssignmentEnabled = isToggleEnabled(elements.nextAssignmentToggle);
+    settingsToSave[STORAGE_KEYS.NEXT_ASSIGNMENT_ENABLED] = nextAssignmentEnabled;
+    console.log(`Next Assignment setting saved: ${nextAssignmentEnabled}`);
 
     // Save Five9 settings (Call Demo mode)
-    if (elements.debugModeToggleModal) {
-        const callDemoEnabled = elements.debugModeToggleModal.classList.contains('fa-toggle-on');
-        settingsToSave[STORAGE_KEYS.CALL_DEMO] = callDemoEnabled;
-        console.log(`Call Demo mode setting saved: ${callDemoEnabled}`);
-    }
+    const callDemoEnabled = isToggleEnabled(elements.debugModeToggleModal);
+    settingsToSave[STORAGE_KEYS.CALL_DEMO] = callDemoEnabled;
+    console.log(`Call Demo mode setting saved: ${callDemoEnabled}`);
 
     // Save Auto Switch to Call Tab setting
-    if (elements.autoSwitchCallTabToggle) {
-        const autoSwitchEnabled = elements.autoSwitchCallTabToggle.classList.contains('fa-toggle-on');
-        settingsToSave[STORAGE_KEYS.AUTO_SWITCH_TO_CALL_TAB] = autoSwitchEnabled;
-        console.log(`Auto Switch to Call Tab setting saved: ${autoSwitchEnabled}`);
-    }
+    const autoSwitchEnabled = isToggleEnabled(elements.autoSwitchCallTabToggle);
+    settingsToSave[STORAGE_KEYS.AUTO_SWITCH_TO_CALL_TAB] = autoSwitchEnabled;
+    console.log(`Auto Switch to Call Tab setting saved: ${autoSwitchEnabled}`);
 
     // Save Highlight Student Row settings
     if (elements.highlightStartColInput) {
@@ -329,161 +305,55 @@ export async function saveConnectionsSettings() {
 // ============================================
 
 function updateEmbedHelperModalUI(isEnabled) {
-    if (!elements.embedHelperToggleModal) return;
-    if (isEnabled) {
-        elements.embedHelperToggleModal.className = 'fas fa-toggle-on';
-        elements.embedHelperToggleModal.style.color = 'var(--primary-color)';
-    } else {
-        elements.embedHelperToggleModal.className = 'fas fa-toggle-off';
-        elements.embedHelperToggleModal.style.color = 'gray';
-    }
+    updateToggleUI(elements.embedHelperToggleModal, isEnabled);
 }
 
 function updateCanvasCacheModalUI(isEnabled) {
-    if (!elements.canvasCacheToggleModal) return;
-    if (isEnabled) {
-        elements.canvasCacheToggleModal.className = 'fas fa-toggle-on';
-        elements.canvasCacheToggleModal.style.color = 'var(--primary-color)';
-    } else {
-        elements.canvasCacheToggleModal.className = 'fas fa-toggle-off';
-        elements.canvasCacheToggleModal.style.color = 'gray';
-    }
-    if (elements.cacheSettingsContainer) {
-        if (isEnabled) {
-            elements.cacheSettingsContainer.style.opacity = '1';
-            elements.cacheSettingsContainer.style.pointerEvents = 'auto';
-        } else {
-            elements.cacheSettingsContainer.style.opacity = '0.4';
-            elements.cacheSettingsContainer.style.pointerEvents = 'none';
-        }
-    }
+    updateToggleUI(elements.canvasCacheToggleModal, isEnabled);
+    setElementEnabled(elements.cacheSettingsContainer, isEnabled, '0.4');
 }
 
 function updateNonApiCourseFetchUI(isEnabled) {
-    if (!elements.nonApiCourseFetchToggle) return;
-    if (isEnabled) {
-        elements.nonApiCourseFetchToggle.className = 'fas fa-toggle-on';
-        elements.nonApiCourseFetchToggle.style.color = 'var(--primary-color)';
-    } else {
-        elements.nonApiCourseFetchToggle.className = 'fas fa-toggle-off';
-        elements.nonApiCourseFetchToggle.style.color = 'gray';
-    }
+    updateToggleUI(elements.nonApiCourseFetchToggle, isEnabled);
 }
 
 function updateNextAssignmentUI(isEnabled) {
-    if (!elements.nextAssignmentToggle) return;
-    if (isEnabled) {
-        elements.nextAssignmentToggle.className = 'fas fa-toggle-on';
-        elements.nextAssignmentToggle.style.color = 'var(--primary-color)';
-    } else {
-        elements.nextAssignmentToggle.className = 'fas fa-toggle-off';
-        elements.nextAssignmentToggle.style.color = 'gray';
-    }
+    updateToggleUI(elements.nextAssignmentToggle, isEnabled);
 }
 
 function updateDebugModeModalUI(isEnabled) {
-    if (!elements.debugModeToggleModal) return;
-    if (isEnabled) {
-        elements.debugModeToggleModal.className = 'fas fa-toggle-on';
-        elements.debugModeToggleModal.style.color = 'var(--primary-color)';
-    } else {
-        elements.debugModeToggleModal.className = 'fas fa-toggle-off';
-        elements.debugModeToggleModal.style.color = 'gray';
-    }
+    updateToggleUI(elements.debugModeToggleModal, isEnabled);
 }
 
 function updateAutoSwitchCallTabUI(isEnabled) {
-    if (!elements.autoSwitchCallTabToggle) return;
-    if (isEnabled) {
-        elements.autoSwitchCallTabToggle.className = 'fas fa-toggle-on';
-        elements.autoSwitchCallTabToggle.style.color = 'var(--primary-color)';
-    } else {
-        elements.autoSwitchCallTabToggle.className = 'fas fa-toggle-off';
-        elements.autoSwitchCallTabToggle.style.color = 'gray';
-    }
+    updateToggleUI(elements.autoSwitchCallTabToggle, isEnabled);
 }
 
 function updateSyncActiveStudentModalUI(isEnabled) {
-    if (!elements.syncActiveStudentToggleModal) return;
-    if (isEnabled) {
-        elements.syncActiveStudentToggleModal.className = 'fas fa-toggle-on';
-        elements.syncActiveStudentToggleModal.style.color = 'var(--primary-color)';
-    } else {
-        elements.syncActiveStudentToggleModal.className = 'fas fa-toggle-off';
-        elements.syncActiveStudentToggleModal.style.color = 'gray';
-    }
+    updateToggleUI(elements.syncActiveStudentToggleModal, isEnabled);
 }
 
 function updateSendMasterListModalUI(isEnabled) {
-    if (!elements.sendMasterListToggleModal) return;
-    if (isEnabled) {
-        elements.sendMasterListToggleModal.className = 'fas fa-toggle-on';
-        elements.sendMasterListToggleModal.style.color = 'var(--primary-color)';
-    } else {
-        elements.sendMasterListToggleModal.className = 'fas fa-toggle-off';
-        elements.sendMasterListToggleModal.style.color = 'gray';
-    }
+    updateToggleUI(elements.sendMasterListToggleModal, isEnabled);
 }
 
 function updateReformatNameModalUI(isEnabled) {
-    if (!elements.reformatNameToggleModal) return;
-    if (isEnabled) {
-        elements.reformatNameToggleModal.className = 'fas fa-toggle-on';
-        elements.reformatNameToggleModal.style.color = 'var(--primary-color)';
-    } else {
-        elements.reformatNameToggleModal.className = 'fas fa-toggle-off';
-        elements.reformatNameToggleModal.style.color = 'gray';
-    }
+    updateToggleUI(elements.reformatNameToggleModal, isEnabled);
 }
 
 function updateHighlightStudentRowModalUI(isEnabled) {
-    if (!elements.highlightStudentRowToggleModal) return;
-    if (isEnabled) {
-        elements.highlightStudentRowToggleModal.className = 'fas fa-toggle-on';
-        elements.highlightStudentRowToggleModal.style.color = 'var(--primary-color)';
-    } else {
-        elements.highlightStudentRowToggleModal.className = 'fas fa-toggle-off';
-        elements.highlightStudentRowToggleModal.style.color = 'gray';
-    }
-    if (elements.highlightSettingsContainer) {
-        if (isEnabled) {
-            elements.highlightSettingsContainer.style.opacity = '1';
-            elements.highlightSettingsContainer.style.pointerEvents = 'auto';
-        } else {
-            elements.highlightSettingsContainer.style.opacity = '0.4';
-            elements.highlightSettingsContainer.style.pointerEvents = 'none';
-        }
-    }
+    updateToggleUI(elements.highlightStudentRowToggleModal, isEnabled);
+    setElementEnabled(elements.highlightSettingsContainer, isEnabled, '0.4');
 }
 
 function updatePowerAutomateEnabledUI(isEnabled) {
-    if (!elements.powerAutomateEnabledToggle) return;
-    if (isEnabled) {
-        elements.powerAutomateEnabledToggle.className = 'fas fa-toggle-on';
-        elements.powerAutomateEnabledToggle.style.color = 'var(--primary-color)';
-    } else {
-        elements.powerAutomateEnabledToggle.className = 'fas fa-toggle-off';
-        elements.powerAutomateEnabledToggle.style.color = 'gray';
-    }
-    if (elements.powerAutomateSettingsContainer) {
-        elements.powerAutomateSettingsContainer.style.opacity = isEnabled ? '1' : '0.5';
-        elements.powerAutomateSettingsContainer.style.pointerEvents = isEnabled ? 'auto' : 'none';
-    }
-    if (elements.powerAutomateDebugContainer) {
-        elements.powerAutomateDebugContainer.style.opacity = isEnabled ? '1' : '0.5';
-        elements.powerAutomateDebugContainer.style.pointerEvents = isEnabled ? 'auto' : 'none';
-    }
+    updateToggleUI(elements.powerAutomateEnabledToggle, isEnabled);
+    setElementEnabled(elements.powerAutomateSettingsContainer, isEnabled);
+    setElementEnabled(elements.powerAutomateDebugContainer, isEnabled);
 }
 
 function updatePowerAutomateDebugUI(isEnabled) {
-    if (!elements.powerAutomateDebugToggle) return;
-    if (isEnabled) {
-        elements.powerAutomateDebugToggle.className = 'fas fa-toggle-on';
-        elements.powerAutomateDebugToggle.style.color = 'var(--primary-color)';
-    } else {
-        elements.powerAutomateDebugToggle.className = 'fas fa-toggle-off';
-        elements.powerAutomateDebugToggle.style.color = 'gray';
-    }
+    updateToggleUI(elements.powerAutomateDebugToggle, isEnabled);
 }
 
 // ============================================
@@ -491,75 +361,51 @@ function updatePowerAutomateDebugUI(isEnabled) {
 // ============================================
 
 export function toggleEmbedHelperModal() {
-    if (!elements.embedHelperToggleModal) return;
-    const isCurrentlyOn = elements.embedHelperToggleModal.classList.contains('fa-toggle-on');
-    updateEmbedHelperModalUI(!isCurrentlyOn);
+    updateEmbedHelperModalUI(!isToggleEnabled(elements.embedHelperToggleModal));
 }
 
 export function toggleCanvasCacheModal() {
-    if (!elements.canvasCacheToggleModal) return;
-    const isCurrentlyOn = elements.canvasCacheToggleModal.classList.contains('fa-toggle-on');
-    updateCanvasCacheModalUI(!isCurrentlyOn);
+    updateCanvasCacheModalUI(!isToggleEnabled(elements.canvasCacheToggleModal));
 }
 
 export function toggleNonApiCourseFetch() {
-    if (!elements.nonApiCourseFetchToggle) return;
-    const isCurrentlyOn = elements.nonApiCourseFetchToggle.classList.contains('fa-toggle-on');
-    updateNonApiCourseFetchUI(!isCurrentlyOn);
+    updateNonApiCourseFetchUI(!isToggleEnabled(elements.nonApiCourseFetchToggle));
 }
 
 export function toggleNextAssignment() {
-    if (!elements.nextAssignmentToggle) return;
-    const isCurrentlyOn = elements.nextAssignmentToggle.classList.contains('fa-toggle-on');
-    updateNextAssignmentUI(!isCurrentlyOn);
+    updateNextAssignmentUI(!isToggleEnabled(elements.nextAssignmentToggle));
 }
 
 export function togglePowerAutomateEnabled() {
-    if (!elements.powerAutomateEnabledToggle) return;
-    const isCurrentlyOn = elements.powerAutomateEnabledToggle.classList.contains('fa-toggle-on');
-    updatePowerAutomateEnabledUI(!isCurrentlyOn);
+    updatePowerAutomateEnabledUI(!isToggleEnabled(elements.powerAutomateEnabledToggle));
 }
 
 export function togglePowerAutomateDebug() {
-    if (!elements.powerAutomateDebugToggle) return;
-    const isCurrentlyOn = elements.powerAutomateDebugToggle.classList.contains('fa-toggle-on');
-    updatePowerAutomateDebugUI(!isCurrentlyOn);
+    updatePowerAutomateDebugUI(!isToggleEnabled(elements.powerAutomateDebugToggle));
 }
 
 export function toggleDebugModeModal() {
-    if (!elements.debugModeToggleModal) return;
-    const isCurrentlyOn = elements.debugModeToggleModal.classList.contains('fa-toggle-on');
-    updateDebugModeModalUI(!isCurrentlyOn);
+    updateDebugModeModalUI(!isToggleEnabled(elements.debugModeToggleModal));
 }
 
 export function toggleAutoSwitchCallTabModal() {
-    if (!elements.autoSwitchCallTabToggle) return;
-    const isCurrentlyOn = elements.autoSwitchCallTabToggle.classList.contains('fa-toggle-on');
-    updateAutoSwitchCallTabUI(!isCurrentlyOn);
+    updateAutoSwitchCallTabUI(!isToggleEnabled(elements.autoSwitchCallTabToggle));
 }
 
 export function toggleSyncActiveStudentModal() {
-    if (!elements.syncActiveStudentToggleModal) return;
-    const isCurrentlyOn = elements.syncActiveStudentToggleModal.classList.contains('fa-toggle-on');
-    updateSyncActiveStudentModalUI(!isCurrentlyOn);
+    updateSyncActiveStudentModalUI(!isToggleEnabled(elements.syncActiveStudentToggleModal));
 }
 
 export function toggleSendMasterListModal() {
-    if (!elements.sendMasterListToggleModal) return;
-    const isCurrentlyOn = elements.sendMasterListToggleModal.classList.contains('fa-toggle-on');
-    updateSendMasterListModalUI(!isCurrentlyOn);
+    updateSendMasterListModalUI(!isToggleEnabled(elements.sendMasterListToggleModal));
 }
 
 export function toggleReformatNameModal() {
-    if (!elements.reformatNameToggleModal) return;
-    const isCurrentlyOn = elements.reformatNameToggleModal.classList.contains('fa-toggle-on');
-    updateReformatNameModalUI(!isCurrentlyOn);
+    updateReformatNameModalUI(!isToggleEnabled(elements.reformatNameToggleModal));
 }
 
 export function toggleHighlightStudentRowModal() {
-    if (!elements.highlightStudentRowToggleModal) return;
-    const isCurrentlyOn = elements.highlightStudentRowToggleModal.classList.contains('fa-toggle-on');
-    updateHighlightStudentRowModalUI(!isCurrentlyOn);
+    updateHighlightStudentRowModalUI(!isToggleEnabled(elements.highlightStudentRowToggleModal));
 }
 
 // ============================================

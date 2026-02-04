@@ -193,58 +193,6 @@ export async function storageSet(data) {
 }
 
 /**
- * Removes values from storage, handling nested paths.
- * For nested paths, sets the value to undefined within the parent object.
- * @param {string|string[]} keys - Storage key(s) to remove
- * @returns {Promise<void>}
- */
-export async function storageRemove(keys) {
-    const keyArray = Array.isArray(keys) ? keys : [keys];
-
-    const flatKeys = [];
-    const nestedPaths = {};
-
-    for (const key of keyArray) {
-        if (isNestedPath(key)) {
-            const rootKey = getRootKey(key);
-            if (!nestedPaths[rootKey]) {
-                nestedPaths[rootKey] = [];
-            }
-            nestedPaths[rootKey].push(key);
-        } else {
-            flatKeys.push(key);
-        }
-    }
-
-    // Remove flat keys
-    if (flatKeys.length > 0) {
-        await chrome.storage.local.remove(flatKeys);
-    }
-
-    // For nested paths, we need to update the parent object
-    if (Object.keys(nestedPaths).length > 0) {
-        const rootKeys = Object.keys(nestedPaths);
-        const currentRoots = await chrome.storage.local.get(rootKeys);
-
-        const updates = {};
-        for (const rootKey of rootKeys) {
-            const rootObj = currentRoots[rootKey];
-            if (rootObj) {
-                for (const path of nestedPaths[rootKey]) {
-                    const pathWithinRoot = path.substring(rootKey.length + 1);
-                    setNestedValue(rootObj, pathWithinRoot, undefined);
-                }
-                updates[rootKey] = rootObj;
-            }
-        }
-
-        if (Object.keys(updates).length > 0) {
-            await chrome.storage.local.set(updates);
-        }
-    }
-}
-
-/**
  * Gets a single value from storage with a default fallback.
  * @param {string} key - Storage key (can be nested path)
  * @param {*} defaultValue - Default value if key doesn't exist
@@ -259,16 +207,6 @@ export async function storageGetValue(key, defaultValue = undefined) {
         return defaultFromSettings !== undefined ? defaultFromSettings : defaultValue;
     }
     return value;
-}
-
-/**
- * Sets a single value in storage.
- * @param {string} key - Storage key (can be nested path)
- * @param {*} value - Value to set
- * @returns {Promise<void>}
- */
-export async function storageSetValue(key, value) {
-    await storageSet({ [key]: value });
 }
 
 /**

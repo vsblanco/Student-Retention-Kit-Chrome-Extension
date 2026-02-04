@@ -3,6 +3,7 @@ import { STORAGE_KEYS, CANVAS_DOMAIN, GENERIC_AVATAR_URL, normalizeCanvasUrl } f
 import { getCachedData, setCachedData, hasCachedData, getCache } from '../utils/canvasCache.js';
 import { openCanvasAuthErrorModal, isCanvasAuthError, isCanvasAuthErrorBody } from './modals/canvas-auth-modal.js';
 import { storageGet } from '../utils/storage.js';
+import { updateStepIcon } from '../utils/ui-helpers.js';
 
 /**
  * Fetches courses by scraping the Canvas user profile HTML page
@@ -420,7 +421,7 @@ export async function processStep2(students, renderCallback) {
     const timeSpan = step2.querySelector('.step-time');
 
     step2.className = 'queue-item active';
-    step2.querySelector('i').className = 'fas fa-spinner';
+    updateStepIcon(step2, 'spinner');
 
     const startTime = Date.now();
 
@@ -584,7 +585,7 @@ export async function processStep2(students, renderCallback) {
 
         const durationSeconds = (Date.now() - startTime) / 1000;
         step2.className = 'queue-item completed';
-        step2.querySelector('i').className = 'fas fa-check';
+        updateStepIcon(step2, 'check');
         timeSpan.textContent = formatDuration(durationSeconds);
 
         // Update total time counter
@@ -602,14 +603,14 @@ export async function processStep2(students, renderCallback) {
         // Handle Canvas auth shutdown gracefully
         if (error instanceof CanvasAuthShutdownError) {
             console.log('[Step 2] Stopped by user due to Canvas auth error');
-            step2.querySelector('i').className = 'fas fa-times';
+            updateStepIcon(step2, 'error');
             step2.style.color = '#ef4444';
             timeSpan.textContent = 'Stopped by user';
             throw error; // Re-throw to stop the pipeline
         }
 
         console.error("[Step 2 Error]", error);
-        step2.querySelector('i').className = 'fas fa-times';
+        updateStepIcon(step2, 'error');
         step2.style.color = '#ef4444';
         timeSpan.textContent = 'Error';
         throw error;
@@ -960,7 +961,7 @@ export async function processStep3(students, renderCallback) {
     const timeSpan = step3.querySelector('.step-time');
 
     step3.className = 'queue-item active';
-    step3.querySelector('i').className = 'fas fa-spinner';
+    updateStepIcon(step3, 'spinner');
 
     const startTime = Date.now();
 
@@ -1043,7 +1044,7 @@ export async function processStep3(students, renderCallback) {
 
         const durationSeconds = (Date.now() - startTime) / 1000;
         step3.className = 'queue-item completed';
-        step3.querySelector('i').className = 'fas fa-check';
+        updateStepIcon(step3, 'check');
         timeSpan.textContent = formatDuration(durationSeconds);
 
         // Update total time counter
@@ -1062,14 +1063,14 @@ export async function processStep3(students, renderCallback) {
         // Handle Canvas auth shutdown gracefully
         if (error instanceof CanvasAuthShutdownError) {
             console.log('[Step 3] Stopped by user due to Canvas auth error');
-            step3.querySelector('i').className = 'fas fa-times';
+            updateStepIcon(step3, 'error');
             step3.style.color = '#ef4444';
             timeSpan.textContent = 'Stopped by user';
             throw error; // Re-throw to stop the pipeline
         }
 
         console.error("[Step 3 Error]", error);
-        step3.querySelector('i').className = 'fas fa-times';
+        updateStepIcon(step3, 'error');
         step3.style.color = '#ef4444';
         timeSpan.textContent = 'Error';
         throw error;
@@ -1086,7 +1087,7 @@ export async function processStep4(students) {
     const timeSpan = step4.querySelector('.step-time');
 
     step4.className = 'queue-item active';
-    step4.querySelector('i').className = 'fas fa-spinner';
+    updateStepIcon(step4, 'spinner');
     step4.querySelector('.queue-content').innerHTML = '<i class="fas fa-spinner"></i> Sending List to Excel';
 
     const startTime = Date.now();
@@ -1111,7 +1112,7 @@ export async function processStep4(students) {
                 console.log('[Step 4] User cancelled campus selection - skipping send');
                 const durationSeconds = (Date.now() - startTime) / 1000;
                 step4.className = 'queue-item completed';
-                step4.querySelector('i').className = 'fas fa-check';
+                updateStepIcon(step4, 'check');
                 step4.querySelector('.queue-content').innerHTML = '<i class="fas fa-check"></i> Sending List to Excel';
                 timeSpan.textContent = `${formatDuration(durationSeconds)} (skipped)`;
                 updateTotalTime();
@@ -1145,7 +1146,7 @@ export async function processStep4(students) {
                 console.log('[Step 4] User cancelled Excel instance selection - skipping send');
                 const durationSeconds = (Date.now() - startTime) / 1000;
                 step4.className = 'queue-item completed';
-                step4.querySelector('i').className = 'fas fa-check';
+                updateStepIcon(step4, 'check');
                 step4.querySelector('.queue-content').innerHTML = '<i class="fas fa-check"></i> Sending List to Excel';
                 timeSpan.textContent = `${formatDuration(durationSeconds)} (skipped)`;
                 // Update total time counter
@@ -1162,7 +1163,7 @@ export async function processStep4(students) {
 
         const durationSeconds = (Date.now() - startTime) / 1000;
         step4.className = 'queue-item completed';
-        step4.querySelector('i').className = 'fas fa-check';
+        updateStepIcon(step4, 'check');
         step4.querySelector('.queue-content').innerHTML = '<i class="fas fa-check"></i> Sending List to Excel';
         timeSpan.textContent = formatDuration(durationSeconds);
 
@@ -1175,7 +1176,7 @@ export async function processStep4(students) {
 
     } catch (error) {
         console.error("[Step 4 Error]", error);
-        step4.querySelector('i').className = 'fas fa-times';
+        updateStepIcon(step4, 'error');
         step4.querySelector('.queue-content').innerHTML = '<i class="fas fa-times"></i> Sending List to Excel';
         step4.style.color = '#ef4444';
         timeSpan.textContent = 'Error';
