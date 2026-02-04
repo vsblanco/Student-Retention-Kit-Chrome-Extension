@@ -264,7 +264,8 @@ async function handleFive9RestartStation(sendResponse) {
 
         const restartResp = await fetch(restartUrl, {
             method: "PUT",
-            headers: { "Content-Type": "application/json" }
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ value: null })
         });
 
         if (restartResp.ok || restartResp.status === 204) {
