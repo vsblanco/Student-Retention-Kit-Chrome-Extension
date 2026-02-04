@@ -36,6 +36,10 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         handleFive9DisposeOnly(request.dispositionType, sendResponse);
         return true; // Keep channel open
     }
+    if (request.type === 'executeFive9RestartStation') {
+        handleFive9RestartStation(sendResponse);
+        return true; // Keep channel open
+    }
 });
 
 async function handleFive9Call(phoneNumber, sendResponse) {
@@ -241,6 +245,78 @@ async function handleFive9DisposeOnly(dispositionType, sendResponse) {
 
     } catch (error) {
         console.error("SRK Dispose-Only Error:", error);
+        sendResponse({ success: false, error: error.message });
+    }
+}
+
+/**
+ * Handles restarting the Five9 station to re-establish connection
+ * Tries to click the native Five9 button first, falls back to API
+ */
+async function handleFive9RestartStation(sendResponse) {
+    try {
+        console.log("SRK: Restarting Five9 station...");
+
+        // First, try to click the native Five9 restart button (triggers full SIP re-registration)
+        const restartButton = document.getElementById('StationConnectedPopover-restart_station-button');
+        if (restartButton) {
+            console.log("SRK: Found native restart button, clicking...");
+            restartButton.click();
+            // Give it a moment to process
+            await new Promise(r => setTimeout(r, 500));
+            console.log("SRK: Native restart button clicked");
+            sendResponse({ success: true, method: 'button' });
+            return;
+        }
+
+        // If button not found (popover not open), try to open the station popover first
+        const stationIndicator = document.querySelector('[data-f9-template="station-connected-indicator"]') ||
+                                 document.querySelector('.station-connected-indicator') ||
+                                 document.querySelector('#station-indicator');
+
+        if (stationIndicator) {
+            console.log("SRK: Opening station popover...");
+            stationIndicator.click();
+            await new Promise(r => setTimeout(r, 300));
+
+            // Now try to find the restart button again
+            const restartBtnAfterOpen = document.getElementById('StationConnectedPopover-restart_station-button');
+            if (restartBtnAfterOpen) {
+                console.log("SRK: Found restart button after opening popover, clicking...");
+                restartBtnAfterOpen.click();
+                await new Promise(r => setTimeout(r, 500));
+                console.log("SRK: Native restart button clicked");
+                sendResponse({ success: true, method: 'button' });
+                return;
+            }
+        }
+
+        // Fallback to API call if button not found
+        console.log("SRK: Native button not found, falling back to API...");
+
+        const metadataResp = await fetch("https://app-atl.five9.com/appsvcs/rs/svc/auth/metadata");
+        if (!metadataResp.ok) throw new Error("Could not fetch User Metadata");
+        const metadata = await metadataResp.json();
+
+        const restartUrl = `https://app-atl.five9.com/appsvcs/rs/svc/agents/${metadata.userId}/station/restart`;
+
+        const restartResp = await fetch(restartUrl, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ value: null })
+        });
+
+        if (restartResp.ok || restartResp.status === 204) {
+            console.log("SRK: Station restart API call successful");
+            sendResponse({ success: true, method: 'api' });
+        } else {
+            const errorText = await restartResp.text();
+            console.error("SRK Station Restart Error:", restartResp.status, errorText);
+            sendResponse({ success: false, error: `${restartResp.status} - ${errorText}` });
+        }
+
+    } catch (error) {
+        console.error("SRK Station Restart Error:", error);
         sendResponse({ success: false, error: error.message });
     }
 }
