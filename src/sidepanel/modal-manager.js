@@ -424,7 +424,7 @@ export async function openConnectionsModal(connectionType) {
     updateDebugModeModalUI(callDemo);
 
     // Load Auto Switch to Call Tab setting
-    const autoSwitchCallTab = result[STORAGE_KEYS.AUTO_SWITCH_TO_CALL_TAB] || false;
+    const autoSwitchCallTab = result[STORAGE_KEYS.AUTO_SWITCH_TO_CALL_TAB] !== undefined ? result[STORAGE_KEYS.AUTO_SWITCH_TO_CALL_TAB] : true;
     updateAutoSwitchCallTabUI(autoSwitchCallTab);
 
     // Load Highlight Student Row settings
