@@ -322,11 +322,8 @@ export async function determineCallTabState(state = {}) {
     const { selectedQueue = [], debugMode = false } = state;
     const hasStudentSelected = selectedQueue && selectedQueue.length > 0;
 
-    console.log('[Five9Debug] determineCallTabState called with:', { debugMode, hasStudentSelected, five9ConnectionError, queueLength: selectedQueue?.length });
-
     // Check for connection error first - highest priority
     if (five9ConnectionError && !debugMode) {
-        console.log('[Five9Debug] Showing connection error (five9ConnectionError=true, debugMode=false)');
         // Re-check if Five9 tab still exists
         const tabs = await chrome.tabs.query({ url: "https://app-atl.five9.com/*" });
         const hasFive9Tab = tabs.length > 0;
@@ -339,12 +336,9 @@ export async function determineCallTabState(state = {}) {
 
     // Check Five9 NO_TAB first - highest priority, shows regardless of student selection
     if (!debugMode) {
-        console.log('[Five9Debug] debugMode is false - checking Five9 connection state');
         const connectionState = await checkFive9ConnectionState();
-        console.log('[Five9Debug] Five9 connectionState:', connectionState);
 
         if (connectionState === FIVE9_CONNECTION_STATES.NO_TAB) {
-            console.log('[Five9Debug] Showing FIVE9_NO_TAB placeholder');
             return {
                 showPlaceholder: true,
                 message: PLACEHOLDER_MESSAGES.FIVE9_NO_TAB
@@ -353,7 +347,6 @@ export async function determineCallTabState(state = {}) {
 
         // If no student is selected, show that message (second priority)
         if (!hasStudentSelected) {
-            console.log('[Five9Debug] Showing NO_STUDENT_SELECTED placeholder');
             return {
                 showPlaceholder: true,
                 message: PLACEHOLDER_MESSAGES.NO_STUDENT_SELECTED
@@ -362,17 +355,14 @@ export async function determineCallTabState(state = {}) {
 
         // Student is selected, check if awaiting connection
         if (connectionState === FIVE9_CONNECTION_STATES.AWAITING_CONNECTION) {
-            console.log('[Five9Debug] Showing FIVE9_AWAITING_AGENT placeholder');
             return {
                 showPlaceholder: true,
                 message: PLACEHOLDER_MESSAGES.FIVE9_AWAITING_AGENT
             };
         }
     } else {
-        console.log('[Five9Debug] debugMode is TRUE - skipping all Five9 checks');
         // Debug mode - only check student selection
         if (!hasStudentSelected) {
-            console.log('[Five9Debug] Demo mode: Showing NO_STUDENT_SELECTED placeholder');
             return {
                 showPlaceholder: true,
                 message: PLACEHOLDER_MESSAGES.NO_STUDENT_SELECTED
@@ -381,7 +371,6 @@ export async function determineCallTabState(state = {}) {
     }
 
     // All checks passed - show the call section
-    console.log('[Five9Debug] All checks passed - showing call section (no placeholder)');
     return {
         showPlaceholder: false,
         message: null
@@ -397,17 +386,13 @@ export async function determineCallTabState(state = {}) {
  * @param {boolean} state.debugMode - Whether debug/demo mode is enabled
  */
 export async function updateCallTabDisplay(state = {}) {
-    console.log('[Five9Debug] updateCallTabDisplay called with state:', { debugMode: state.debugMode, queueLength: state.selectedQueue?.length });
     const result = await determineCallTabState(state);
-    console.log('[Five9Debug] updateCallTabDisplay result:', { showPlaceholder: result.showPlaceholder, messageId: result.message?.id });
 
     if (result.showPlaceholder) {
-        console.log('[Five9Debug] Rendering placeholder:', result.message?.id);
         renderPlaceholder(result.message);
         showPlaceholder();
         hideCallSection();
     } else {
-        console.log('[Five9Debug] Hiding placeholder and showing call section');
         hidePlaceholder();
         showCallSection();
     }

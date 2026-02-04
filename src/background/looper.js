@@ -1,6 +1,6 @@
 // [2025-12-10 11:30 AM]
 // Version: 18.2 - Organized Storage Structure
-import { STORAGE_KEYS, CHECKER_MODES, ADVANCED_FILTER_REGEX, DEFAULT_SETTINGS, EXTENSION_STATES, MESSAGE_TYPES } from '../constants/index.js';
+import { STORAGE_KEYS, CHECKER_MODES, ADVANCED_FILTER_REGEX, DEFAULT_SETTINGS, EXTENSION_STATES, MESSAGE_TYPES, normalizeCanvasUrl } from '../constants/index.js';
 import { storageGet, storageSet } from '../utils/storage.js';
 
 let isLooping = false;
@@ -27,14 +27,16 @@ const REQUEST_TIMEOUT_MS = 30000;
 
 function parseIdsFromUrl(url) {
     try {
-        const urlObj = new URL(url);
+        // Normalize the URL to handle legacy domains
+        const normalizedUrl = normalizeCanvasUrl(url);
+        const urlObj = new URL(normalizedUrl);
         const regex = /courses\/(\d+)\/grades\/(\d+)/;
         const match = urlObj.pathname.match(regex);
         if (match) {
-            return { 
+            return {
                 origin: urlObj.origin,
-                courseId: match[1], 
-                studentId: match[2] 
+                courseId: match[1],
+                studentId: match[2]
             };
         }
     } catch (e) {

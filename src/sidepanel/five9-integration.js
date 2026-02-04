@@ -48,19 +48,15 @@ export async function checkFive9Connection() {
  * @param {boolean} [debugModeOverride] - Optional debug mode override (if not provided, fetches from storage)
  */
 export async function updateFive9ConnectionIndicator(selectedQueue, debugModeOverride = null) {
-    console.log('[Five9Debug] updateFive9ConnectionIndicator called, debugModeOverride:', debugModeOverride);
-
     // Get debug mode from storage if not provided
     let isDebugMode = debugModeOverride;
     if (isDebugMode === null) {
         const data = await storageGet(STORAGE_KEYS.CALL_DEMO);
         isDebugMode = data[STORAGE_KEYS.CALL_DEMO] || false;
-        console.log('[Five9Debug] Read CALL_DEMO from storage:', data[STORAGE_KEYS.CALL_DEMO], '-> isDebugMode:', isDebugMode);
     }
 
     // Skip Five9 monitoring entirely in demo mode
     if (isDebugMode) {
-        console.log('[Five9Debug] Demo mode active - skipping Five9 monitoring, clearing error, calling updateCallTabDisplay with debugMode:true');
         // Clear any lingering Five9 error state
         clearConnectionError();
         await updateCallTabDisplay({
@@ -70,24 +66,10 @@ export async function updateFive9ConnectionIndicator(selectedQueue, debugModeOve
         return;
     }
 
-    console.log('[Five9Debug] Demo mode NOT active - proceeding with Five9 monitoring');
-
-    // Log connection state changes
+    // Track connection state changes
     const connectionState = await checkFive9Connection();
     if (connectionState !== lastFive9ConnectionState) {
         lastFive9ConnectionState = connectionState;
-
-        switch (connectionState) {
-            case FIVE9_CONNECTION_STATES.NO_TAB:
-                console.log("❌ Five9 disconnected - No tab");
-                break;
-            case FIVE9_CONNECTION_STATES.AWAITING_CONNECTION:
-                console.log("⏳ Five9 tab detected - Awaiting agent connection");
-                break;
-            case FIVE9_CONNECTION_STATES.ACTIVE_CONNECTION:
-                console.log("✅ Five9 Active Connection - Agent connected");
-                break;
-        }
     }
 
     // Use the unified placeholder system to update the display
@@ -131,10 +113,8 @@ export function setupFive9StatusListeners(callManager, getSelectedQueue) {
     chrome.runtime.onMessage.addListener(async (message, sender) => {
         // Handle Five9 call initiation status
         if (message.type === 'callStatus') {
-            if (message.success) {
-                console.log("✓ Five9 call initiated successfully");
-            } else {
-                console.error("✗ Five9 call failed:", message.error);
+            if (!message.success) {
+                console.error("Five9 call failed:", message.error);
                 // Revert call UI state if call failed
                 if (callManager && callManager.getCallActiveState()) {
                     callManager.toggleCallState(true);
@@ -160,31 +140,22 @@ export function setupFive9StatusListeners(callManager, getSelectedQueue) {
 
         // Handle Five9 hangup status
         if (message.type === 'hangupStatus') {
-            if (message.success) {
-                console.log("✓ Five9 call ended successfully");
-            } else {
-                console.error("✗ Five9 hangup failed:", message.error);
+            if (!message.success) {
+                console.error("Five9 hangup failed:", message.error);
             }
         }
 
         // Handle Five9 connection state changes from network monitoring
         if (message.type === 'FIVE9_CONNECTION_STATE_CHANGED') {
-            console.log('Five9 connection state changed:', message.state);
             // Immediately update the indicator when state changes
             if (getSelectedQueue) {
                 updateFive9ConnectionIndicator(getSelectedQueue());
             }
         }
 
-        // Handle Five9 call state changes (from call state monitor)
-        if (message.type === 'FIVE9_CALL_STATE_CHANGED') {
-            console.log(`📞 Five9 call state: ${message.previousState} -> ${message.newState}`);
-        }
-
         // Handle disposition set externally (through Five9 UI)
         // Skip if in demo mode - demo mode doesn't use Five9
         if (message.type === 'FIVE9_DISPOSITION_SET') {
-            console.log('📋 Five9 disposition was set externally');
             if (callManager && callManager.getCallActiveState() && !callManager.debugMode) {
                 // Call was disposed through Five9 UI - reset our state
                 callManager.handleExternalDisposition();
@@ -194,7 +165,6 @@ export function setupFive9StatusListeners(callManager, getSelectedQueue) {
         // Handle call disconnected externally (through Five9 UI)
         // Skip if in demo mode - demo mode doesn't use Five9
         if (message.type === 'FIVE9_CALL_DISCONNECTED') {
-            console.log('📞 Five9 call was disconnected externally');
             if (callManager && callManager.getCallActiveState() && !callManager.waitingForDisposition && !callManager.debugMode) {
                 // Call was disconnected through Five9 UI - update to awaiting disposition
                 callManager.handleExternalDisconnect();

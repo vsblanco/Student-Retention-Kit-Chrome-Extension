@@ -268,6 +268,31 @@ export const CANVAS_DOMAIN = `https://${CANVAS_SUBDOMAIN}.instructure.com`;
 export const GENERIC_AVATAR_URL = `https://${CANVAS_SUBDOMAIN}.instructure.com/images/messages/avatar-50.png`;
 
 /**
+ * Legacy Canvas subdomains for backwards compatibility.
+ * URLs with these subdomains will be automatically normalized to CANVAS_SUBDOMAIN.
+ */
+export const LEGACY_CANVAS_SUBDOMAINS = ["nuc"];
+
+/**
+ * Normalizes a Canvas URL to use the current CANVAS_SUBDOMAIN.
+ * This provides backwards compatibility when the school rebrands.
+ * @param {string} url - The URL to normalize
+ * @returns {string} The normalized URL
+ */
+export function normalizeCanvasUrl(url) {
+    if (!url) return url;
+
+    for (const legacySubdomain of LEGACY_CANVAS_SUBDOMAINS) {
+        const legacyPattern = new RegExp(`https://${legacySubdomain}\\.instructure\\.com`, 'gi');
+        if (legacyPattern.test(url)) {
+            return url.replace(legacyPattern, `https://${CANVAS_SUBDOMAIN}.instructure.com`);
+        }
+    }
+
+    return url;
+}
+
+/**
  * Guide resources available in the extension.
  * Each guide has a name and path to the PDF file.
  */

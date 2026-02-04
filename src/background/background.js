@@ -343,11 +343,6 @@ chrome.webRequest.onCompleted.addListener(
         lastAgentConnectionTime: lastAgentConnectionTime
       });
 
-      // Log state change
-      if (previousState !== FIVE9_CONNECTION_STATES.ACTIVE_CONNECTION) {
-        console.log('%c [Five9] Agent connection detected - Active Connection', 'color: green; font-weight: bold');
-      }
-
       // Notify sidepanel of state change
       chrome.runtime.sendMessage({
         type: 'FIVE9_CONNECTION_STATE_CHANGED',
@@ -959,8 +954,6 @@ chrome.tabs.onRemoved.addListener(async (tabId, removeInfo) => {
       five9ConnectionState: FIVE9_CONNECTION_STATES.NO_TAB,
       lastAgentConnectionTime: null
     });
-
-    console.log('%c [Five9] Tab closed - Connection state reset', 'color: orange; font-weight: bold');
 
     // Notify sidepanel of state change
     chrome.runtime.sendMessage({
