@@ -4,7 +4,7 @@ import { switchTab } from './ui-manager.js';
 import { updateFive9ConnectionIndicator } from './five9-integration.js';
 import { STORAGE_KEYS } from '../constants/index.js';
 import { storageGetValue } from '../utils/storage.js';
-import { openStudentViewModal } from './modal-manager.js';
+import { openStudentViewModal } from './modals/student-view-modal.js';
 
 /**
  * Queue Manager Class - Manages student queue operations

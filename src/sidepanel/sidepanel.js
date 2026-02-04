@@ -43,15 +43,24 @@ import {
 
 import { processStep2, processStep3, processStep4, formatDuration, updateTotalTime } from './canvas-integration.js';
 
+// Import modal functions from separate files
 import {
     openScanFilterModal,
     closeScanFilterModal,
     updateScanFilterCount,
     toggleFailingFilter,
-    saveScanFilterSettings,
+    saveScanFilterSettings
+} from './modals/scan-filter-modal.js';
+
+import {
     openQueueModal,
     closeQueueModal,
-    renderQueueModal,
+    renderQueueModal
+} from './modals/queue-modal.js';
+
+import { openGuidesModal, closeGuidesModal } from './modals/guides-modal.js';
+
+import {
     openConnectionsModal,
     closeConnectionsModal,
     saveConnectionsSettings,
@@ -71,18 +80,28 @@ import {
     toggleReformatNameModal,
     toggleHighlightStudentRowModal,
     clearCacheFromModal,
+    updateStartButtonForMasterList
+} from './modals/connections-modal.js';
+
+import {
     shouldShowDailyUpdateModal,
     openDailyUpdateModal,
-    closeDailyUpdateModal,
-    shouldShowLatestUpdatesModal,
-    openLatestUpdatesModal,
-    closeLatestUpdatesModal,
+    closeDailyUpdateModal
+} from './modals/daily-update-modal.js';
+
+import {
     getExcelTabs,
     openExcelInstanceModal,
-    closeExcelInstanceModal,
+    closeExcelInstanceModal
+} from './modals/excel-instance-modal.js';
+
+import {
     getCampusesFromStudents,
     openCampusSelectionModal,
-    closeCampusSelectionModal,
+    closeCampusSelectionModal
+} from './modals/campus-selection-modal.js';
+
+import {
     openStudentViewModal,
     closeStudentViewModal,
     showStudentViewMain,
@@ -90,14 +109,20 @@ import {
     showStudentViewNext,
     showStudentViewDaysOut,
     getCurrentStudentViewStudent,
-    generateStudentEmailTemplate,
+    generateStudentEmailTemplate
+} from './modals/student-view-modal.js';
+
+import {
     openCanvasAuthErrorModal,
     closeCanvasAuthErrorModal,
-    toggleCanvasAuthNonApi,
-    updateStartButtonForMasterList,
-    openGuidesModal,
-    closeGuidesModal
-} from './modal-manager.js';
+    toggleCanvasAuthNonApi
+} from './modals/canvas-auth-modal.js';
+
+import {
+    shouldShowLatestUpdatesModal,
+    openLatestUpdatesModal,
+    closeLatestUpdatesModal
+} from './modals/latest-updates-modal.js';
 
 import { QueueManager } from './queue-manager.js';
 
