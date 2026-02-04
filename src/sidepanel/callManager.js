@@ -122,9 +122,10 @@ export default class CallManager {
             const statusText = this.debugMode ? '🎭 Demo Call Active' : 'Connected';
             this.elements.callStatusText.innerHTML = `<span class="status-indicator" style="background:#ef4444; animation: blink 1s infinite;"></span> ${statusText}`;
 
-            // Show Disposition Grid
+            // Show Disposition Grid and reset button states
             if (this.elements.callDispositionSection) {
                 this.elements.callDispositionSection.style.display = 'flex';
+                this.resetDispositionButtons();
             }
 
             this.startCallTimer();
@@ -263,9 +264,10 @@ export default class CallManager {
         const statusText = this.debugMode ? '🎭 Demo Call Active' : 'Connected';
         this.elements.callStatusText.innerHTML = `<span class="status-indicator" style="background:#ef4444; animation: blink 1s infinite;"></span> ${statusText}`;
 
-        // Show Disposition Grid
+        // Show Disposition Grid and reset button states
         if (this.elements.callDispositionSection) {
             this.elements.callDispositionSection.style.display = 'flex';
+            this.resetDispositionButtons();
         }
 
         this.startCallTimer();
@@ -595,6 +597,19 @@ export default class CallManager {
         }
 
         // Keep disposition section visible if it was showing
+    }
+
+    /**
+     * Resets all disposition buttons to their clickable state
+     */
+    resetDispositionButtons() {
+        if (!this.elements.callDispositionSection) return;
+
+        const dispositionBtns = this.elements.callDispositionSection.querySelectorAll('.disposition-btn');
+        dispositionBtns.forEach(btn => {
+            btn.style.pointerEvents = '';
+            btn.style.opacity = '';
+        });
     }
 
     /**

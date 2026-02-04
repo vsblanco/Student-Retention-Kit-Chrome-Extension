@@ -864,6 +864,13 @@ function setupEventListeners() {
                 return;
             }
 
+            // Disable all disposition buttons to prevent spam clicking
+            const allDispositionBtns = dispositionContainer.querySelectorAll('.disposition-btn');
+            allDispositionBtns.forEach(b => {
+                b.style.pointerEvents = 'none';
+                b.style.opacity = '0.5';
+            });
+
             callManager.handleDisposition(btn.innerText.trim());
         });
 
