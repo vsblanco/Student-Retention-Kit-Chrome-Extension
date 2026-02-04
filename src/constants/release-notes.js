@@ -24,14 +24,15 @@ export const RELEASE_NOTES = {
     // The key should match the version in manifest.json
 	'11.1': {
         title: 'Latest Updates',
-        date: 'February 2, 2026',
+        date: 'February 4, 2026',
         updates: [
-            'Added next assignment feature',
-            'Improved Context Menu UI',
-			'Added Recheck Grade Book in the conext menu',
+            'Introduced the "Next Assignment" tracking feature (Experimental)',
+            'Refined and modernized Context Menu UI (When you right click on certain places)',
+			'Added Recheck Grade Book in the conext menu (Right click update master list)',
 			'Implemented Student Details view',
-			'Adjusted for school rebranding to Northbridge University',
-			'Implemented Issue and Feature Request reporting in settings'
+			'Updated all assets for the Northbridge University rebranding',
+			'Integrated Issue and Feature Request forms within Settings',
+			'Enhanced call stability and resolved various performance bugs'
         ]
     },
     '11.0': {
