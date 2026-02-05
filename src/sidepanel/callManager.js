@@ -4,6 +4,7 @@
 // v1.3: Dial button cancels automation and keeps only current student
 
 import { STORAGE_KEYS } from '../constants/index.js';
+import { CONFIG } from '../constants/config.js';
 
 /**
  * CallManager class - Manages call state, timers, and automation sequences
@@ -125,10 +126,10 @@ export default class CallManager {
             }
             // --------------------------------------------------
 
-            this.elements.dialBtn.style.background = '#ef4444';
+            this.elements.dialBtn.style.background = '${CONFIG.COLORS.ERROR}';
             this.elements.dialBtn.style.transform = 'rotate(135deg)';
             const statusText = this.debugMode ? '🎭 Demo Call Active' : 'Connected';
-            this.elements.callStatusText.innerHTML = `<span class="status-indicator" style="background:#ef4444; animation: blink 1s infinite;"></span> ${statusText}`;
+            this.elements.callStatusText.innerHTML = `<span class="status-indicator" style="background:${CONFIG.COLORS.ERROR}; animation: blink 1s infinite;"></span> ${statusText}`;
 
             // Show Disposition Grid and reset button states
             if (this.elements.callDispositionSection) {
@@ -139,7 +140,7 @@ export default class CallManager {
             this.startCallTimer();
         } else {
             // Call is ending - show "Ending call" status
-            this.elements.callStatusText.innerHTML = '<span class="status-indicator" style="background:#f59e0b;"></span> Ending call...';
+            this.elements.callStatusText.innerHTML = '<span class="status-indicator" style="background:${CONFIG.COLORS.WARNING};"></span> Ending call...';
 
             let hangupResult = { success: true, state: 'WRAP_UP' };
 
@@ -152,7 +153,7 @@ export default class CallManager {
             // -------------------------
 
             // Set button to gray while awaiting disposition
-            this.elements.dialBtn.style.background = '#6b7280';
+            this.elements.dialBtn.style.background = '${CONFIG.COLORS.MUTED}';
             this.elements.dialBtn.style.transform = 'rotate(0deg)';
 
             // Check the interaction state
@@ -161,7 +162,7 @@ export default class CallManager {
 
             if (state === 'WRAP_UP') {
                 // Call disconnected but waiting for disposition
-                this.elements.callStatusText.innerHTML = '<span class="status-indicator" style="background:#f59e0b;"></span> Awaiting Disposition';
+                this.elements.callStatusText.innerHTML = '<span class="status-indicator" style="background:${CONFIG.COLORS.WARNING};"></span> Awaiting Disposition';
 
                 // KEEP call active to block pings until disposition is set
                 this.isCallActive = true;
@@ -181,7 +182,7 @@ export default class CallManager {
                 }
             } else {
                 // Call fully completed (shouldn't normally happen without disposition)
-                this.elements.dialBtn.style.background = '#10b981'; // Turn green when ready
+                this.elements.dialBtn.style.background = '${CONFIG.COLORS.SUCCESS}'; // Turn green when ready
                 this.elements.callStatusText.innerHTML = '<span class="status-indicator ready"></span> Ready to Connect';
                 this.isCallActive = false;
                 this.waitingForDisposition = false;
@@ -267,10 +268,10 @@ export default class CallManager {
 
         // Start the call
         this.isCallActive = true;
-        this.elements.dialBtn.style.background = '#ef4444';
+        this.elements.dialBtn.style.background = '${CONFIG.COLORS.ERROR}';
         this.elements.dialBtn.style.transform = 'rotate(135deg)';
         const statusText = this.debugMode ? '🎭 Demo Call Active' : 'Connected';
-        this.elements.callStatusText.innerHTML = `<span class="status-indicator" style="background:#ef4444; animation: blink 1s infinite;"></span> ${statusText}`;
+        this.elements.callStatusText.innerHTML = `<span class="status-indicator" style="background:${CONFIG.COLORS.ERROR}; animation: blink 1s infinite;"></span> ${statusText}`;
 
         // Show Disposition Grid and reset button states
         if (this.elements.callDispositionSection) {
@@ -385,7 +386,7 @@ export default class CallManager {
         if (this.elements.dialBtn) {
             this.elements.dialBtn.classList.remove('automation');
             this.elements.dialBtn.innerHTML = '<i class="fas fa-phone"></i>';
-            this.elements.dialBtn.style.background = '#10b981';
+            this.elements.dialBtn.style.background = '${CONFIG.COLORS.SUCCESS}';
             this.elements.dialBtn.style.transform = 'rotate(0deg)';
         }
 
@@ -439,7 +440,7 @@ export default class CallManager {
         if (this.elements.dialBtn) {
             this.elements.dialBtn.classList.remove('automation');
             this.elements.dialBtn.innerHTML = '<i class="fas fa-phone"></i>';
-            this.elements.dialBtn.style.background = '#10b981';
+            this.elements.dialBtn.style.background = '${CONFIG.COLORS.SUCCESS}';
             this.elements.dialBtn.style.transform = 'rotate(0deg)';
         }
 
@@ -546,7 +547,7 @@ export default class CallManager {
 
         // Update UI to ready state
         if (this.elements.dialBtn) {
-            this.elements.dialBtn.style.background = '#10b981';
+            this.elements.dialBtn.style.background = '${CONFIG.COLORS.SUCCESS}';
             this.elements.dialBtn.style.transform = 'rotate(0deg)';
             this.elements.dialBtn.disabled = false;
             this.elements.dialBtn.style.cursor = 'pointer';
@@ -593,7 +594,7 @@ export default class CallManager {
 
         // Update UI to awaiting disposition
         if (this.elements.dialBtn) {
-            this.elements.dialBtn.style.background = '#6b7280';
+            this.elements.dialBtn.style.background = '${CONFIG.COLORS.MUTED}';
             this.elements.dialBtn.style.transform = 'rotate(0deg)';
             this.elements.dialBtn.disabled = true;
             this.elements.dialBtn.style.cursor = 'not-allowed';
@@ -601,7 +602,7 @@ export default class CallManager {
         }
 
         if (this.elements.callStatusText) {
-            this.elements.callStatusText.innerHTML = '<span class="status-indicator" style="background:#f59e0b;"></span> Awaiting Disposition';
+            this.elements.callStatusText.innerHTML = '<span class="status-indicator" style="background:${CONFIG.COLORS.WARNING};"></span> Awaiting Disposition';
         }
 
         // Keep disposition section visible if it was showing
@@ -641,7 +642,7 @@ export default class CallManager {
         // Check if call was already ended (user clicked end call button first)
         if (this.waitingForDisposition) {
             // Call already ended, just setting disposition
-            this.elements.callStatusText.innerHTML = '<span class="status-indicator" style="background:#3b82f6;"></span> Setting disposition...';
+            this.elements.callStatusText.innerHTML = '<span class="status-indicator" style="background:${CONFIG.COLORS.PRIMARY};"></span> Setting disposition...';
 
             // Send dispose-only request to Five9
             console.log("📋 Setting disposition for already-ended call");
@@ -657,7 +658,7 @@ export default class CallManager {
             // -------------------------
         } else {
             // Call is still active, need to end it first
-            this.elements.callStatusText.innerHTML = '<span class="status-indicator" style="background:#f59e0b;"></span> Ending call...';
+            this.elements.callStatusText.innerHTML = '<span class="status-indicator" style="background:${CONFIG.COLORS.WARNING};"></span> Ending call...';
 
             // --- HANGUP FIVE9 CALL (ONLY IF DEBUG MODE OFF) ---
             if (!this.debugMode) {
@@ -671,7 +672,7 @@ export default class CallManager {
             // -------------------------
 
             // Show "Setting disposition" status after call ends
-            this.elements.callStatusText.innerHTML = '<span class="status-indicator" style="background:#3b82f6;"></span> Setting disposition...';
+            this.elements.callStatusText.innerHTML = '<span class="status-indicator" style="background:${CONFIG.COLORS.PRIMARY};"></span> Setting disposition...';
 
             // Small delay to show the status
             await new Promise(resolve => setTimeout(resolve, 500));
@@ -683,7 +684,7 @@ export default class CallManager {
 
         if (state === 'FINISHED') {
             // Disposition set successfully - call is completely done
-            this.elements.callStatusText.innerHTML = '<span class="status-indicator" style="background:#10b981;"></span> Disposition Set';
+            this.elements.callStatusText.innerHTML = '<span class="status-indicator" style="background:${CONFIG.COLORS.SUCCESS};"></span> Disposition Set';
 
             // NOW we can mark call as inactive - disposition is confirmed
             this.isCallActive = false;
@@ -719,7 +720,7 @@ export default class CallManager {
             this.callNextStudentInQueue();
         } else {
             // Single call mode - update UI to end the call
-            this.elements.dialBtn.style.background = '#10b981';
+            this.elements.dialBtn.style.background = '${CONFIG.COLORS.SUCCESS}';
             this.elements.dialBtn.style.transform = 'rotate(0deg)';
             this.elements.dialBtn.disabled = false;
             this.elements.dialBtn.style.cursor = 'pointer';
@@ -887,7 +888,7 @@ export default class CallManager {
             if (this.debugMode) {
                 // Demo mode
                 this.elements.dialBtn.title = 'Demo Mode - Simulates calling without Five9 API';
-                this.elements.callStatusText.innerHTML = '<span class="status-indicator" style="background:#f59e0b;"></span> 🎭 Demo Mode Active';
+                this.elements.callStatusText.innerHTML = '<span class="status-indicator" style="background:${CONFIG.COLORS.WARNING};"></span> 🎭 Demo Mode Active';
             } else {
                 // Five9 mode
                 this.elements.dialBtn.title = 'Live Mode - Calls via Five9 API';

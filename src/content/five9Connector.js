@@ -1,6 +1,9 @@
 // [2025-12-17] Version 1.0 - Five9 Connector
 // This script runs on https://app-atl.five9.com/* to handle call automation.
 
+// Configuration
+const FIVE9_POLL_INTERVAL_MS = 2000;
+
 // Disposition code constants
 const DISPOSITION_CODES = {
     "Left Voicemail": "300000000000046",
@@ -113,8 +116,7 @@ function startCallStateMonitor() {
     if (callStateMonitorInterval) return; // Already running
 
     console.log("SRK: Starting call state monitor");
-    // Poll every 2 seconds
-    callStateMonitorInterval = setInterval(monitorCallState, 2000);
+    callStateMonitorInterval = setInterval(monitorCallState, FIVE9_POLL_INTERVAL_MS);
     // Run immediately too
     monitorCallState();
 }
