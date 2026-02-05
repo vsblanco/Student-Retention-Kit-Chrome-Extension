@@ -848,7 +848,6 @@ async function fetchMissingAssignments(student, referenceDate = new Date(), incl
     const gradebookUrl = student.url || student.Gradebook;
 
     if (!gradebookUrl) {
-        console.log(`[Step 3] ${student.name}: No gradebook URL, skipping`);
         return { ...student, missingCount: 0, missingAssignments: [], nextAssignment: null };
     }
 
@@ -898,7 +897,84 @@ async function fetchMissingAssignments(student, referenceDate = new Date(), incl
 }
 
 /**
- * Process Step 3: Check missing assignments and grades for all students
+ * Fetches submissions and user/enrollment data for a group of students in the same course
+ * using a single pair of API calls (multi-student batch request).
+ * This is much more efficient than individual per-student requests.
+ *
+ * @param {string} origin - The Canvas domain origin
+ * @param {string} courseId - The course ID
+ * @param {Array} studentIds - Array of Canvas student IDs in this course
+ * @returns {Promise<{submissionsData: Array, usersData: Array}>}
+ */
+async function fetchCourseGroupData(origin, courseId, studentIds) {
+    checkShutdown();
+
+    const idsQuery = studentIds.map(id => `student_ids[]=${id}`).join('&');
+    const submissionsUrl = `${origin}/api/v1/courses/${courseId}/students/submissions?${idsQuery}&include[]=assignment&per_page=100`;
+
+    const userIdsQuery = studentIds.map(id => `user_ids[]=${id}`).join('&');
+    const usersUrl = `${origin}/api/v1/courses/${courseId}/users?${userIdsQuery}&include[]=enrollments&per_page=100`;
+
+    // Fetch both endpoints in parallel
+    const [submissionsData, usersData] = await Promise.all([
+        fetchPaged(submissionsUrl),
+        fetchPaged(usersUrl)
+    ]);
+
+    return { submissionsData, usersData };
+}
+
+/**
+ * Processes fetched course group data to extract per-student results.
+ * Splits the combined API response back into individual student results.
+ *
+ * @param {Array} studentsInCourse - Array of student objects in this course group
+ * @param {Object} courseGroupData - { submissionsData, usersData } from fetchCourseGroupData
+ * @param {Date} referenceDate - The date to use for missing assignment checks
+ * @param {boolean} includeNextAssignment - Whether to find next upcoming assignment
+ * @returns {Array} Array of updated student objects
+ */
+function processCourseGroupResults(studentsInCourse, courseGroupData, referenceDate, includeNextAssignment) {
+    const { submissionsData, usersData } = courseGroupData;
+
+    return studentsInCourse.map(({ student, parsed }) => {
+        const canvasStudentId = parseInt(parsed.studentId, 10);
+        const { origin, courseId } = parsed;
+
+        // Filter combined response to this student's data
+        const studentSubmissions = submissionsData
+            ? submissionsData.filter(sub => sub.user_id === canvasStudentId)
+            : [];
+        const userObject = usersData
+            ? usersData.find(u => u.id === canvasStudentId)
+            : null;
+
+        const result = analyzeMissingAssignments(
+            studentSubmissions, userObject, student.name, courseId, origin, referenceDate
+        );
+
+        let nextAssignment = null;
+        if (includeNextAssignment) {
+            nextAssignment = findNextAssignment(studentSubmissions, courseId, origin, referenceDate);
+        }
+
+        return {
+            ...student,
+            missingCount: result.count,
+            missingAssignments: result.assignments,
+            currentGrade: result.currentGrade,
+            nextAssignment: nextAssignment
+        };
+    });
+}
+
+/**
+ * Process Step 3: Check missing assignments and grades for all students.
+ *
+ * Optimization: Groups students by courseId so students in the same course share
+ * a single pair of API calls (submissions + users), instead of N individual calls.
+ * For a class of 100 students across 5 courses, this reduces API calls from 200 to ~10.
+ * Students without a gradebook URL fall back to individual (no-op) handling.
  */
 export async function processStep3(students, renderCallback) {
     const step3 = document.getElementById('step3');
@@ -910,12 +986,7 @@ export async function processStep3(students, renderCallback) {
     const startTime = Date.now();
 
     try {
-        console.log(`[Step 3] Checking student gradebooks for missing assignments`);
-        console.log(`[Step 3] Processing ${students.length} students in batches of 20`);
-
-        // Check if using specific date (Time Machine mode) for missing assignments check
-        // Also check if Next Assignment feature is enabled
-        // Use storageGet to properly handle nested storage paths (e.g., settings.canvas.nextAssignmentEnabled)
+        // Load settings once
         const settings = await storageGet([
             STORAGE_KEYS.USE_SPECIFIC_DATE,
             STORAGE_KEYS.SPECIFIC_SUBMISSION_DATE,
@@ -925,64 +996,107 @@ export async function processStep3(students, renderCallback) {
         const specificDateStr = settings[STORAGE_KEYS.SPECIFIC_SUBMISSION_DATE];
         const nextAssignmentEnabled = settings[STORAGE_KEYS.NEXT_ASSIGNMENT_ENABLED] || false;
 
-        if (nextAssignmentEnabled) {
-            console.log(`[Step 3] Next Assignment feature enabled - will find next due assignment for each student`);
-        } else {
-            console.log(`[Step 3] Next Assignment feature is DISABLED - enable in settings to find upcoming assignments`);
-        }
-
         let referenceDate;
         if (useSpecificDate && specificDateStr) {
-            // Parse the specific date (format: YYYY-MM-DD)
             const [year, month, day] = specificDateStr.split('-').map(Number);
-            referenceDate = new Date(year, month - 1, day); // month is 0-indexed
-            console.log(`🕐 Time Machine mode: Checking missing assignments as of ${specificDateStr}`);
+            referenceDate = new Date(year, month - 1, day);
+            console.log(`[Step 3] Time Machine mode: Checking as of ${specificDateStr}`);
         } else {
             referenceDate = new Date();
         }
 
-        const BATCH_SIZE = 20;
-        const BATCH_DELAY_MS = 100;
-
-        let processedCount = 0;
         let updatedStudents = [...students];
 
-        const totalBatches = Math.ceil(updatedStudents.length / BATCH_SIZE);
+        // --- Group students by courseId for batched API calls ---
+        // Key: "origin|courseId", Value: [{ student, parsed, originalIndex }]
+        const courseGroups = new Map();
+        const noUrlIndices = []; // Students without gradebook URLs (skip API)
 
-        for (let i = 0; i < updatedStudents.length; i += BATCH_SIZE) {
-            // Check if shutdown was requested before processing next batch
-            checkShutdown();
-
-            const batch = updatedStudents.slice(i, i + BATCH_SIZE);
-            const batchNumber = Math.floor(i / BATCH_SIZE) + 1;
-
-            console.log(`[Step 3] Processing batch ${batchNumber}/${totalBatches} (students ${i + 1}-${Math.min(i + BATCH_SIZE, updatedStudents.length)})`);
-
-            // Use Promise.allSettled to handle auth errors gracefully
-            const promises = batch.map(student => fetchMissingAssignments(student, referenceDate, nextAssignmentEnabled));
-            const settledResults = await Promise.allSettled(promises);
-
-            // Check for shutdown errors
-            for (const result of settledResults) {
-                if (result.status === 'rejected' && result.reason instanceof CanvasAuthShutdownError) {
-                    throw result.reason;
-                }
+        for (let i = 0; i < updatedStudents.length; i++) {
+            const student = updatedStudents[i];
+            const gradebookUrl = student.url || student.Gradebook;
+            if (!gradebookUrl) {
+                noUrlIndices.push(i);
+                continue;
             }
+            const parsed = parseGradebookUrl(gradebookUrl);
+            if (!parsed) {
+                noUrlIndices.push(i);
+                continue;
+            }
+            const groupKey = `${parsed.origin}|${parsed.courseId}`;
+            if (!courseGroups.has(groupKey)) {
+                courseGroups.set(groupKey, []);
+            }
+            courseGroups.get(groupKey).push({ student, parsed, originalIndex: i });
+        }
 
-            settledResults.forEach((result, index) => {
-                // If fulfilled, use the result; if rejected (but not shutdown), keep original student with zeros
-                updatedStudents[i + index] = result.status === 'fulfilled'
-                    ? result.value
-                    : { ...batch[index], missingCount: 0, missingAssignments: [], nextAssignment: null };
-            });
+        // Mark no-URL students with zero counts immediately
+        for (const idx of noUrlIndices) {
+            updatedStudents[idx] = {
+                ...updatedStudents[idx],
+                missingCount: 0,
+                missingAssignments: [],
+                nextAssignment: null
+            };
+        }
 
-            processedCount += batch.length;
-            timeSpan.textContent = `${Math.round((processedCount / updatedStudents.length) * 100)}%`;
+        const courseGroupEntries = Array.from(courseGroups.entries());
+        const totalGroups = courseGroupEntries.length;
 
-            if (i + BATCH_SIZE < updatedStudents.length) {
-                await new Promise(resolve => setTimeout(resolve, BATCH_DELAY_MS));
+        console.log(`[Step 3] ${students.length} students grouped into ${totalGroups} course(s) (${noUrlIndices.length} without URL)`);
+
+        // --- Process course groups using a worker pool ---
+        // Maintains a rolling window of MAX_CONCURRENT in-flight API request pairs.
+        // Each worker grabs the next course group as soon as it finishes, keeping
+        // the pipeline saturated regardless of how many courses exist.
+        // With 102 courses and MAX_CONCURRENT=10, there are always ~10 course fetches
+        // in flight simultaneously (same effective parallelism as the old per-student approach).
+        const MAX_CONCURRENT = 10;
+        let processedStudents = noUrlIndices.length;
+        let courseIndex = 0;
+
+        async function processNextCourseGroup() {
+            while (courseIndex < courseGroupEntries.length) {
+                checkShutdown();
+
+                // Grab the next course group atomically
+                const idx = courseIndex++;
+                const [groupKey, studentsInCourse] = courseGroupEntries[idx];
+                const { origin, courseId } = studentsInCourse[0].parsed;
+                const studentIds = studentsInCourse.map(s => s.parsed.studentId);
+
+                try {
+                    const data = await fetchCourseGroupData(origin, courseId, studentIds);
+                    const results = processCourseGroupResults(
+                        studentsInCourse, data, referenceDate, nextAssignmentEnabled
+                    );
+                    results.forEach((updatedStudent, i) => {
+                        updatedStudents[studentsInCourse[i].originalIndex] = updatedStudent;
+                    });
+                } catch (e) {
+                    if (e instanceof CanvasAuthShutdownError) throw e;
+                    console.error(`[Step 3] Course ${courseId} fetch error:`, e);
+                    // Zero out students in this failed course group
+                    for (const { student, originalIndex } of studentsInCourse) {
+                        updatedStudents[originalIndex] = {
+                            ...student,
+                            missingCount: 0,
+                            missingAssignments: [],
+                            nextAssignment: null
+                        };
+                    }
+                }
+
+                processedStudents += studentsInCourse.length;
+                timeSpan.textContent = `${Math.round((processedStudents / students.length) * 100)}%`;
             }
         }
+
+        // Launch worker pool — all workers share the same courseIndex counter
+        const workerCount = Math.min(MAX_CONCURRENT, courseGroupEntries.length);
+        const workers = Array.from({ length: workerCount }, () => processNextCourseGroup());
+        await Promise.all(workers);
 
         await chrome.storage.local.set({ [STORAGE_KEYS.MASTER_ENTRIES]: updatedStudents });
 
@@ -991,11 +1105,10 @@ export async function processStep3(students, renderCallback) {
         updateStepIcon(step3, 'check');
         timeSpan.textContent = formatDuration(durationSeconds);
 
-        // Update total time counter
         updateTotalTime();
 
         const totalMissing = updatedStudents.reduce((sum, s) => sum + (s.missingCount || 0), 0);
-        console.log(`[Step 3] ✓ Complete in ${formatDuration(durationSeconds)} - Found ${totalMissing} total missing assignments`);
+        console.log(`[Step 3] Complete in ${formatDuration(durationSeconds)} - ${totalGroups} course(s), ${totalMissing} missing assignments`);
 
         if (renderCallback) {
             renderCallback(updatedStudents);
@@ -1004,13 +1117,12 @@ export async function processStep3(students, renderCallback) {
         return updatedStudents;
 
     } catch (error) {
-        // Handle Canvas auth shutdown gracefully
         if (error instanceof CanvasAuthShutdownError) {
             console.log('[Step 3] Stopped by user due to Canvas auth error');
             updateStepIcon(step3, 'error');
             step3.style.color = '#ef4444';
             timeSpan.textContent = 'Stopped by user';
-            throw error; // Re-throw to stop the pipeline
+            throw error;
         }
 
         console.error("[Step 3 Error]", error);
