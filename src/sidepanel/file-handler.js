@@ -50,7 +50,6 @@ export async function sendMasterListToExcel(students, targetTabId = null) {
 
                 // Format LDA dates to MM-DD-YY format
                 if (col.field === 'lda') {
-                    console.log(`[LDA To Excel Debug] Student: ${student.name}, Retrieved LDA:`, value, 'student.lda:', student.lda);
                     if (value) {
                         const dateObj = parseDate(value);
                         if (dateObj) {
@@ -123,7 +122,6 @@ export async function sendMasterListWithMissingAssignmentsToExcel(students, targ
 
                 // Format LDA dates to MM-DD-YY format
                 if (col.field === 'lda') {
-                    console.log(`[LDA To Excel Debug] Student: ${student.name}, Retrieved LDA:`, value, 'student.lda:', student.lda);
                     if (value) {
                         const dateObj = parseDate(value);
                         if (dateObj) {
@@ -273,35 +271,48 @@ function cleanPhoneNumber(value) {
 }
 
 /**
+ * Pre-computed normalized alias lookup.
+ * Maps each normalized alias string to the canonical field name,
+ * so alias resolution is O(1) instead of O(aliases) per header.
+ */
+const _normalizedAliasToField = {};
+const _normalizedFieldNames = {};
+for (const [field, aliases] of Object.entries(FIELD_ALIASES)) {
+    const normalizedField = normalizeFieldName(field);
+    _normalizedFieldNames[field] = normalizedField;
+    // Map the field's own normalized form
+    _normalizedAliasToField[normalizedField] = field;
+    for (const alias of aliases) {
+        _normalizedAliasToField[normalizeFieldName(alias)] = field;
+    }
+}
+// Also pre-compute normalized names for MASTER_LIST_COLUMNS fields without aliases
+for (const col of MASTER_LIST_COLUMNS) {
+    if (!_normalizedFieldNames[col.field]) {
+        _normalizedFieldNames[col.field] = normalizeFieldName(col.field);
+    }
+}
+
+/**
  * Finds the column index for a field using normalized matching and aliases.
- * Matches fields case-insensitively and ignoring spaces/special characters.
+ * Uses pre-computed alias lookup for O(1) matching per header.
  *
- * @param {Array} headers - Array of header names from the file
+ * @param {Array} normalizedHeaders - Array of pre-normalized header strings
+ * @param {Array} rawHeaders - Array of original header names (same length)
  * @param {String} fieldName - The internal field name to match
  * @returns {Number} The column index, or -1 if not found
  */
-function findColumnIndex(headers, fieldName) {
-    // Normalize the target field name
-    const normalizedFieldName = normalizeFieldName(fieldName);
+function findColumnIndex(normalizedHeaders, rawHeaders, fieldName) {
+    const normalizedFieldName = _normalizedFieldNames[fieldName] || normalizeFieldName(fieldName);
 
-    // Get aliases for this field (if any)
-    const aliases = FIELD_ALIASES[fieldName] || [];
-
-    // Normalize all aliases
-    const normalizedAliases = aliases.map(alias => normalizeFieldName(alias));
-
-    // Find the header that matches either the field name or one of its aliases
-    return headers.findIndex(header => {
-        const normalizedHeader = normalizeFieldName(header);
-
-        // Check direct match
-        if (normalizedHeader === normalizedFieldName) {
-            return true;
-        }
-
-        // Check alias matches
-        return normalizedAliases.includes(normalizedHeader);
-    });
+    for (let i = 0; i < normalizedHeaders.length; i++) {
+        const nh = normalizedHeaders[i];
+        // Direct match against the target field name
+        if (nh === normalizedFieldName) return i;
+        // Alias match: check if this header is a known alias for the target field
+        if (_normalizedAliasToField[nh] === fieldName) return i;
+    }
+    return -1;
 }
 
 /**
@@ -347,18 +358,18 @@ export function parseFileWithSheetJS(data, isCSV, fileModifiedTime = null) {
         // Find header row
         let headerRowIndex = -1;
         let headers = [];
+        // Pre-compute what we're looking for: the 'name' field and its aliases
+        const nameNormalized = _normalizedFieldNames['name'] || normalizeFieldName('name');
 
         for (let i = 0; i < rows.length; i++) {
             const row = rows[i];
             if (!row || row.length === 0) continue;
 
-            // Check if this row contains a name field by trying to find a name column
+            // Check if this row contains a name field using pre-computed alias map
             const hasNameField = row.some(cell => {
                 if (!cell) return false;
                 const normalized = normalizeFieldName(cell);
-                const nameNormalized = normalizeFieldName('name');
-                const nameAliases = (FIELD_ALIASES.name || []).map(a => normalizeFieldName(a));
-                return normalized === nameNormalized || nameAliases.includes(normalized);
+                return normalized === nameNormalized || _normalizedAliasToField[normalized] === 'name';
             });
 
             if (hasNameField) {
@@ -372,16 +383,19 @@ export function parseFileWithSheetJS(data, isCSV, fileModifiedTime = null) {
             return { students: [], referenceDate: null };
         }
 
+        // Pre-normalize all headers once for efficient column matching
+        const normalizedHeaders = headers.map(h => h ? normalizeFieldName(h) : '');
+
         // Map column indices for all MASTER_LIST_COLUMNS using normalized field matching
         const columnMapping = {};
         MASTER_LIST_COLUMNS.forEach(col => {
-            const index = findColumnIndex(headers, col.field);
+            const index = findColumnIndex(normalizedHeaders, headers, col.field);
             if (index !== -1) {
                 columnMapping[col.field] = index;
             }
             // Also check fallback field if it exists
             if (col.fallback && index === -1) {
-                const fallbackIndex = findColumnIndex(headers, col.fallback);
+                const fallbackIndex = findColumnIndex(normalizedHeaders, headers, col.fallback);
                 if (fallbackIndex !== -1) {
                     columnMapping[col.field] = fallbackIndex;
                 }
@@ -441,11 +455,6 @@ export function parseFileWithSheetJS(data, isCSV, fileModifiedTime = null) {
                         value = cleanPhoneNumber(value);
                     }
 
-                    // Debug logging for LDA
-                    if (col.field === 'lda') {
-                        console.log(`[LDA Import Debug] Student: ${studentName}, Raw LDA value:`, row[colIndex], 'Type:', typeof row[colIndex], 'Converted value:', value);
-                    }
-
                     // Use the field name from MASTER_LIST_COLUMNS definition
                     entry[col.field] = value !== null && value !== undefined ? value : null;
                 }
@@ -453,8 +462,8 @@ export function parseFileWithSheetJS(data, isCSV, fileModifiedTime = null) {
 
             // Ensure critical fields are present with proper types
             entry.name = String(studentName);
-            if (entry.phone) entry.phone = cleanPhoneNumber(String(entry.phone));
-            if (entry.otherPhone) entry.otherPhone = cleanPhoneNumber(String(entry.otherPhone));
+            if (entry.phone) entry.phone = String(entry.phone);
+            if (entry.otherPhone) entry.otherPhone = String(entry.otherPhone);
             if (entry.grade) entry.grade = String(entry.grade);
             if (entry.StudentNumber) entry.StudentNumber = String(entry.StudentNumber);
             if (entry.SyStudentId) entry.SyStudentId = String(entry.SyStudentId);
@@ -466,17 +475,11 @@ export function parseFileWithSheetJS(data, isCSV, fileModifiedTime = null) {
 
             // Calculate daysOut based on LDA if available, otherwise use imported value
             const ldaValue = entry.lda;
-            console.log(`[LDA Storage Debug] Student: ${studentName}, entry.lda:`, entry.lda, 'Type:', typeof entry.lda, 'entry.daysOut before calc:', entry.daysOut);
             if (ldaValue && referenceDate) {
-                const calculatedDays = calculateDaysSinceLastAttendance(ldaValue, referenceDate);
-                console.log(`[Days Out Calculation] Student: ${studentName}, LDA: ${ldaValue}, Reference Date: ${referenceDate.toISOString()}, Calculated Days: ${calculatedDays}`);
-                entry.daysOut = calculatedDays;
+                entry.daysOut = calculateDaysSinceLastAttendance(ldaValue, referenceDate);
             } else {
-                // Fall back to imported daysOut value if LDA is not available
-                console.log(`[Days Out Fallback] Student: ${studentName}, No LDA or Reference Date. LDA:`, ldaValue, 'Ref Date:', referenceDate);
                 entry.daysOut = parseInt(entry.daysOut) || 0;
             }
-            console.log(`[LDA Storage Debug] Student: ${studentName}, FINAL entry.daysOut:`, entry.daysOut);
 
             // Initialize fields required by the extension
             entry.missingCount = 0;
@@ -707,7 +710,7 @@ function getNestedValue(obj, path) {
 
 /**
  * Finds a field value in an object using normalized matching and aliases.
- * Matches fields case-insensitively and ignoring spaces/special characters.
+ * Uses pre-computed alias map for O(1) lookups instead of re-normalizing aliases each call.
  *
  * @param {Object} obj - The object to search in
  * @param {String} fieldName - The internal field name
@@ -717,31 +720,19 @@ function getNestedValue(obj, path) {
 function getFieldWithAlias(obj, fieldName, defaultValue = null) {
     if (!obj || !fieldName) return defaultValue;
 
-    // First try direct access (for exact matches)
+    // Fast path: direct property access (covers most cases after parsing)
     if (fieldName in obj) {
         const value = obj[fieldName];
         return value !== null && value !== undefined ? value : defaultValue;
     }
 
-    // Normalize the target field name
-    const normalizedFieldName = normalizeFieldName(fieldName);
+    // Slow path: normalized matching using pre-computed alias map
+    const normalizedFieldName = _normalizedFieldNames[fieldName] || normalizeFieldName(fieldName);
 
-    // Get aliases for this field
-    const aliases = FIELD_ALIASES[fieldName] || [];
-    const normalizedAliases = aliases.map(alias => normalizeFieldName(alias));
-
-    // Search through object keys
     for (const key in obj) {
         const normalizedKey = normalizeFieldName(key);
-
-        // Check direct match
-        if (normalizedKey === normalizedFieldName) {
-            const value = obj[key];
-            return value !== null && value !== undefined ? value : defaultValue;
-        }
-
-        // Check alias matches
-        if (normalizedAliases.includes(normalizedKey)) {
+        // Check direct normalized match or alias match
+        if (normalizedKey === normalizedFieldName || _normalizedAliasToField[normalizedKey] === fieldName) {
             const value = obj[key];
             return value !== null && value !== undefined ? value : defaultValue;
         }
@@ -884,7 +875,6 @@ export async function exportMasterListCSV() {
                 } else if (col.field === 'daysOut') {
                     value = parseInt(value || 0);
                 } else if (col.field === 'lda') {
-                    console.log(`[LDA Export Debug] Student: ${student.name}, Retrieved LDA:`, value, 'student.lda:', student.lda);
                     if (value) {
                         // Format LDA dates to MM-DD-YY format
                         const dateObj = parseDate(value);
