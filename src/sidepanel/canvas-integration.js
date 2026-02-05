@@ -1,6 +1,6 @@
 // Canvas Integration - Handles all Canvas API calls for student data and assignments
 import { STORAGE_KEYS, CANVAS_DOMAIN, GENERIC_AVATAR_URL, normalizeCanvasUrl } from '../constants/index.js';
-import { getCachedData, setCachedData, hasCachedData, getCache } from '../utils/canvasCache.js';
+import { getCachedData, setCachedData, hasCachedData, getCache, stageCacheData, flushPendingCacheWrites } from '../utils/canvasCache.js';
 import { openCanvasAuthErrorModal, isCanvasAuthError, isCanvasAuthErrorBody } from './modals/canvas-auth-modal.js';
 import { storageGet } from '../utils/storage.js';
 import { updateStepIcon } from '../utils/ui-helpers.js';
@@ -224,8 +224,10 @@ function preloadImage(url) {
  * Fetches Canvas details for a student (user data and courses)
  * @param {Object} student - The student object
  * @param {boolean} cacheEnabled - Whether to use caching (default: true)
+ * @param {boolean} useNonApiFetch - Whether to use HTML scraping instead of API (pre-loaded from settings)
+ * @param {Date} courseReferenceDate - Pre-computed reference date for course selection (avoids per-student storage reads)
  */
-export async function fetchCanvasDetails(student, cacheEnabled = true) {
+export async function fetchCanvasDetails(student, cacheEnabled = true, useNonApiFetch = false, courseReferenceDate = null) {
     // Check if shutdown was requested before processing
     checkShutdown();
 
@@ -234,12 +236,6 @@ export async function fetchCanvasDetails(student, cacheEnabled = true) {
     try {
         // Ensure SyStudentId is a string for consistent cache key lookup
         const syStudentId = String(student.SyStudentId);
-        console.log(`[fetchCanvasDetails] Processing student: ${student.name}, SyStudentId: ${syStudentId}`);
-
-        // Check if non-API course fetch is enabled FIRST
-        // Use storageGet to properly handle nested storage paths
-        const nonApiSettings = await storageGet([STORAGE_KEYS.NON_API_COURSE_FETCH]);
-        const useNonApiFetch = nonApiSettings[STORAGE_KEYS.NON_API_COURSE_FETCH] || false;
 
         // Only check cache if caching is enabled AND non-API fetch is disabled
         // When non-API fetch is enabled, we always fetch fresh course data from HTML
@@ -249,11 +245,9 @@ export async function fetchCanvasDetails(student, cacheEnabled = true) {
         let courses;
 
         if (cachedData) {
-            console.log(`✓ Cache hit for ${student.name || student.SyStudentId}`);
             userData = cachedData.userData;
             courses = cachedData.courses;
         } else {
-            console.log(`→ Fetching fresh data for ${student.name || student.SyStudentId}`);
 
             const userUrl = `${CANVAS_DOMAIN}/api/v1/users/sis_user_id:${student.SyStudentId}`;
             const userResp = await fetch(userUrl, { headers: { 'Accept': 'application/json' } });
@@ -304,9 +298,9 @@ export async function fetchCanvasDetails(student, cacheEnabled = true) {
                     }
                 }
 
-                // Only save to cache if caching is enabled
+                // Stage for batched cache write (flushed after each batch in processStep2)
                 if (cacheEnabled) {
-                    await setCachedData(syStudentId, userData, courses);
+                    stageCacheData(syStudentId, userData, courses);
                 }
             }
         }
@@ -336,36 +330,12 @@ export async function fetchCanvasDetails(student, cacheEnabled = true) {
 
         // Process courses
         if (canvasUserId && courses && courses.length > 0) {
-            console.log(`Processing ${courses.length} course(s) for ${student.name || student.SyStudentId}`);
-
-            // Check if using specific date (Time Machine mode)
-            const settings = await chrome.storage.local.get([STORAGE_KEYS.USE_SPECIFIC_DATE, STORAGE_KEYS.SPECIFIC_SUBMISSION_DATE]);
-            const useSpecificDate = settings[STORAGE_KEYS.USE_SPECIFIC_DATE] || false;
-            const specificDateStr = settings[STORAGE_KEYS.SPECIFIC_SUBMISSION_DATE];
-
-            let now;
-            if (useSpecificDate && specificDateStr) {
-                // Parse the specific date (format: YYYY-MM-DD)
-                const [year, month, day] = specificDateStr.split('-').map(Number);
-                now = new Date(year, month - 1, day); // month is 0-indexed
-                console.log(`🕐 Time Machine mode: Using date ${specificDateStr} for course selection`);
-            } else {
-                now = new Date();
-            }
-
-            // Debug: Show all course names before filtering
-            console.log(`Courses before filtering:`, courses.map(c => c.name || '(no name)'));
+            // Use pre-computed reference date (avoids per-student chrome.storage reads)
+            const now = courseReferenceDate || new Date();
 
             const validCourses = courses.filter(c => c.name && !c.name.toUpperCase().includes('CAPV'));
 
-            console.log(`${validCourses.length} course(s) after CAPV filter`);
-            if (validCourses.length > 0) {
-                console.log(`Valid courses:`, validCourses.map(c => c.name));
-            }
-
-            let activeCourse = null;
-
-            activeCourse = validCourses.find(c => {
+            let activeCourse = validCourses.find(c => {
                 if (!c.start_at || !c.end_at) return false;
                 const start = new Date(c.start_at);
                 const end = new Date(c.end_at);
@@ -381,7 +351,6 @@ export async function fetchCanvasDetails(student, cacheEnabled = true) {
                     return dateB - dateA;
                 });
                 activeCourse = validCourses[0];
-                console.log(`No active course found for ${now.toLocaleDateString()}, using most recent: ${activeCourse.name}`);
             }
 
             if (activeCourse) {
@@ -428,13 +397,30 @@ export async function processStep2(students, renderCallback) {
     try {
         console.log(`[Step 2] Pinging Canvas API: ${CANVAS_DOMAIN}`);
 
-        // Check if cache is enabled
-        const settings = await chrome.storage.local.get([STORAGE_KEYS.CANVAS_CACHE_ENABLED]);
+        // Load all settings needed for Step 2 once (avoid per-student storageGet calls)
+        const [settings, nonApiSettings, timeMachineSettings] = await Promise.all([
+            chrome.storage.local.get([STORAGE_KEYS.CANVAS_CACHE_ENABLED]),
+            storageGet([STORAGE_KEYS.NON_API_COURSE_FETCH]),
+            chrome.storage.local.get([STORAGE_KEYS.USE_SPECIFIC_DATE, STORAGE_KEYS.SPECIFIC_SUBMISSION_DATE])
+        ]);
         const cacheEnabled = settings[STORAGE_KEYS.CANVAS_CACHE_ENABLED] !== undefined
             ? settings[STORAGE_KEYS.CANVAS_CACHE_ENABLED]
             : true;
+        const useNonApiFetch = nonApiSettings[STORAGE_KEYS.NON_API_COURSE_FETCH] || false;
 
-        console.log(`[Step 2] Cache enabled: ${cacheEnabled}`);
+        // Pre-compute course reference date for Time Machine mode (read once, used by all students)
+        let courseReferenceDate;
+        const useSpecificDate = timeMachineSettings[STORAGE_KEYS.USE_SPECIFIC_DATE] || false;
+        const specificDateStr = timeMachineSettings[STORAGE_KEYS.SPECIFIC_SUBMISSION_DATE];
+        if (useSpecificDate && specificDateStr) {
+            const [year, month, day] = specificDateStr.split('-').map(Number);
+            courseReferenceDate = new Date(year, month - 1, day);
+            console.log(`[Step 2] Time Machine mode: Using date ${specificDateStr}`);
+        } else {
+            courseReferenceDate = new Date();
+        }
+
+        console.log(`[Step 2] Cache enabled: ${cacheEnabled}, Non-API fetch: ${useNonApiFetch}`);
 
         // Separate students into cached and uncached groups
         const cachedStudents = [];
@@ -510,10 +496,8 @@ export async function processStep2(students, renderCallback) {
             const batch = cachedStudents.slice(i, i + BATCH_SIZE);
             const batchNumber = Math.floor(i / BATCH_SIZE) + 1;
 
-            console.log(`[Step 2] Cached batch ${batchNumber}/${totalCachedBatches} (students ${i + 1}-${Math.min(i + BATCH_SIZE, cachedStudents.length)})`);
-
             // Use Promise.allSettled to handle auth errors gracefully
-            const promises = batch.map(student => fetchCanvasDetails(student, cacheEnabled));
+            const promises = batch.map(student => fetchCanvasDetails(student, cacheEnabled, useNonApiFetch, courseReferenceDate));
             const settledResults = await Promise.allSettled(promises);
 
             // Check for shutdown errors
@@ -551,10 +535,8 @@ export async function processStep2(students, renderCallback) {
             const batch = uncachedStudents.slice(i, i + BATCH_SIZE);
             const batchNumber = Math.floor(i / BATCH_SIZE) + 1;
 
-            console.log(`[Step 2] Uncached batch ${batchNumber}/${totalUncachedBatches} (students ${i + 1}-${Math.min(i + BATCH_SIZE, uncachedStudents.length)})`);
-
             // Use Promise.allSettled to handle auth errors gracefully
-            const promises = batch.map(student => fetchCanvasDetails(student, cacheEnabled));
+            const promises = batch.map(student => fetchCanvasDetails(student, cacheEnabled, useNonApiFetch, courseReferenceDate));
             const settledResults = await Promise.allSettled(promises);
 
             // Check for shutdown errors
@@ -575,6 +557,9 @@ export async function processStep2(students, renderCallback) {
             // Progress starts at 15% (after cache check) and goes to 100%
             const processingProgress = 15 + Math.round((processedCount / students.length) * 85);
             timeSpan.textContent = `${processingProgress}%`;
+
+            // Flush staged cache writes for this batch (single storage round-trip)
+            await flushPendingCacheWrites();
 
             if (i + BATCH_SIZE < uncachedStudents.length) {
                 await new Promise(resolve => setTimeout(resolve, BATCH_DELAY_MS));
@@ -784,42 +769,19 @@ function findNextAssignment(submissions, courseId, origin, referenceDate = new D
     // Set time to start of day for comparison
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
-    console.log(`[findNextAssignment] Starting - Total submissions: ${submissions.length}, Reference date: ${now.toISOString()}, Today start: ${todayStart.toISOString()}`);
-
     // Filter and collect upcoming assignments that haven't been submitted
     const upcomingAssignments = [];
 
-    // Debug counters
-    let noAssignmentData = 0;
-    let noDueDate = 0;
-    let dueDatePast = 0;
-    let alreadySubmitted = 0;
-    let isCompleteCount = 0;
-
-    submissions.forEach((sub, index) => {
+    submissions.forEach((sub) => {
         // Skip if no assignment data
-        if (!sub.assignment) {
-            noAssignmentData++;
-            return;
-        }
+        if (!sub.assignment) return;
 
         const rawDueAt = sub.assignment.due_at;
         const dueDate = rawDueAt ? new Date(rawDueAt) : null;
 
-        // Log first few submissions for debugging
-        if (index < 5) {
-            console.log(`[findNextAssignment] Sub[${index}]: "${sub.assignment.name}" | due_at raw: ${rawDueAt} | parsed: ${dueDate ? dueDate.toISOString() : 'null'} | workflow: ${sub.workflow_state} | score: ${sub.score} | submitted_at: ${sub.submitted_at}`);
-        }
-
         // Skip assignments without a due date or with due dates before today
-        if (!dueDate) {
-            noDueDate++;
-            return;
-        }
-        if (dueDate < todayStart) {
-            dueDatePast++;
-            return;
-        }
+        if (!dueDate) return;
+        if (dueDate < todayStart) return;
 
         // Check if the assignment has already been submitted
         // A submission is considered "submitted" if:
@@ -838,14 +800,7 @@ function findNextAssignment(submissions, courseId, origin, referenceDate = new D
         const isComplete = scoreStr === 'complete';
 
         // Skip if already submitted or complete
-        if (isSubmitted) {
-            alreadySubmitted++;
-            return;
-        }
-        if (isComplete) {
-            isCompleteCount++;
-            return;
-        }
+        if (isSubmitted || isComplete) return;
 
         // Generate assignment URL
         const assignmentId = sub.assignment.id;
@@ -859,8 +814,6 @@ function findNextAssignment(submissions, courseId, origin, referenceDate = new D
         const isTomorrow = dueDateStart.getTime() === tomorrow.getTime();
         const formattedDueDate = isToday ? 'Today' : isTomorrow ? 'Tomorrow' : dueDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 
-        console.log(`[findNextAssignment] ✓ Found upcoming: "${sub.assignment.name}" due ${formattedDueDate}`);
-
         upcomingAssignments.push({
             Assignment: sub.assignment.name || 'Unknown Assignment',
             DueDate: formattedDueDate,
@@ -869,13 +822,8 @@ function findNextAssignment(submissions, courseId, origin, referenceDate = new D
         });
     });
 
-    console.log(`[findNextAssignment] Filter results: noAssignmentData=${noAssignmentData}, noDueDate=${noDueDate}, dueDatePast=${dueDatePast}, alreadySubmitted=${alreadySubmitted}, isComplete=${isCompleteCount}, upcoming=${upcomingAssignments.length}`);
-
     // If no upcoming assignments found, return null
-    if (upcomingAssignments.length === 0) {
-        console.log(`[findNextAssignment] No upcoming assignments found - returning null`);
-        return null;
-    }
+    if (upcomingAssignments.length === 0) return null;
 
     // Sort by due date (nearest first)
     upcomingAssignments.sort((a, b) => a._dueDateObj - b._dueDateObj);
@@ -914,25 +862,21 @@ async function fetchMissingAssignments(student, referenceDate = new Date(), incl
 
     try {
         const submissionsUrl = `${origin}/api/v1/courses/${courseId}/students/submissions?student_ids[]=${studentId}&include[]=assignment&per_page=100`;
-        const submissions = await fetchPaged(submissionsUrl);
-
         const usersUrl = `${origin}/api/v1/courses/${courseId}/users?user_ids[]=${studentId}&include[]=enrollments&per_page=100`;
-        const users = await fetchPaged(usersUrl);
+
+        // Fetch submissions and user data in parallel (independent requests)
+        const [submissions, users] = await Promise.all([
+            fetchPaged(submissionsUrl),
+            fetchPaged(usersUrl)
+        ]);
         const userObject = users && users.length > 0 ? users[0] : null;
 
         const result = analyzeMissingAssignments(submissions, userObject, student.name, courseId, origin, referenceDate);
-
-        if (result.count > 0) {
-            console.log(`[Step 3] ${student.name}: Found ${result.count} missing assignment(s), Grade: ${result.currentGrade || 'N/A'}`);
-        }
 
         // Find next assignment if enabled
         let nextAssignment = null;
         if (includeNextAssignment) {
             nextAssignment = findNextAssignment(submissions, courseId, origin, referenceDate);
-            if (nextAssignment) {
-                console.log(`[Step 3] ${student.name}: Next assignment due: ${nextAssignment.Assignment} (${nextAssignment.DueDate})`);
-            }
         }
 
         return {
