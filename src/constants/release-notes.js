@@ -26,6 +26,10 @@ export const RELEASE_NOTES = {
         title: 'Latest Updates',
         date: 'February 4, 2026',
         updates: [
+            'Significantly faster Update Master List process with optimized Canvas API calls',
+            'Grade book checks now group students by course, reducing API calls by up to 97%',
+            'Parallel data fetching for submissions and enrollment data',
+            'Smarter caching with batched writes for faster repeat updates',
             'Refactored modal system for improved performance and maintainability',
             'Added automated testing infrastructure with 115 tests',
             'Improved code organization in the sidepanel'
