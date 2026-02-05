@@ -210,7 +210,12 @@ function logToDebug(level, message) {
         type: MESSAGE_TYPES.LOG_TO_PANEL,
         level: level,
         args: [message]
-    }).catch(() => {});
+    }).catch(err => {
+        // Ignore expected "sidepanel not open" errors
+        if (!err?.message?.includes('Receiving end does not exist')) {
+            console.error('[Looper] Failed to log to panel:', err?.message);
+        }
+    });
 }
 
 async function processBatchResult(result) {

@@ -8,6 +8,24 @@ import { decrypt } from '../utils/encryption.js';
 let logBuffer = [];
 const MAX_LOG_BUFFER_SIZE = 100;
 
+/**
+ * Safely sends a message to the sidepanel/runtime.
+ * Silently ignores "receiving end does not exist" errors (sidepanel closed).
+ * Logs unexpected errors for debugging.
+ * @param {Object} message - The message to send
+ * @param {string} context - Description for error logging (e.g., "log to panel")
+ */
+function safeSendMessage(message, context = 'message') {
+    chrome.runtime.sendMessage(message).catch(err => {
+        // Ignore expected error when sidepanel is not open
+        if (err?.message?.includes('Receiving end does not exist')) {
+            return;
+        }
+        // Log unexpected errors
+        originalConsole.error(`[Background] Failed to send ${context}:`, err?.message || err);
+    });
+}
+
 // --- State for collecting missing assignment results ---
 let missingAssignmentsCollector = [];
 let missingCheckStartTime = null;
@@ -32,12 +50,11 @@ const originalConsole = {
 };
 
 function sendLogToPanel(level, args) {
-    // Send to sidepanel
-    chrome.runtime.sendMessage({
+    safeSendMessage({
         type: MESSAGE_TYPES.LOG_TO_PANEL,
         level: level,
         args: args
-    }).catch(() => {}); // Ignore errors if sidepanel is not open
+    }, 'log to panel');
 }
 
 console.log = function(...args) {
@@ -73,7 +90,7 @@ async function onSubmissionFound(entry) {
 
     const logPayload = { type: 'SUBMISSION', ...entry };
     addToLogBuffer('log', logPayload);
-    chrome.runtime.sendMessage({ type: MESSAGE_TYPES.LOG_TO_PANEL, level: 'log', payload: logPayload }).catch(() => {});
+    safeSendMessage({ type: MESSAGE_TYPES.LOG_TO_PANEL, level: 'log', payload: logPayload }, 'submission log');
 }
 
 /**
@@ -168,11 +185,11 @@ function onMissingFound(payload) {
           ? `Missing Found: ${payload.studentName} (${payload.count})`
           : `Clean: ${payload.studentName}`;
           
-    chrome.runtime.sendMessage({
-          type: MESSAGE_TYPES.LOG_TO_PANEL,
-          level: payload.count > 0 ? 'warn' : 'log',
-          args: [ logMessage ]
-    }).catch(() => {});
+    safeSendMessage({
+        type: MESSAGE_TYPES.LOG_TO_PANEL,
+        level: payload.count > 0 ? 'warn' : 'log',
+        args: [ logMessage ]
+    }, 'missing assignment log');
 }
 
 async function onMissingCheckCompleted() {
@@ -243,11 +260,11 @@ async function onMissingCheckCompleted() {
         
         await sendConnectionPings(finalPayload);
 
-        chrome.runtime.sendMessage({
+        safeSendMessage({
             type: MESSAGE_TYPES.LOG_TO_PANEL,
             level: 'warn',
             args: [ `Final Missing Assignments Report (API Mode)`, finalPayload ]
-        }).catch(() => {});
+        }, 'missing report');
         
         addToLogBuffer('warn', finalPayload);
         
@@ -263,21 +280,21 @@ async function onMissingCheckCompleted() {
         };
         addToLogBuffer('log', finalPayload);
         
-        chrome.runtime.sendMessage({
+        safeSendMessage({
             type: MESSAGE_TYPES.LOG_TO_PANEL,
             level: 'log',
             args: [ successMessage ]
-        }).catch(() => {});
+        }, 'success message');
     }
     
     await chrome.storage.local.set({ [STORAGE_KEYS.LATEST_MISSING_REPORT]: finalPayload });
     
     missingCheckStartTime = null;
 
-    chrome.runtime.sendMessage({
+    safeSendMessage({
         type: MESSAGE_TYPES.SHOW_MISSING_ASSIGNMENTS_REPORT,
         payload: finalPayload
-    }).catch(() => {});
+    }, 'missing assignments report');
     
     await sessionSet({ [STORAGE_KEYS.EXTENSION_STATE]: EXTENSION_STATES.OFF });
 }
@@ -344,10 +361,10 @@ chrome.webRequest.onCompleted.addListener(
       });
 
       // Notify sidepanel of state change
-      chrome.runtime.sendMessage({
+      safeSendMessage({
         type: 'FIVE9_CONNECTION_STATE_CHANGED',
         state: FIVE9_CONNECTION_STATES.ACTIVE_CONNECTION
-      }).catch(() => {}); // Ignore if sidepanel not open
+      }, 'Five9 connection state');
     }
   },
   { urls: ["https://*.five9.net/*"] }
@@ -356,7 +373,7 @@ chrome.webRequest.onCompleted.addListener(
 chrome.runtime.onMessage.addListener(async (msg, sender, sendResponse) => {
   if (msg.type === MESSAGE_TYPES.REQUEST_STORED_LOGS) {
       if (logBuffer.length > 0) {
-          chrome.runtime.sendMessage({ type: MESSAGE_TYPES.STORED_LOGS, payload: logBuffer }).catch(() => {});
+          safeSendMessage({ type: MESSAGE_TYPES.STORED_LOGS, payload: logBuffer }, 'stored logs');
           logBuffer = [];
       }
   } else if (msg.type === MESSAGE_TYPES.TEST_CONNECTION_PA) {
@@ -395,11 +412,11 @@ chrome.runtime.onMessage.addListener(async (msg, sender, sendResponse) => {
       console.log(`   Timestamp: ${msg.timestamp}`);
 
       // Log to panel
-      chrome.runtime.sendMessage({
+      safeSendMessage({
           type: MESSAGE_TYPES.LOG_TO_PANEL,
           level: 'log',
           args: [`Excel Add-in manifest auto-sideloaded successfully`]
-      }).catch(() => {});
+      }, 'manifest sideload log');
   }
 
   // --- MASTER LIST UPDATE HANDLERS ---
@@ -409,11 +426,11 @@ chrome.runtime.onMessage.addListener(async (msg, sender, sendResponse) => {
       console.log(`   Source Timestamp: ${msg.sourceTimestamp}`);
 
       // Log to panel
-      chrome.runtime.sendMessage({
+      safeSendMessage({
           type: MESSAGE_TYPES.LOG_TO_PANEL,
           level: 'log',
           args: [`Master List auto-updated: ${msg.studentCount} students`]
-      }).catch(() => {});
+      }, 'master list update log');
 
       // Update badge to reflect new data
       updateBadge();
@@ -422,11 +439,11 @@ chrome.runtime.onMessage.addListener(async (msg, sender, sendResponse) => {
       console.error(`%c [Background] Master List Update Error:`, "color: red; font-weight: bold", msg.error);
 
       // Log error to panel
-      chrome.runtime.sendMessage({
+      safeSendMessage({
           type: MESSAGE_TYPES.LOG_TO_PANEL,
           level: 'error',
           args: [`Master List update failed: ${msg.error}`]
-      }).catch(() => {});
+      }, 'master list error log');
   }
   else if (msg.type === MESSAGE_TYPES.SRK_SELECTED_STUDENTS) {
       const studentText = msg.count === 1
@@ -435,15 +452,13 @@ chrome.runtime.onMessage.addListener(async (msg, sender, sendResponse) => {
       console.log(`%c [Background] Selected Students Received:`, "color: purple; font-weight: bold", studentText);
 
       // Forward to sidepanel to set as active student or automation mode
-      chrome.runtime.sendMessage({
+      safeSendMessage({
           type: MESSAGE_TYPES.SRK_SELECTED_STUDENTS,
           students: msg.students,
           count: msg.count,
           timestamp: msg.timestamp,
           sourceTimestamp: msg.sourceTimestamp
-      }).catch(() => {
-          // Sidepanel might not be open, that's ok
-      });
+      }, 'selected students');
   }
 
   // --- IMPORT MASTER LIST TO EXCEL ---
@@ -815,7 +830,12 @@ async function sendConnectionPings(payload) {
 async function handlePaConnectionTest(connection) {
     const testPayload = { name: 'Test Submission', url: '#', grade: '100', timestamp: new Date().toISOString(), test: true };
     const result = await triggerPowerAutomate(connection, testPayload);
-    chrome.runtime.sendMessage({ type: MESSAGE_TYPES.CONNECTION_TEST_RESULT, connectionType: CONNECTION_TYPES.POWER_AUTOMATE, success: result.success, error: result.error || 'Check service worker console for details.' }).catch(() => {});
+    safeSendMessage({
+        type: MESSAGE_TYPES.CONNECTION_TEST_RESULT,
+        connectionType: CONNECTION_TYPES.POWER_AUTOMATE,
+        success: result.success,
+        error: result.error || 'Check service worker console for details.'
+    }, 'PA connection test result');
 }
 
 async function triggerPowerAutomate(connection, payload) {
@@ -956,10 +976,10 @@ chrome.tabs.onRemoved.addListener(async (tabId, removeInfo) => {
     });
 
     // Notify sidepanel of state change
-    chrome.runtime.sendMessage({
+    safeSendMessage({
       type: 'FIVE9_CONNECTION_STATE_CHANGED',
       state: FIVE9_CONNECTION_STATES.NO_TAB
-    }).catch(() => {}); // Ignore if sidepanel not open
+    }, 'Five9 tab closed state');
   }
 });
 
