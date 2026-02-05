@@ -1,13 +1,14 @@
 // [2025-12-10 11:30 AM]
 // Version: 18.2 - Organized Storage Structure
 import { STORAGE_KEYS, CHECKER_MODES, ADVANCED_FILTER_REGEX, DEFAULT_SETTINGS, EXTENSION_STATES, MESSAGE_TYPES, normalizeCanvasUrl } from '../constants/index.js';
+import { CONFIG } from '../constants/config.js';
 import { storageGet, storageSet } from '../utils/storage.js';
 
 let isLooping = false;
 let batchQueue = [];
 let foundUrlCache = new Set();
 let currentLoopIndex = 0;
-let maxConcurrentRequests = 5;
+let maxConcurrentRequests = CONFIG.LOOPER.MAX_CONCURRENT_REQUESTS;
 let currentCheckerMode = DEFAULT_SETTINGS[STORAGE_KEYS.CHECKER_MODE];
 let onCompleteCallback = null;
 let onFoundCallback = null;
@@ -22,8 +23,8 @@ let processedCount = 0;
 let isPausedForAuthError = false;
 let authErrorResolve = null;
 
-const BATCH_SIZE = 30;
-const REQUEST_TIMEOUT_MS = 30000; 
+const BATCH_SIZE = CONFIG.LOOPER.BATCH_SIZE;
+const REQUEST_TIMEOUT_MS = CONFIG.LOOPER.REQUEST_TIMEOUT_MS; 
 
 function parseIdsFromUrl(url) {
     try {
