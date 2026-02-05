@@ -1043,53 +1043,41 @@ export async function processStep3(students, renderCallback) {
 
         const courseGroupEntries = Array.from(courseGroups.entries());
         const totalGroups = courseGroupEntries.length;
-        const totalStudentsWithUrl = students.length - noUrlIndices.length;
 
         console.log(`[Step 3] ${students.length} students grouped into ${totalGroups} course(s) (${noUrlIndices.length} without URL)`);
 
-        // --- Process course groups in batches ---
-        // Each course group gets 2 API calls (submissions + users) regardless of student count.
-        // We process up to CONCURRENT_COURSES course groups in parallel.
-        const CONCURRENT_COURSES = 5;
-        const BATCH_DELAY_MS = 100;
+        // --- Process course groups using a worker pool ---
+        // Maintains a rolling window of MAX_CONCURRENT in-flight API request pairs.
+        // Each worker grabs the next course group as soon as it finishes, keeping
+        // the pipeline saturated regardless of how many courses exist.
+        // With 102 courses and MAX_CONCURRENT=10, there are always ~10 course fetches
+        // in flight simultaneously (same effective parallelism as the old per-student approach).
+        const MAX_CONCURRENT = 10;
         let processedStudents = noUrlIndices.length;
+        let courseIndex = 0;
 
-        for (let i = 0; i < courseGroupEntries.length; i += CONCURRENT_COURSES) {
-            checkShutdown();
+        async function processNextCourseGroup() {
+            while (courseIndex < courseGroupEntries.length) {
+                checkShutdown();
 
-            const courseSlice = courseGroupEntries.slice(i, i + CONCURRENT_COURSES);
-
-            // Fetch all course groups in this slice concurrently
-            const groupPromises = courseSlice.map(async ([groupKey, studentsInCourse]) => {
+                // Grab the next course group atomically
+                const idx = courseIndex++;
+                const [groupKey, studentsInCourse] = courseGroupEntries[idx];
                 const { origin, courseId } = studentsInCourse[0].parsed;
                 const studentIds = studentsInCourse.map(s => s.parsed.studentId);
 
                 try {
                     const data = await fetchCourseGroupData(origin, courseId, studentIds);
-                    return { studentsInCourse, data, error: null };
+                    const results = processCourseGroupResults(
+                        studentsInCourse, data, referenceDate, nextAssignmentEnabled
+                    );
+                    results.forEach((updatedStudent, i) => {
+                        updatedStudents[studentsInCourse[i].originalIndex] = updatedStudent;
+                    });
                 } catch (e) {
                     if (e instanceof CanvasAuthShutdownError) throw e;
                     console.error(`[Step 3] Course ${courseId} fetch error:`, e);
-                    return { studentsInCourse, data: null, error: e };
-                }
-            });
-
-            const settledResults = await Promise.allSettled(groupPromises);
-
-            // Check for shutdown
-            for (const result of settledResults) {
-                if (result.status === 'rejected' && result.reason instanceof CanvasAuthShutdownError) {
-                    throw result.reason;
-                }
-            }
-
-            // Process results from each course group
-            for (const result of settledResults) {
-                if (result.status !== 'fulfilled') continue;
-                const { studentsInCourse, data, error } = result.value;
-
-                if (error || !data) {
-                    // API failed for this course — zero out all students in the group
+                    // Zero out students in this failed course group
                     for (const { student, originalIndex } of studentsInCourse) {
                         updatedStudents[originalIndex] = {
                             ...student,
@@ -1098,24 +1086,17 @@ export async function processStep3(students, renderCallback) {
                             nextAssignment: null
                         };
                     }
-                } else {
-                    // Split combined response into per-student results
-                    const results = processCourseGroupResults(
-                        studentsInCourse, data, referenceDate, nextAssignmentEnabled
-                    );
-                    results.forEach((updatedStudent, idx) => {
-                        updatedStudents[studentsInCourse[idx].originalIndex] = updatedStudent;
-                    });
                 }
+
                 processedStudents += studentsInCourse.length;
-            }
-
-            timeSpan.textContent = `${Math.round((processedStudents / students.length) * 100)}%`;
-
-            if (i + CONCURRENT_COURSES < courseGroupEntries.length) {
-                await new Promise(resolve => setTimeout(resolve, BATCH_DELAY_MS));
+                timeSpan.textContent = `${Math.round((processedStudents / students.length) * 100)}%`;
             }
         }
+
+        // Launch worker pool — all workers share the same courseIndex counter
+        const workerCount = Math.min(MAX_CONCURRENT, courseGroupEntries.length);
+        const workers = Array.from({ length: workerCount }, () => processNextCourseGroup());
+        await Promise.all(workers);
 
         await chrome.storage.local.set({ [STORAGE_KEYS.MASTER_ENTRIES]: updatedStudents });
 
