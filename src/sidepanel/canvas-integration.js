@@ -1,15 +1,236 @@
 // Canvas Integration - Handles all Canvas API calls for student data and assignments
+//
+// File structure:
+//   1. Imports & Constants
+//   2. Auth & Shutdown State
+//   3. UI Helpers (step progress, formatting)
+//   4. Canvas API Layer (fetch, pagination, auth error handling)
+//   5. Data Analysis (missing assignments, next assignment, grade extraction)
+//   6. Step Orchestrators (processStep2, processStep3, processStep4)
+
 import { STORAGE_KEYS, CANVAS_DOMAIN, GENERIC_AVATAR_URL, normalizeCanvasUrl } from '../constants/index.js';
 import { getCachedData, setCachedData, hasCachedData, getCache, stageCacheData, flushPendingCacheWrites } from '../utils/canvasCache.js';
 import { openCanvasAuthErrorModal, isCanvasAuthError, isCanvasAuthErrorBody } from './modals/canvas-auth-modal.js';
 import { storageGet } from '../utils/storage.js';
 import { updateStepIcon } from '../utils/ui-helpers.js';
 
+
+// ============================================================================
+// 2. AUTH & SHUTDOWN STATE
+// ============================================================================
+
+let authErrorShownInSession = false;
+let shutdownRequested = false;
+
+/** Resets auth error state — call when starting a new pipeline run. */
+export function resetAuthErrorState() {
+    authErrorShownInSession = false;
+    shutdownRequested = false;
+}
+
+/** @returns {boolean} True if the user requested shutdown via the auth error modal. */
+export function isShutdownRequested() {
+    return shutdownRequested;
+}
+
+/** Custom error thrown when the user clicks "Shutdown" in the auth error modal. */
+export class CanvasAuthShutdownError extends Error {
+    constructor() {
+        super('Canvas authentication shutdown requested by user');
+        this.name = 'CanvasAuthShutdownError';
+    }
+}
+
+/** Throws CanvasAuthShutdownError if the user previously requested shutdown. */
+function checkShutdown() {
+    if (shutdownRequested) {
+        throw new CanvasAuthShutdownError();
+    }
+}
+
 /**
- * Fetches courses by scraping the Canvas user profile HTML page
- * This is a workaround for when the API endpoint is blocked
+ * Shows the auth error modal (once per session) and returns the user's choice.
+ * @param {string} context - What was being fetched when the error occurred (for logging).
+ * @returns {Promise<'continue'|'shutdown'>}
+ */
+async function handleCanvasAuthError(context) {
+    console.warn(`[Canvas] Authorization error during ${context}`);
+
+    if (shutdownRequested) return 'shutdown';
+    if (authErrorShownInSession) return 'continue';
+
+    authErrorShownInSession = true;
+    const choice = await openCanvasAuthErrorModal();
+    authErrorShownInSession = false;
+
+    if (choice === 'shutdown') {
+        shutdownRequested = true;
+    }
+    return choice;
+}
+
+
+// ============================================================================
+// 3. UI HELPERS
+// ============================================================================
+
+/**
+ * Formats a duration in seconds to a human-readable string.
+ * Shows minutes when >= 60s, otherwise seconds with one decimal.
+ */
+export function formatDuration(seconds) {
+    if (seconds >= 60) {
+        return `${(seconds / 60).toFixed(1)}m`;
+    }
+    return `${seconds.toFixed(1)}s`;
+}
+
+/** Updates the "Total Time" display at the bottom of the step queue. */
+export function updateTotalTime() {
+    const el = document.getElementById('queueTotalTime');
+    if (el && el.dataset.processStartTime) {
+        const totalSeconds = (Date.now() - parseInt(el.dataset.processStartTime)) / 1000;
+        el.textContent = `Total Time: ${formatDuration(totalSeconds)}`;
+        el.style.display = 'block';
+    }
+}
+
+/**
+ * Wraps a step's async work with consistent UI state management.
+ * Handles the active/spinner → completed/check or error/red transitions
+ * so each processStepN doesn't need to repeat the boilerplate.
+ *
+ * @param {string} stepId - DOM element ID (e.g. 'step2', 'step3')
+ * @param {function} work - Async function that receives { timeSpan, startTime } and returns a result
+ * @returns {Promise<*>} The result of work()
+ */
+async function withStepUI(stepId, work) {
+    const stepEl = document.getElementById(stepId);
+    const timeSpan = stepEl.querySelector('.step-time');
+
+    stepEl.className = 'queue-item active';
+    updateStepIcon(stepEl, 'spinner');
+
+    const startTime = Date.now();
+
+    try {
+        const result = await work({ timeSpan, startTime });
+
+        const durationSeconds = (Date.now() - startTime) / 1000;
+        stepEl.className = 'queue-item completed';
+        updateStepIcon(stepEl, 'check');
+        timeSpan.textContent = formatDuration(durationSeconds);
+        updateTotalTime();
+
+        return result;
+    } catch (error) {
+        if (error instanceof CanvasAuthShutdownError) {
+            console.log(`[${stepId}] Stopped by user due to Canvas auth error`);
+            updateStepIcon(stepEl, 'error');
+            stepEl.style.color = '#ef4444';
+            timeSpan.textContent = 'Stopped by user';
+            throw error;
+        }
+
+        console.error(`[${stepId} Error]`, error);
+        updateStepIcon(stepEl, 'error');
+        stepEl.style.color = '#ef4444';
+        timeSpan.textContent = 'Error';
+        throw error;
+    }
+}
+
+/** Preloads an image for faster rendering when the student list is displayed. */
+function preloadImage(url) {
+    if (!url) return;
+    const img = new Image();
+    img.src = url;
+}
+
+
+// ============================================================================
+// 4. CANVAS API LAYER
+// ============================================================================
+
+/**
+ * Parses a Canvas gradebook URL into its component parts.
+ * @param {string} url - e.g. "https://northbridge.instructure.com/courses/123/grades/456"
+ * @returns {{ origin: string, courseId: string, studentId: string } | null}
+ */
+function parseGradebookUrl(url) {
+    try {
+        const normalizedUrl = normalizeCanvasUrl(url);
+        const urlObj = new URL(normalizedUrl);
+        const match = urlObj.pathname.match(/courses\/(\d+)\/grades\/(\d+)/);
+        if (match) {
+            return { origin: urlObj.origin, courseId: match[1], studentId: match[2] };
+        }
+    } catch (e) {
+        console.warn('Invalid gradebook URL:', url);
+    }
+    return null;
+}
+
+/**
+ * Fetches paginated data from the Canvas API, following `rel="next"` Link headers.
+ * Accumulates all pages into a single array.
+ *
+ * @param {string} url - The initial API endpoint URL
+ * @param {Array} items - Accumulated items from previous pages (used in recursion)
+ * @returns {Promise<Array>} All items across all pages
+ */
+async function fetchPaged(url, items = []) {
+    checkShutdown();
+
+    const headers = {
+        'Accept': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest'
+    };
+
+    try {
+        const response = await fetch(url, { method: 'GET', credentials: 'include', headers });
+
+        if (isCanvasAuthError(response)) {
+            const choice = await handleCanvasAuthError('fetching paged data');
+            if (choice === 'shutdown') throw new CanvasAuthShutdownError();
+            return items;
+        }
+
+        if (!response.ok) {
+            if (items.length > 0) return items;
+            throw new Error(`HTTP ${response.status}`);
+        }
+
+        const newItems = await response.json();
+        const allItems = items.concat(newItems);
+
+        const nextUrl = getNextPageUrl(response.headers.get('Link'));
+        if (nextUrl) {
+            return fetchPaged(nextUrl, allItems);
+        }
+        return allItems;
+    } catch (e) {
+        if (e instanceof CanvasAuthShutdownError) throw e;
+        console.warn('Fetch error:', e);
+        return items;
+    }
+}
+
+/** Extracts the `rel="next"` URL from a Canvas Link header. */
+function getNextPageUrl(linkHeader) {
+    if (!linkHeader) return null;
+    const nextLink = linkHeader.split(',').find(link => link.includes('rel="next"'));
+    if (!nextLink) return null;
+    const match = nextLink.match(/<([^>]+)>/);
+    return match ? match[1] : null;
+}
+
+/**
+ * Fetches courses by scraping the Canvas user profile HTML page.
+ * This is a workaround for when the user lacks API permissions.
+ *
  * @param {number|string} canvasUserId - The Canvas user ID
- * @returns {Promise<Array>} Array of course objects with id, name, start_at, end_at, enrollments
+ * @returns {Promise<Array>} Array of course objects matching the API shape
  */
 async function fetchCoursesFromHtml(canvasUserId) {
     const profileUrl = `${CANVAS_DOMAIN}/users/${canvasUserId}`;
@@ -27,52 +248,34 @@ async function fetchCoursesFromHtml(canvasUserId) {
         }
 
         const html = await response.text();
-
-        // Parse the HTML to extract course information
         const parser = new DOMParser();
         const doc = parser.parseFromString(html, 'text/html');
 
-        // Find the courses list
         const coursesList = doc.querySelector('#courses_list ul.context_list');
         if (!coursesList) {
             console.warn('[Non-API] Could not find courses list in HTML');
             return [];
         }
 
-        const courseItems = coursesList.querySelectorAll('li');
         const courses = [];
-
-        courseItems.forEach(li => {
+        coursesList.querySelectorAll('li').forEach(li => {
             const link = li.querySelector('a');
             if (!link) return;
 
             const href = link.getAttribute('href');
-            // Extract course ID and user ID from href like "/courses/108968/users/178163"
             const match = href.match(/\/courses\/(\d+)\/users\/(\d+)/);
             if (!match) return;
 
             const courseId = parseInt(match[1], 10);
-
-            // Get course name from the title attribute of the name span
             const nameSpan = link.querySelector('span.name');
             const courseName = nameSpan ? (nameSpan.getAttribute('title') || nameSpan.textContent.trim()) : '';
 
-            // Get subtitles - first one has the term/date, second has enrollment status
             const subtitles = link.querySelectorAll('span.subtitle');
-            let termInfo = '';
-            let enrollmentStatus = '';
+            const termInfo = subtitles.length >= 1 ? subtitles[0].textContent.trim() : '';
+            const enrollmentStatus = subtitles.length >= 2 ? subtitles[1].textContent.trim() : '';
 
-            if (subtitles.length >= 1) {
-                termInfo = subtitles[0].textContent.trim();
-            }
-            if (subtitles.length >= 2) {
-                enrollmentStatus = subtitles[1].textContent.trim();
-            }
-
-            // Determine if course is active based on li class or enrollment status
             const isActive = li.classList.contains('active') || enrollmentStatus.toLowerCase().includes('active');
             const isCompleted = li.classList.contains('inactive') || enrollmentStatus.toLowerCase().includes('completed');
-            const isPending = li.classList.contains('accepted') || enrollmentStatus.toLowerCase().includes('pending');
 
             // Extract start date from term info like "FTC 2026 01C January (1/12/2026)"
             let startDate = null;
@@ -83,13 +286,11 @@ async function fetchCoursesFromHtml(canvasUserId) {
                 const day = parseInt(dateMatch[2], 10);
                 const year = parseInt(dateMatch[3], 10);
                 startDate = new Date(year, month - 1, day);
-                // Estimate end date as ~5 weeks after start (typical course length)
                 endDate = new Date(startDate);
-                endDate.setDate(endDate.getDate() + 35);
+                endDate.setDate(endDate.getDate() + 35); // ~5 week course estimate
             }
 
-            // Build a course object similar to what the API returns
-            const course = {
+            courses.push({
                 id: courseId,
                 name: courseName,
                 start_at: startDate ? startDate.toISOString() : null,
@@ -98,824 +299,40 @@ async function fetchCoursesFromHtml(canvasUserId) {
                 enrollments: [{
                     type: 'StudentEnrollment',
                     enrollment_state: isActive ? 'active' : (isCompleted ? 'completed' : 'invited'),
-                    grades: {} // Grades not available from HTML scraping
+                    grades: {}
                 }]
-            };
-
-            courses.push(course);
-            console.log(`[Non-API] Found course: ${courseName} (ID: ${courseId}, Active: ${isActive})`);
+            });
         });
 
         console.log(`[Non-API] Extracted ${courses.length} course(s) from HTML`);
         return courses;
-
     } catch (error) {
         console.error('[Non-API] Error fetching courses from HTML:', error);
         return [];
     }
 }
 
-// Track if we've already shown the auth error modal in this session
-let authErrorShownInSession = false;
-// Track if shutdown was requested - persists until process fully stops
-let shutdownRequested = false;
-
-/**
- * Resets the auth error state - call this when starting a new process
- */
-export function resetAuthErrorState() {
-    authErrorShownInSession = false;
-    shutdownRequested = false;
-}
-
-/**
- * Checks if shutdown was requested
- * @returns {boolean} True if shutdown was requested
- */
-export function isShutdownRequested() {
-    return shutdownRequested;
-}
-
-/**
- * Custom error class for Canvas auth shutdown
- */
-export class CanvasAuthShutdownError extends Error {
-    constructor() {
-        super('Canvas authentication shutdown requested by user');
-        this.name = 'CanvasAuthShutdownError';
-    }
-}
-
-/**
- * Throws CanvasAuthShutdownError if shutdown was requested
- * Call this at the start of operations to abort early
- */
-function checkShutdown() {
-    if (shutdownRequested) {
-        throw new CanvasAuthShutdownError();
-    }
-}
-
-/**
- * Handles Canvas API authorization errors by showing a modal and returning user choice
- * @param {string} context - Context description for logging
- * @returns {Promise<'continue'|'shutdown'>} The user's choice
- */
-async function handleCanvasAuthError(context) {
-    console.warn(`[Canvas Integration] Authorization error during ${context}`);
-
-    // If shutdown was already requested, don't show modal again
-    if (shutdownRequested) {
-        return 'shutdown';
-    }
-
-    // Prevent multiple modals from stacking
-    if (authErrorShownInSession) {
-        return 'continue';
-    }
-
-    authErrorShownInSession = true;
-    const choice = await openCanvasAuthErrorModal();
-    authErrorShownInSession = false;
-
-    // If shutdown selected, set the persistent flag
-    if (choice === 'shutdown') {
-        shutdownRequested = true;
-    }
-
-    return choice;
-}
-
-/**
- * Formats duration - shows minutes when >= 60 seconds
- * @param {number} seconds - Duration in seconds
- * @returns {string} Formatted duration string
- */
-export function formatDuration(seconds) {
-    if (seconds >= 60) {
-        const mins = (seconds / 60).toFixed(1);
-        return `${mins}m`;
-    }
-    return `${seconds.toFixed(1)}s`;
-}
-
-/**
- * Updates the total time display with current elapsed time
- */
-export function updateTotalTime() {
-    const queueTotalTimeDiv = document.getElementById('queueTotalTime');
-    if (queueTotalTimeDiv && queueTotalTimeDiv.dataset.processStartTime) {
-        const totalSeconds = (Date.now() - parseInt(queueTotalTimeDiv.dataset.processStartTime)) / 1000;
-        queueTotalTimeDiv.textContent = `Total Time: ${formatDuration(totalSeconds)}`;
-        queueTotalTimeDiv.style.display = 'block';
-    }
-}
-
-/**
- * Preload image for faster rendering
- */
-function preloadImage(url) {
-    if (!url) return;
-    const img = new Image();
-    img.src = url;
-}
-
-/**
- * Fetches Canvas details for a student (user data and courses)
- * @param {Object} student - The student object
- * @param {boolean} cacheEnabled - Whether to use caching (default: true)
- * @param {boolean} useNonApiFetch - Whether to use HTML scraping instead of API (pre-loaded from settings)
- * @param {Date} courseReferenceDate - Pre-computed reference date for course selection (avoids per-student storage reads)
- */
-export async function fetchCanvasDetails(student, cacheEnabled = true, useNonApiFetch = false, courseReferenceDate = null) {
-    // Check if shutdown was requested before processing
-    checkShutdown();
-
-    if (!student.SyStudentId) return student;
-
-    try {
-        // Ensure SyStudentId is a string for consistent cache key lookup
-        const syStudentId = String(student.SyStudentId);
-
-        // Only check cache if caching is enabled AND non-API fetch is disabled
-        // When non-API fetch is enabled, we always fetch fresh course data from HTML
-        const cachedData = (cacheEnabled && !useNonApiFetch) ? await getCachedData(syStudentId) : null;
-
-        let userData;
-        let courses;
-
-        if (cachedData) {
-            userData = cachedData.userData;
-            courses = cachedData.courses;
-        } else {
-
-            const userUrl = `${CANVAS_DOMAIN}/api/v1/users/sis_user_id:${student.SyStudentId}`;
-            const userResp = await fetch(userUrl, { headers: { 'Accept': 'application/json' } });
-
-            // Check for Canvas authorization errors
-            if (isCanvasAuthError(userResp)) {
-                const choice = await handleCanvasAuthError('fetching user data');
-                if (choice === 'shutdown') {
-                    throw new CanvasAuthShutdownError();
-                }
-                // Continue with next student
-                return student;
-            }
-
-            if (!userResp.ok) {
-                console.warn(`✗ Failed to fetch user data for ${student.SyStudentId}: ${userResp.status} ${userResp.statusText}`);
-                return student;
-            }
-            userData = await userResp.json();
-
-            const canvasUserId = userData.id;
-
-            if (canvasUserId) {
-                if (useNonApiFetch) {
-                    // Use HTML scraping method instead of API
-                    console.log(`[fetchCanvasDetails] Using non-API course fetch for ${student.name || student.SyStudentId}`);
-                    courses = await fetchCoursesFromHtml(canvasUserId);
-                } else {
-                    // Fetch ALL courses (not just active) to support Time Machine mode
-                    // enrollment_state can be: active, invited_or_pending, completed
-                    const coursesUrl = `${CANVAS_DOMAIN}/api/v1/users/${canvasUserId}/courses?include[]=enrollments&per_page=100`;
-                    const coursesResp = await fetch(coursesUrl, { headers: { 'Accept': 'application/json' } });
-
-                    // Check for Canvas authorization errors
-                    if (isCanvasAuthError(coursesResp)) {
-                        const choice = await handleCanvasAuthError('fetching courses');
-                        if (choice === 'shutdown') {
-                            throw new CanvasAuthShutdownError();
-                        }
-                        // Continue with what we have
-                        courses = [];
-                    } else if (coursesResp.ok) {
-                        courses = await coursesResp.json();
-                        console.log(`✓ Fetched ${courses.length} course(s) for ${student.name || student.SyStudentId}`);
-                    } else {
-                        console.warn(`✗ Failed to fetch courses for ${student.SyStudentId}: ${coursesResp.status} ${coursesResp.statusText}`);
-                        courses = [];
-                    }
-                }
-
-                // Stage for batched cache write (flushed after each batch in processStep2)
-                if (cacheEnabled) {
-                    stageCacheData(syStudentId, userData, courses);
-                }
-            }
-        }
-
-        // Process userData
-        if (userData.name) student.name = userData.name;
-        if (userData.sortable_name) student.sortable_name = userData.sortable_name;
-
-        if (userData.avatar_url && userData.avatar_url !== GENERIC_AVATAR_URL) {
-            student.Photo = userData.avatar_url;
-            preloadImage(userData.avatar_url);
-        }
-
-        if (userData.created_at) {
-            student.created_at = userData.created_at;
-            const createdDate = new Date(userData.created_at);
-            const today = new Date();
-            const timeDiff = today - createdDate;
-            const daysDiff = timeDiff / (1000 * 3600 * 24);
-
-            if (daysDiff < 60) {
-                student.isNew = true;
-            }
-        }
-
-        const canvasUserId = userData.id;
-
-        // Process courses
-        if (canvasUserId && courses && courses.length > 0) {
-            // Use pre-computed reference date (avoids per-student chrome.storage reads)
-            const now = courseReferenceDate || new Date();
-
-            const validCourses = courses.filter(c => c.name && !c.name.toUpperCase().includes('CAPV'));
-
-            let activeCourse = validCourses.find(c => {
-                if (!c.start_at || !c.end_at) return false;
-                const start = new Date(c.start_at);
-                const end = new Date(c.end_at);
-                return now >= start && now <= end;
-            });
-
-            // If no course is active on the reference date, pick the most recent course
-            // This ensures we always have a course-based URL for Step 3
-            if (!activeCourse && validCourses.length > 0) {
-                validCourses.sort((a, b) => {
-                    const dateA = a.start_at ? new Date(a.start_at) : new Date(0);
-                    const dateB = b.start_at ? new Date(b.start_at) : new Date(0);
-                    return dateB - dateA;
-                });
-                activeCourse = validCourses[0];
-            }
-
-            if (activeCourse) {
-                student.url = `${CANVAS_DOMAIN}/courses/${activeCourse.id}/grades/${canvasUserId}`;
-
-                if (activeCourse.enrollments && activeCourse.enrollments.length > 0) {
-                    const enrollment = activeCourse.enrollments.find(e => e.type === 'StudentEnrollment') || activeCourse.enrollments[0];
-                    if (enrollment && enrollment.grades && enrollment.grades.current_score) {
-                        student.grade = enrollment.grades.current_score + '%';
-                    }
-                }
-            } else {
-                // This should rarely happen - only if student has no courses at all
-                console.warn(`${student.name}: No courses found, Step 3 will be skipped`);
-                student.url = null;
-            }
-        }
-
-        return student;
-
-    } catch (e) {
-        console.error(`✗ Error fetching Canvas details for ${student.SyStudentId}:`, e);
-        return student;
-    }
-}
-
-/**
- * Process Step 2: Fetch Canvas IDs, courses, and photos for all students
- * Optimized to process cached students first for faster initial progress
- * Uses reverse cache lookup: iterates through cache entries and matches to master list
- */
-export async function processStep2(students, renderCallback) {
-    // Reset auth error state at the start of a new process
-    resetAuthErrorState();
-
-    const step2 = document.getElementById('step2');
-    const timeSpan = step2.querySelector('.step-time');
-
-    step2.className = 'queue-item active';
-    updateStepIcon(step2, 'spinner');
-
-    const startTime = Date.now();
-
-    try {
-        console.log(`[Step 2] Pinging Canvas API: ${CANVAS_DOMAIN}`);
-
-        // Load all settings needed for Step 2 once (avoid per-student storageGet calls)
-        const [settings, nonApiSettings, timeMachineSettings] = await Promise.all([
-            chrome.storage.local.get([STORAGE_KEYS.CANVAS_CACHE_ENABLED]),
-            storageGet([STORAGE_KEYS.NON_API_COURSE_FETCH]),
-            chrome.storage.local.get([STORAGE_KEYS.USE_SPECIFIC_DATE, STORAGE_KEYS.SPECIFIC_SUBMISSION_DATE])
-        ]);
-        const cacheEnabled = settings[STORAGE_KEYS.CANVAS_CACHE_ENABLED] !== undefined
-            ? settings[STORAGE_KEYS.CANVAS_CACHE_ENABLED]
-            : true;
-        const useNonApiFetch = nonApiSettings[STORAGE_KEYS.NON_API_COURSE_FETCH] || false;
-
-        // Pre-compute course reference date for Time Machine mode (read once, used by all students)
-        let courseReferenceDate;
-        const useSpecificDate = timeMachineSettings[STORAGE_KEYS.USE_SPECIFIC_DATE] || false;
-        const specificDateStr = timeMachineSettings[STORAGE_KEYS.SPECIFIC_SUBMISSION_DATE];
-        if (useSpecificDate && specificDateStr) {
-            const [year, month, day] = specificDateStr.split('-').map(Number);
-            courseReferenceDate = new Date(year, month - 1, day);
-            console.log(`[Step 2] Time Machine mode: Using date ${specificDateStr}`);
-        } else {
-            courseReferenceDate = new Date();
-        }
-
-        console.log(`[Step 2] Cache enabled: ${cacheEnabled}, Non-API fetch: ${useNonApiFetch}`);
-
-        // Separate students into cached and uncached groups
-        const cachedStudents = [];
-        const uncachedStudents = [];
-
-        if (cacheEnabled) {
-            // REVERSE LOOKUP: Get all cached entries first, then match to master list
-            // This is more efficient when cache is empty (no need to check each student)
-            console.log(`[Step 2] Using reverse cache lookup...`);
-
-            const cache = await getCache();
-            const cachedIds = Object.keys(cache);
-            const now = new Date();
-
-            // Filter out expired entries
-            const validCachedIds = cachedIds.filter(id => {
-                const entry = cache[id];
-                if (!entry || !entry.expiresAt) return false;
-                return new Date(entry.expiresAt) > now;
-            });
-
-            console.log(`[Step 2] Found ${validCachedIds.length} valid cached entries`);
-
-            // Create a map of SyStudentId -> student for quick lookup
-            const studentBySyId = new Map();
-            students.forEach(student => {
-                if (student.SyStudentId) {
-                    studentBySyId.set(String(student.SyStudentId), student);
-                }
-            });
-
-            // Match cached entries to students in master list
-            for (const cachedId of validCachedIds) {
-                if (studentBySyId.has(cachedId)) {
-                    cachedStudents.push(studentBySyId.get(cachedId));
-                    studentBySyId.delete(cachedId); // Remove from map so remaining are uncached
-                }
-            }
-
-            // Remaining students in map are uncached
-            uncachedStudents.push(...studentBySyId.values());
-
-            // Update progress for cache check phase (quick since we just read cache once)
-            timeSpan.textContent = `15%`;
-        } else {
-            // Cache disabled - all students are uncached
-            console.log(`[Step 2] Cache disabled - processing all ${students.length} students fresh`);
-            uncachedStudents.push(...students);
-            timeSpan.textContent = `15%`;
-        }
-
-        console.log(`[Step 2] Found ${cachedStudents.length} cached, ${uncachedStudents.length} uncached`);
-        console.log(`[Step 2] Processing cached students first for faster progress...`);
-
-        const BATCH_SIZE = 20;
-        const BATCH_DELAY_MS = 100;
-
-        let processedCount = 0;
-        let updatedStudents = [...students];
-
-        // Create a map to track student indices
-        const studentIndexMap = new Map();
-        students.forEach((student, index) => {
-            studentIndexMap.set(student, index);
-        });
-
-        // Process cached students first
-        const totalCachedBatches = Math.ceil(cachedStudents.length / BATCH_SIZE);
-        for (let i = 0; i < cachedStudents.length; i += BATCH_SIZE) {
-            // Check if shutdown was requested before processing next batch
-            checkShutdown();
-
-            const batch = cachedStudents.slice(i, i + BATCH_SIZE);
-            const batchNumber = Math.floor(i / BATCH_SIZE) + 1;
-
-            // Use Promise.allSettled to handle auth errors gracefully
-            const promises = batch.map(student => fetchCanvasDetails(student, cacheEnabled, useNonApiFetch, courseReferenceDate));
-            const settledResults = await Promise.allSettled(promises);
-
-            // Check for shutdown errors
-            for (const result of settledResults) {
-                if (result.status === 'rejected' && result.reason instanceof CanvasAuthShutdownError) {
-                    throw result.reason;
-                }
-            }
-
-            settledResults.forEach((result, batchIndex) => {
-                const originalStudent = batch[batchIndex];
-                const originalIndex = studentIndexMap.get(originalStudent);
-                // If fulfilled, use the result; if rejected (but not shutdown), keep original student
-                updatedStudents[originalIndex] = result.status === 'fulfilled' ? result.value : originalStudent;
-            });
-
-            processedCount += batch.length;
-            // Progress starts at 15% (after cache check) and goes to 100%
-            const processingProgress = 15 + Math.round((processedCount / students.length) * 85);
-            timeSpan.textContent = `${processingProgress}%`;
-
-            // No delay needed for cached students (they're fast)
-        }
-
-        // Process uncached students (requires API calls)
-        if (uncachedStudents.length > 0) {
-            console.log(`[Step 2] Now processing uncached students (API calls required)...`);
-        }
-
-        const totalUncachedBatches = Math.ceil(uncachedStudents.length / BATCH_SIZE);
-        for (let i = 0; i < uncachedStudents.length; i += BATCH_SIZE) {
-            // Check if shutdown was requested before processing next batch
-            checkShutdown();
-
-            const batch = uncachedStudents.slice(i, i + BATCH_SIZE);
-            const batchNumber = Math.floor(i / BATCH_SIZE) + 1;
-
-            // Use Promise.allSettled to handle auth errors gracefully
-            const promises = batch.map(student => fetchCanvasDetails(student, cacheEnabled, useNonApiFetch, courseReferenceDate));
-            const settledResults = await Promise.allSettled(promises);
-
-            // Check for shutdown errors
-            for (const result of settledResults) {
-                if (result.status === 'rejected' && result.reason instanceof CanvasAuthShutdownError) {
-                    throw result.reason;
-                }
-            }
-
-            settledResults.forEach((result, batchIndex) => {
-                const originalStudent = batch[batchIndex];
-                const originalIndex = studentIndexMap.get(originalStudent);
-                // If fulfilled, use the result; if rejected (but not shutdown), keep original student
-                updatedStudents[originalIndex] = result.status === 'fulfilled' ? result.value : originalStudent;
-            });
-
-            processedCount += batch.length;
-            // Progress starts at 15% (after cache check) and goes to 100%
-            const processingProgress = 15 + Math.round((processedCount / students.length) * 85);
-            timeSpan.textContent = `${processingProgress}%`;
-
-            // Flush staged cache writes for this batch (single storage round-trip)
-            await flushPendingCacheWrites();
-
-            if (i + BATCH_SIZE < uncachedStudents.length) {
-                await new Promise(resolve => setTimeout(resolve, BATCH_DELAY_MS));
-            }
-        }
-
-        await chrome.storage.local.set({ [STORAGE_KEYS.MASTER_ENTRIES]: updatedStudents });
-
-        const durationSeconds = (Date.now() - startTime) / 1000;
-        step2.className = 'queue-item completed';
-        updateStepIcon(step2, 'check');
-        timeSpan.textContent = formatDuration(durationSeconds);
-
-        // Update total time counter
-        updateTotalTime();
-
-        console.log(`[Step 2] ✓ Complete in ${formatDuration(durationSeconds)} - ${students.length} students processed`);
-
-        if (renderCallback) {
-            renderCallback(updatedStudents);
-        }
-
-        return updatedStudents;
-
-    } catch (error) {
-        // Handle Canvas auth shutdown gracefully
-        if (error instanceof CanvasAuthShutdownError) {
-            console.log('[Step 2] Stopped by user due to Canvas auth error');
-            updateStepIcon(step2, 'error');
-            step2.style.color = '#ef4444';
-            timeSpan.textContent = 'Stopped by user';
-            throw error; // Re-throw to stop the pipeline
-        }
-
-        console.error("[Step 2 Error]", error);
-        updateStepIcon(step2, 'error');
-        step2.style.color = '#ef4444';
-        timeSpan.textContent = 'Error';
-        throw error;
-    }
-}
-
-/**
- * Parses a Canvas gradebook URL to extract course and student IDs
- */
-function parseGradebookUrl(url) {
-    try {
-        // Normalize the URL to handle legacy domains
-        const normalizedUrl = normalizeCanvasUrl(url);
-        const urlObj = new URL(normalizedUrl);
-        const regex = /courses\/(\d+)\/grades\/(\d+)/;
-        const match = urlObj.pathname.match(regex);
-        if (match) {
-            return {
-                origin: urlObj.origin,
-                courseId: match[1],
-                studentId: match[2]
-            };
-        }
-    } catch (e) {
-        console.warn('Invalid gradebook URL:', url);
-    }
-    return null;
-}
-
-/**
- * Fetches paginated data from Canvas API
- */
-async function fetchPaged(url, items = []) {
-    // Check if shutdown was requested before making request
-    checkShutdown();
-
-    const headers = {
-        'Accept': 'application/json',
-        'X-Requested-With': 'XMLHttpRequest'
-    };
-
-    try {
-        const response = await fetch(url, { method: 'GET', credentials: 'include', headers });
-
-        // Check for Canvas authorization errors
-        if (isCanvasAuthError(response)) {
-            const choice = await handleCanvasAuthError('fetching paged data');
-            if (choice === 'shutdown') {
-                throw new CanvasAuthShutdownError();
-            }
-            // Continue with partial data
-            return items;
-        }
-
-        if (!response.ok) {
-            if (items.length > 0) return items;
-            throw new Error(`HTTP ${response.status}`);
-        }
-
-        const newItems = await response.json();
-        const allItems = items.concat(newItems);
-
-        const linkHeader = response.headers.get('Link');
-        const nextUrl = getNextPageUrl(linkHeader);
-
-        if (nextUrl) {
-            return fetchPaged(nextUrl, allItems);
-        }
-
-        return allItems;
-    } catch (e) {
-        // Re-throw shutdown errors
-        if (e instanceof CanvasAuthShutdownError) {
-            throw e;
-        }
-        console.warn('Fetch error:', e);
-        return items;
-    }
-}
-
-/**
- * Extracts next page URL from Link header
- */
-function getNextPageUrl(linkHeader) {
-    if (!linkHeader) return null;
-    const links = linkHeader.split(',');
-    const nextLink = links.find(link => link.includes('rel="next"'));
-    if (!nextLink) return null;
-    const match = nextLink.match(/<([^>]+)>/);
-    return match ? match[1] : null;
-}
-
-/**
- * Analyzes submissions to find missing assignments
- * @param {Date} referenceDate - The date to use for checking if assignments are past due (defaults to now)
- */
-function analyzeMissingAssignments(submissions, userObject, studentName, courseId, origin, referenceDate = new Date()) {
-    const now = referenceDate;
-    const collectedAssignments = [];
-
-    let currentGrade = "";
-    if (userObject && userObject.enrollments) {
-        const enrollment = userObject.enrollments.find(e => e.type === 'StudentEnrollment') || userObject.enrollments[0];
-
-        if (enrollment && enrollment.grades) {
-            if (enrollment.grades.current_score != null) {
-                currentGrade = enrollment.grades.current_score;
-            } else if (enrollment.grades.final_score != null) {
-                currentGrade = enrollment.grades.final_score;
-            } else if (enrollment.grades.current_grade != null) {
-                currentGrade = String(enrollment.grades.current_grade).replace(/%/g, '');
-            }
-        }
-    }
-
-    submissions.forEach(sub => {
-        const dueDate = sub.cached_due_date ? new Date(sub.cached_due_date) : null;
-
-        if (dueDate && dueDate > now) return;
-
-        const scoreStr = String(sub.score || sub.grade || '').toLowerCase();
-        const isComplete = scoreStr === 'complete';
-
-        if (isComplete) return;
-
-        const isMissing = (sub.missing === true) ||
-            ((sub.workflow_state === 'unsubmitted' || sub.workflow_state === 'unsubmitted (ungraded)') && (dueDate && dueDate < now)) ||
-            (sub.score === 0);
-
-        if (isMissing) {
-            // Generate assignment URL from assignment ID
-            const assignmentId = sub.assignment ? sub.assignment.id : null;
-            const assignmentUrl = assignmentId ? `${origin}/courses/${courseId}/assignments/${assignmentId}` : '';
-
-            // Format score as "points earned/points possible"
-            let formattedScore = '-';
-            if (sub.score !== null && sub.assignment && sub.assignment.points_possible !== null) {
-                formattedScore = `${sub.score}/${sub.assignment.points_possible}`;
-            } else if (sub.grade) {
-                formattedScore = sub.grade;
-            }
-
-            collectedAssignments.push({
-                assignmentTitle: sub.assignment ? sub.assignment.name : 'Unknown Assignment',
-                submissionLink: sub.preview_url || '',
-                assignmentLink: assignmentUrl,
-                dueDate: sub.cached_due_date ? new Date(sub.cached_due_date).toLocaleDateString() : 'No Date',
-                score: formattedScore,
-                workflow_state: sub.workflow_state
-            });
-        }
-    });
-
-    return {
-        currentGrade: currentGrade,
-        count: collectedAssignments.length,
-        assignments: collectedAssignments
-    };
-}
-
-/**
- * Finds the next upcoming assignment that hasn't been submitted yet
- * @param {Array} submissions - Array of submission objects from Canvas API
- * @param {string} courseId - The course ID
- * @param {string} origin - The Canvas domain origin
- * @param {Date} referenceDate - The date to use as "today" (defaults to now)
- * @returns {Object|null} Next assignment object with Assignment, DueDate, AssignmentLink or null if none found
- */
-function findNextAssignment(submissions, courseId, origin, referenceDate = new Date()) {
-    const now = referenceDate;
-    // Set time to start of day for comparison
-    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-
-    // Filter and collect upcoming assignments that haven't been submitted
-    const upcomingAssignments = [];
-
-    submissions.forEach((sub) => {
-        // Skip if no assignment data
-        if (!sub.assignment) return;
-
-        const rawDueAt = sub.assignment.due_at;
-        const dueDate = rawDueAt ? new Date(rawDueAt) : null;
-
-        // Skip assignments without a due date or with due dates before today
-        if (!dueDate) return;
-        if (dueDate < todayStart) return;
-
-        // Check if the assignment has already been submitted
-        // A submission is considered "submitted" if:
-        // - workflow_state is 'submitted', 'graded', or 'pending_review'
-        // - submitted_at has an actual value (date string)
-        // - score is not null/undefined and score > 0 (has been graded with a passing score)
-        const submittedStates = ['submitted', 'graded', 'pending_review'];
-        const hasSubmittedAt = sub.submitted_at != null && sub.submitted_at !== '';
-        const hasPassingScore = sub.score != null && sub.score > 0;
-        const isSubmitted = submittedStates.includes(sub.workflow_state) ||
-                           hasSubmittedAt ||
-                           hasPassingScore;
-
-        // Also check for "complete" grade which indicates completion
-        const scoreStr = String(sub.score || sub.grade || '').toLowerCase();
-        const isComplete = scoreStr === 'complete';
-
-        // Skip if already submitted or complete
-        if (isSubmitted || isComplete) return;
-
-        // Generate assignment URL
-        const assignmentId = sub.assignment.id;
-        const assignmentUrl = assignmentId ? `${origin}/courses/${courseId}/assignments/${assignmentId}` : '';
-
-        // Format due date - show "Today", "Tomorrow", or "Feb 3" style
-        const tomorrow = new Date(todayStart);
-        tomorrow.setDate(tomorrow.getDate() + 1);
-        const dueDateStart = new Date(dueDate.getFullYear(), dueDate.getMonth(), dueDate.getDate());
-        const isToday = dueDateStart.getTime() === todayStart.getTime();
-        const isTomorrow = dueDateStart.getTime() === tomorrow.getTime();
-        const formattedDueDate = isToday ? 'Today' : isTomorrow ? 'Tomorrow' : dueDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-
-        upcomingAssignments.push({
-            Assignment: sub.assignment.name || 'Unknown Assignment',
-            DueDate: formattedDueDate,
-            AssignmentLink: assignmentUrl,
-            _dueDateObj: dueDate // Keep for sorting, will be removed before returning
-        });
-    });
-
-    // If no upcoming assignments found, return null
-    if (upcomingAssignments.length === 0) return null;
-
-    // Sort by due date (nearest first)
-    upcomingAssignments.sort((a, b) => a._dueDateObj - b._dueDateObj);
-
-    // Get the nearest assignment and remove the internal sorting field
-    const nextAssignment = upcomingAssignments[0];
-    delete nextAssignment._dueDateObj;
-
-    return nextAssignment;
-}
-
-/**
- * Fetches missing assignments for a single student
- * @param {Date} referenceDate - The date to use for checking if assignments are past due
- * @param {boolean} includeNextAssignment - Whether to also find the next upcoming assignment
- */
-async function fetchMissingAssignments(student, referenceDate = new Date(), includeNextAssignment = false) {
-    // Check if shutdown was requested before processing
-    checkShutdown();
-
-    // Support both 'url' field and legacy 'Gradebook' field
-    const gradebookUrl = student.url || student.Gradebook;
-
-    if (!gradebookUrl) {
-        return { ...student, missingCount: 0, missingAssignments: [], nextAssignment: null };
-    }
-
-    const parsed = parseGradebookUrl(gradebookUrl);
-    if (!parsed) {
-        console.warn(`[Step 3] ${student.name}: Failed to parse gradebook URL: ${gradebookUrl}`);
-        return { ...student, missingCount: 0, missingAssignments: [], nextAssignment: null };
-    }
-
-    const { origin, courseId, studentId } = parsed;
-
-    try {
-        const submissionsUrl = `${origin}/api/v1/courses/${courseId}/students/submissions?student_ids[]=${studentId}&include[]=assignment&per_page=100`;
-        const usersUrl = `${origin}/api/v1/courses/${courseId}/users?user_ids[]=${studentId}&include[]=enrollments&per_page=100`;
-
-        // Fetch submissions and user data in parallel (independent requests)
-        const [submissions, users] = await Promise.all([
-            fetchPaged(submissionsUrl),
-            fetchPaged(usersUrl)
-        ]);
-        const userObject = users && users.length > 0 ? users[0] : null;
-
-        const result = analyzeMissingAssignments(submissions, userObject, student.name, courseId, origin, referenceDate);
-
-        // Find next assignment if enabled
-        let nextAssignment = null;
-        if (includeNextAssignment) {
-            nextAssignment = findNextAssignment(submissions, courseId, origin, referenceDate);
-        }
-
-        return {
-            ...student,
-            missingCount: result.count,
-            missingAssignments: result.assignments,
-            currentGrade: result.currentGrade,
-            nextAssignment: nextAssignment
-        };
-
-    } catch (e) {
-        // Re-throw shutdown errors
-        if (e instanceof CanvasAuthShutdownError) {
-            throw e;
-        }
-        console.error(`[Step 3] ${student.name}: Error fetching data:`, e);
-        return { ...student, missingCount: 0, missingAssignments: [], nextAssignment: null };
-    }
-}
-
 /**
  * Fetches submissions and user/enrollment data for a group of students in the same course
- * using a single pair of API calls (multi-student batch request).
- * This is much more efficient than individual per-student requests.
+ * using a single pair of batch API calls (multi-student query params).
+ *
+ * This is dramatically more efficient than per-student calls when multiple students
+ * share the same course — e.g. 50 students in one course = 2 API calls instead of 100.
  *
  * @param {string} origin - The Canvas domain origin
  * @param {string} courseId - The course ID
- * @param {Array} studentIds - Array of Canvas student IDs in this course
- * @returns {Promise<{submissionsData: Array, usersData: Array}>}
+ * @param {Array<string>} studentIds - Canvas student IDs to fetch for this course
+ * @returns {Promise<{ submissionsData: Array, usersData: Array }>}
  */
 async function fetchCourseGroupData(origin, courseId, studentIds) {
     checkShutdown();
 
     const idsQuery = studentIds.map(id => `student_ids[]=${id}`).join('&');
-    const submissionsUrl = `${origin}/api/v1/courses/${courseId}/students/submissions?${idsQuery}&include[]=assignment&per_page=100`;
-
     const userIdsQuery = studentIds.map(id => `user_ids[]=${id}`).join('&');
+
+    const submissionsUrl = `${origin}/api/v1/courses/${courseId}/students/submissions?${idsQuery}&include[]=assignment&per_page=100`;
     const usersUrl = `${origin}/api/v1/courses/${courseId}/users?${userIdsQuery}&include[]=enrollments&per_page=100`;
 
-    // Fetch both endpoints in parallel
     const [submissionsData, usersData] = await Promise.all([
         fetchPaged(submissionsUrl),
         fetchPaged(usersUrl)
@@ -924,15 +341,165 @@ async function fetchCourseGroupData(origin, courseId, studentIds) {
     return { submissionsData, usersData };
 }
 
+
+// ============================================================================
+// 5. DATA ANALYSIS
+// ============================================================================
+
 /**
- * Processes fetched course group data to extract per-student results.
- * Splits the combined API response back into individual student results.
+ * Extracts the current grade from a Canvas user object's enrollment data.
+ * Tries current_score → final_score → current_grade in order.
  *
- * @param {Array} studentsInCourse - Array of student objects in this course group
- * @param {Object} courseGroupData - { submissionsData, usersData } from fetchCourseGroupData
- * @param {Date} referenceDate - The date to use for missing assignment checks
- * @param {boolean} includeNextAssignment - Whether to find next upcoming assignment
- * @returns {Array} Array of updated student objects
+ * @param {Object|null} userObject - Canvas user object with enrollments
+ * @returns {string|number} The grade value, or empty string if unavailable
+ */
+function extractCurrentGrade(userObject) {
+    if (!userObject || !userObject.enrollments) return '';
+
+    const enrollment = userObject.enrollments.find(e => e.type === 'StudentEnrollment')
+        || userObject.enrollments[0];
+
+    if (!enrollment || !enrollment.grades) return '';
+
+    const { current_score, final_score, current_grade } = enrollment.grades;
+    if (current_score != null) return current_score;
+    if (final_score != null) return final_score;
+    if (current_grade != null) return String(current_grade).replace(/%/g, '');
+    return '';
+}
+
+/**
+ * Analyzes a student's submissions to find missing assignments.
+ *
+ * An assignment is considered "missing" if:
+ *  - Canvas explicitly flags it as `missing: true`, OR
+ *  - It's unsubmitted and past due, OR
+ *  - It has a score of 0
+ *
+ * @param {Array} submissions - Raw submission objects from Canvas API
+ * @param {Object|null} userObject - Canvas user object (for grade extraction)
+ * @param {string} studentName - For logging
+ * @param {string} courseId - Course ID (for building assignment URLs)
+ * @param {string} origin - Canvas domain origin
+ * @param {Date} referenceDate - "Today" for due-date comparisons
+ * @returns {{ currentGrade: string|number, count: number, assignments: Array }}
+ */
+function analyzeMissingAssignments(submissions, userObject, studentName, courseId, origin, referenceDate = new Date()) {
+    const now = referenceDate;
+    const currentGrade = extractCurrentGrade(userObject);
+    const collectedAssignments = [];
+
+    for (const sub of submissions) {
+        const dueDate = sub.cached_due_date ? new Date(sub.cached_due_date) : null;
+
+        // Skip future assignments
+        if (dueDate && dueDate > now) continue;
+
+        // Skip completed assignments
+        const scoreStr = String(sub.score || sub.grade || '').toLowerCase();
+        if (scoreStr === 'complete') continue;
+
+        const isMissing = (sub.missing === true) ||
+            ((sub.workflow_state === 'unsubmitted' || sub.workflow_state === 'unsubmitted (ungraded)') && dueDate && dueDate < now) ||
+            (sub.score === 0);
+
+        if (!isMissing) continue;
+
+        const assignmentId = sub.assignment ? sub.assignment.id : null;
+        const assignmentUrl = assignmentId ? `${origin}/courses/${courseId}/assignments/${assignmentId}` : '';
+
+        let formattedScore = '-';
+        if (sub.score !== null && sub.assignment && sub.assignment.points_possible !== null) {
+            formattedScore = `${sub.score}/${sub.assignment.points_possible}`;
+        } else if (sub.grade) {
+            formattedScore = sub.grade;
+        }
+
+        collectedAssignments.push({
+            assignmentTitle: sub.assignment ? sub.assignment.name : 'Unknown Assignment',
+            submissionLink: sub.preview_url || '',
+            assignmentLink: assignmentUrl,
+            dueDate: dueDate ? dueDate.toLocaleDateString() : 'No Date',
+            score: formattedScore,
+            workflow_state: sub.workflow_state
+        });
+    }
+
+    return { currentGrade, count: collectedAssignments.length, assignments: collectedAssignments };
+}
+
+/**
+ * Finds the next upcoming unsubmitted assignment for a student.
+ *
+ * @param {Array} submissions - Raw submission objects from Canvas API
+ * @param {string} courseId - Course ID (for building assignment URLs)
+ * @param {string} origin - Canvas domain origin
+ * @param {Date} referenceDate - "Today" for due-date comparisons
+ * @returns {Object|null} { Assignment, DueDate, AssignmentLink } or null if none found
+ */
+function findNextAssignment(submissions, courseId, origin, referenceDate = new Date()) {
+    const todayStart = new Date(referenceDate.getFullYear(), referenceDate.getMonth(), referenceDate.getDate());
+    const tomorrow = new Date(todayStart);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    const upcomingAssignments = [];
+
+    for (const sub of submissions) {
+        if (!sub.assignment) continue;
+
+        const dueDate = sub.assignment.due_at ? new Date(sub.assignment.due_at) : null;
+        if (!dueDate || dueDate < todayStart) continue;
+
+        // Check if already submitted or completed
+        const submittedStates = ['submitted', 'graded', 'pending_review'];
+        const isSubmitted = submittedStates.includes(sub.workflow_state)
+            || (sub.submitted_at != null && sub.submitted_at !== '')
+            || (sub.score != null && sub.score > 0);
+
+        const scoreStr = String(sub.score || sub.grade || '').toLowerCase();
+        if (isSubmitted || scoreStr === 'complete') continue;
+
+        // Format due date label
+        const dueDateStart = new Date(dueDate.getFullYear(), dueDate.getMonth(), dueDate.getDate());
+        let formattedDueDate;
+        if (dueDateStart.getTime() === todayStart.getTime()) {
+            formattedDueDate = 'Today';
+        } else if (dueDateStart.getTime() === tomorrow.getTime()) {
+            formattedDueDate = 'Tomorrow';
+        } else {
+            formattedDueDate = dueDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        }
+
+        const assignmentId = sub.assignment.id;
+        upcomingAssignments.push({
+            Assignment: sub.assignment.name || 'Unknown Assignment',
+            DueDate: formattedDueDate,
+            AssignmentLink: assignmentId ? `${origin}/courses/${courseId}/assignments/${assignmentId}` : '',
+            _dueDateObj: dueDate
+        });
+    }
+
+    if (upcomingAssignments.length === 0) return null;
+
+    // Return the nearest-due assignment
+    upcomingAssignments.sort((a, b) => a._dueDateObj - b._dueDateObj);
+    const next = upcomingAssignments[0];
+    delete next._dueDateObj;
+    return next;
+}
+
+/**
+ * Splits a combined course-group API response into per-student analysis results.
+ *
+ * After fetchCourseGroupData fetches submissions/users for all students in a course,
+ * this function filters the combined response by user_id and runs the analysis
+ * for each student individually.
+ *
+ * @param {Array} studentsInCourse - [{ student, parsed, originalIndex }]
+ * @param {{ submissionsData: Array, usersData: Array }} courseGroupData
+ * @param {Date} referenceDate
+ * @param {boolean} includeNextAssignment
+ * @returns {Array} Updated student objects with missingCount, missingAssignments, etc.
  */
 function processCourseGroupResults(studentsInCourse, courseGroupData, referenceDate, includeNextAssignment) {
     const { submissionsData, usersData } = courseGroupData;
@@ -941,7 +508,6 @@ function processCourseGroupResults(studentsInCourse, courseGroupData, referenceD
         const canvasStudentId = parseInt(parsed.studentId, 10);
         const { origin, courseId } = parsed;
 
-        // Filter combined response to this student's data
         const studentSubmissions = submissionsData
             ? submissionsData.filter(sub => sub.user_id === canvasStudentId)
             : [];
@@ -963,35 +529,356 @@ function processCourseGroupResults(studentsInCourse, courseGroupData, referenceD
             missingCount: result.count,
             missingAssignments: result.assignments,
             currentGrade: result.currentGrade,
-            nextAssignment: nextAssignment
+            nextAssignment
         };
     });
 }
 
+
+// ============================================================================
+// 6. STEP ORCHESTRATORS
+// ============================================================================
+
+/**
+ * Loads all settings needed by Step 2 and Step 3 from Chrome storage.
+ * Called once at the start of processStep2 to avoid per-student storage reads.
+ *
+ * @returns {Promise<{ cacheEnabled: boolean, useNonApiFetch: boolean, courseReferenceDate: Date }>}
+ */
+async function loadPipelineSettings() {
+    const [cacheSettings, nonApiSettings, timeMachineSettings] = await Promise.all([
+        chrome.storage.local.get([STORAGE_KEYS.CANVAS_CACHE_ENABLED]),
+        storageGet([STORAGE_KEYS.NON_API_COURSE_FETCH]),
+        chrome.storage.local.get([STORAGE_KEYS.USE_SPECIFIC_DATE, STORAGE_KEYS.SPECIFIC_SUBMISSION_DATE])
+    ]);
+
+    const cacheEnabled = cacheSettings[STORAGE_KEYS.CANVAS_CACHE_ENABLED] !== undefined
+        ? cacheSettings[STORAGE_KEYS.CANVAS_CACHE_ENABLED]
+        : true;
+    const useNonApiFetch = nonApiSettings[STORAGE_KEYS.NON_API_COURSE_FETCH] || false;
+
+    const useSpecificDate = timeMachineSettings[STORAGE_KEYS.USE_SPECIFIC_DATE] || false;
+    const specificDateStr = timeMachineSettings[STORAGE_KEYS.SPECIFIC_SUBMISSION_DATE];
+
+    let courseReferenceDate;
+    if (useSpecificDate && specificDateStr) {
+        const [year, month, day] = specificDateStr.split('-').map(Number);
+        courseReferenceDate = new Date(year, month - 1, day);
+        console.log(`[Settings] Time Machine mode: ${specificDateStr}`);
+    } else {
+        courseReferenceDate = new Date();
+    }
+
+    console.log(`[Settings] Cache: ${cacheEnabled}, Non-API: ${useNonApiFetch}`);
+
+    return { cacheEnabled, useNonApiFetch, courseReferenceDate };
+}
+
+/**
+ * Fetches Canvas profile + courses for a single student.
+ * Called by processStep2's batch loops. Reads from cache when possible,
+ * otherwise makes API calls and stages the result for batched cache writes.
+ *
+ * @param {Object} student - Student object (mutated with Canvas data)
+ * @param {boolean} cacheEnabled
+ * @param {boolean} useNonApiFetch
+ * @param {Date} courseReferenceDate - Pre-computed reference date for active course selection
+ * @returns {Promise<Object>} The updated student object
+ */
+export async function fetchCanvasDetails(student, cacheEnabled = true, useNonApiFetch = false, courseReferenceDate = null) {
+    checkShutdown();
+
+    if (!student.SyStudentId) return student;
+
+    try {
+        const syStudentId = String(student.SyStudentId);
+
+        // --- Resolve user data + courses (cache or API) ---
+        const cachedData = (cacheEnabled && !useNonApiFetch) ? await getCachedData(syStudentId) : null;
+
+        let userData;
+        let courses;
+
+        if (cachedData) {
+            userData = cachedData.userData;
+            courses = cachedData.courses;
+        } else {
+            // Fetch user profile
+            const userUrl = `${CANVAS_DOMAIN}/api/v1/users/sis_user_id:${student.SyStudentId}`;
+            const userResp = await fetch(userUrl, { headers: { 'Accept': 'application/json' } });
+
+            if (isCanvasAuthError(userResp)) {
+                const choice = await handleCanvasAuthError('fetching user data');
+                if (choice === 'shutdown') throw new CanvasAuthShutdownError();
+                return student;
+            }
+            if (!userResp.ok) {
+                console.warn(`Failed to fetch user data for ${student.SyStudentId}: ${userResp.status}`);
+                return student;
+            }
+            userData = await userResp.json();
+
+            // Fetch courses (API or HTML scraping)
+            const canvasUserId = userData.id;
+            if (canvasUserId) {
+                if (useNonApiFetch) {
+                    courses = await fetchCoursesFromHtml(canvasUserId);
+                } else {
+                    const coursesUrl = `${CANVAS_DOMAIN}/api/v1/users/${canvasUserId}/courses?include[]=enrollments&per_page=100`;
+                    const coursesResp = await fetch(coursesUrl, { headers: { 'Accept': 'application/json' } });
+
+                    if (isCanvasAuthError(coursesResp)) {
+                        const choice = await handleCanvasAuthError('fetching courses');
+                        if (choice === 'shutdown') throw new CanvasAuthShutdownError();
+                        courses = [];
+                    } else if (coursesResp.ok) {
+                        courses = await coursesResp.json();
+                    } else {
+                        console.warn(`Failed to fetch courses for ${student.SyStudentId}: ${coursesResp.status}`);
+                        courses = [];
+                    }
+                }
+
+                if (cacheEnabled) {
+                    stageCacheData(syStudentId, userData, courses);
+                }
+            }
+        }
+
+        // --- Apply user data to student object ---
+        if (userData.name) student.name = userData.name;
+        if (userData.sortable_name) student.sortable_name = userData.sortable_name;
+
+        if (userData.avatar_url && userData.avatar_url !== GENERIC_AVATAR_URL) {
+            student.Photo = userData.avatar_url;
+            preloadImage(userData.avatar_url);
+        }
+
+        if (userData.created_at) {
+            student.created_at = userData.created_at;
+            const daysSinceCreation = (new Date() - new Date(userData.created_at)) / (1000 * 3600 * 24);
+            if (daysSinceCreation < 60) {
+                student.isNew = true;
+            }
+        }
+
+        // --- Find active course and set gradebook URL ---
+        const canvasUserId = userData.id;
+        if (canvasUserId && courses && courses.length > 0) {
+            const now = courseReferenceDate || new Date();
+            const validCourses = courses.filter(c => c.name && !c.name.toUpperCase().includes('CAPV'));
+
+            // Try to find a course active on the reference date
+            let activeCourse = validCourses.find(c => {
+                if (!c.start_at || !c.end_at) return false;
+                const start = new Date(c.start_at);
+                const end = new Date(c.end_at);
+                return now >= start && now <= end;
+            });
+
+            // Fall back to most recently started course
+            if (!activeCourse && validCourses.length > 0) {
+                validCourses.sort((a, b) => {
+                    const dateA = a.start_at ? new Date(a.start_at) : new Date(0);
+                    const dateB = b.start_at ? new Date(b.start_at) : new Date(0);
+                    return dateB - dateA;
+                });
+                activeCourse = validCourses[0];
+            }
+
+            if (activeCourse) {
+                student.url = `${CANVAS_DOMAIN}/courses/${activeCourse.id}/grades/${canvasUserId}`;
+
+                if (activeCourse.enrollments && activeCourse.enrollments.length > 0) {
+                    const enrollment = activeCourse.enrollments.find(e => e.type === 'StudentEnrollment') || activeCourse.enrollments[0];
+                    if (enrollment && enrollment.grades && enrollment.grades.current_score) {
+                        student.grade = enrollment.grades.current_score + '%';
+                    }
+                }
+            } else {
+                console.warn(`${student.name}: No courses found, Step 3 will be skipped`);
+                student.url = null;
+            }
+        }
+
+        return student;
+    } catch (e) {
+        console.error(`Error fetching Canvas details for ${student.SyStudentId}:`, e);
+        return student;
+    }
+}
+
+/**
+ * Processes an array of students in batches using Promise.allSettled.
+ * Shared by processStep2's cached and uncached loops.
+ *
+ * @param {Object} options
+ * @param {Array} options.students - Students to process in this group
+ * @param {Array} options.updatedStudents - The full results array (mutated in place)
+ * @param {Map} options.studentIndexMap - Maps student object → index in updatedStudents
+ * @param {function} options.processFn - Async function to call for each student
+ * @param {number} options.batchSize - Students per batch
+ * @param {number} options.delayMs - Milliseconds to wait between batches (0 = no delay)
+ * @param {function} options.onProgress - Called with (processedSoFar) after each batch
+ * @param {boolean} options.flushCache - Whether to flush staged cache writes after each batch
+ */
+async function processBatches({ students, updatedStudents, studentIndexMap, processFn, batchSize, delayMs, onProgress, flushCache }) {
+    for (let i = 0; i < students.length; i += batchSize) {
+        checkShutdown();
+
+        const batch = students.slice(i, i + batchSize);
+        const settledResults = await Promise.allSettled(batch.map(processFn));
+
+        // Propagate shutdown errors
+        for (const result of settledResults) {
+            if (result.status === 'rejected' && result.reason instanceof CanvasAuthShutdownError) {
+                throw result.reason;
+            }
+        }
+
+        // Write results back to the shared updatedStudents array
+        settledResults.forEach((result, batchIndex) => {
+            const originalStudent = batch[batchIndex];
+            const originalIndex = studentIndexMap.get(originalStudent);
+            updatedStudents[originalIndex] = result.status === 'fulfilled' ? result.value : originalStudent;
+        });
+
+        if (flushCache) {
+            await flushPendingCacheWrites();
+        }
+
+        if (onProgress) {
+            onProgress(Math.min(i + batchSize, students.length));
+        }
+
+        if (delayMs > 0 && i + batchSize < students.length) {
+            await new Promise(resolve => setTimeout(resolve, delayMs));
+        }
+    }
+}
+
+
+// -- Step 2: Fetch Canvas Details (user profile, courses, photos) -----------
+
+/**
+ * Process Step 2: Fetch Canvas IDs, courses, and photos for all students.
+ *
+ * Optimization: Uses reverse cache lookup to separate cached vs uncached students,
+ * processes cached students first (fast, no API calls), then uncached students
+ * with batched API calls and batched cache writes.
+ */
+export async function processStep2(students, renderCallback) {
+    resetAuthErrorState();
+
+    return withStepUI('step2', async ({ timeSpan }) => {
+        console.log(`[Step 2] Pinging Canvas API: ${CANVAS_DOMAIN}`);
+
+        const { cacheEnabled, useNonApiFetch, courseReferenceDate } = await loadPipelineSettings();
+
+        // --- Separate students into cached vs uncached groups ---
+        const cachedStudents = [];
+        const uncachedStudents = [];
+
+        if (cacheEnabled) {
+            const cache = await getCache();
+            const now = new Date();
+
+            const validCachedIds = Object.keys(cache).filter(id => {
+                const entry = cache[id];
+                return entry && entry.expiresAt && new Date(entry.expiresAt) > now;
+            });
+
+            const studentBySyId = new Map();
+            students.forEach(s => {
+                if (s.SyStudentId) studentBySyId.set(String(s.SyStudentId), s);
+            });
+
+            for (const cachedId of validCachedIds) {
+                if (studentBySyId.has(cachedId)) {
+                    cachedStudents.push(studentBySyId.get(cachedId));
+                    studentBySyId.delete(cachedId);
+                }
+            }
+            uncachedStudents.push(...studentBySyId.values());
+        } else {
+            uncachedStudents.push(...students);
+        }
+
+        console.log(`[Step 2] ${cachedStudents.length} cached, ${uncachedStudents.length} uncached`);
+        timeSpan.textContent = '15%';
+
+        // --- Build shared state for batch processing ---
+        const BATCH_SIZE = 20;
+        const BATCH_DELAY_MS = 100;
+
+        let updatedStudents = [...students];
+        const studentIndexMap = new Map();
+        students.forEach((s, i) => studentIndexMap.set(s, i));
+
+        let processedCount = 0;
+        const updateProgress = () => {
+            const pct = 15 + Math.round((processedCount / students.length) * 85);
+            timeSpan.textContent = `${pct}%`;
+        };
+
+        const fetchFn = (student) => fetchCanvasDetails(student, cacheEnabled, useNonApiFetch, courseReferenceDate);
+
+        // --- Process cached students first (fast, no API delay needed) ---
+        await processBatches({
+            students: cachedStudents,
+            updatedStudents,
+            studentIndexMap,
+            processFn: fetchFn,
+            batchSize: BATCH_SIZE,
+            delayMs: 0,
+            onProgress: (n) => { processedCount = n; updateProgress(); },
+            flushCache: false
+        });
+
+        // --- Process uncached students (API calls, with delay between batches) ---
+        if (uncachedStudents.length > 0) {
+            console.log(`[Step 2] Now fetching fresh data for ${uncachedStudents.length} uncached students...`);
+        }
+
+        const cachedCount = cachedStudents.length;
+        await processBatches({
+            students: uncachedStudents,
+            updatedStudents,
+            studentIndexMap,
+            processFn: fetchFn,
+            batchSize: BATCH_SIZE,
+            delayMs: BATCH_DELAY_MS,
+            onProgress: (n) => { processedCount = cachedCount + n; updateProgress(); },
+            flushCache: true
+        });
+
+        await chrome.storage.local.set({ [STORAGE_KEYS.MASTER_ENTRIES]: updatedStudents });
+
+        console.log(`[Step 2] Complete - ${students.length} students processed`);
+
+        if (renderCallback) renderCallback(updatedStudents);
+        return updatedStudents;
+    });
+}
+
+
+// -- Step 3: Check Gradebooks for Missing Assignments -----------------------
+
 /**
  * Process Step 3: Check missing assignments and grades for all students.
  *
- * Optimization: Groups students by courseId so students in the same course share
- * a single pair of API calls (submissions + users), instead of N individual calls.
- * For a class of 100 students across 5 courses, this reduces API calls from 200 to ~10.
- * Students without a gradebook URL fall back to individual (no-op) handling.
+ * Groups students by courseId so students in the same course share a single
+ * pair of API calls. Uses a worker pool to keep multiple course fetches
+ * in-flight simultaneously for maximum throughput.
  */
 export async function processStep3(students, renderCallback) {
-    const step3 = document.getElementById('step3');
-    const timeSpan = step3.querySelector('.step-time');
-
-    step3.className = 'queue-item active';
-    updateStepIcon(step3, 'spinner');
-
-    const startTime = Date.now();
-
-    try {
-        // Load settings once
+    return withStepUI('step3', async ({ timeSpan }) => {
         const settings = await storageGet([
             STORAGE_KEYS.USE_SPECIFIC_DATE,
             STORAGE_KEYS.SPECIFIC_SUBMISSION_DATE,
             STORAGE_KEYS.NEXT_ASSIGNMENT_ENABLED
         ]);
+
         const useSpecificDate = settings[STORAGE_KEYS.USE_SPECIFIC_DATE] || false;
         const specificDateStr = settings[STORAGE_KEYS.SPECIFIC_SUBMISSION_DATE];
         const nextAssignmentEnabled = settings[STORAGE_KEYS.NEXT_ASSIGNMENT_ENABLED] || false;
@@ -1007,62 +894,46 @@ export async function processStep3(students, renderCallback) {
 
         let updatedStudents = [...students];
 
-        // --- Group students by courseId for batched API calls ---
-        // Key: "origin|courseId", Value: [{ student, parsed, originalIndex }]
-        const courseGroups = new Map();
-        const noUrlIndices = []; // Students without gradebook URLs (skip API)
+        // --- Group students by course ---
+        const courseGroups = new Map(); // key: "origin|courseId"
+        const noUrlIndices = [];
 
         for (let i = 0; i < updatedStudents.length; i++) {
             const student = updatedStudents[i];
             const gradebookUrl = student.url || student.Gradebook;
-            if (!gradebookUrl) {
-                noUrlIndices.push(i);
-                continue;
-            }
+            if (!gradebookUrl) { noUrlIndices.push(i); continue; }
+
             const parsed = parseGradebookUrl(gradebookUrl);
-            if (!parsed) {
-                noUrlIndices.push(i);
-                continue;
-            }
+            if (!parsed) { noUrlIndices.push(i); continue; }
+
             const groupKey = `${parsed.origin}|${parsed.courseId}`;
-            if (!courseGroups.has(groupKey)) {
-                courseGroups.set(groupKey, []);
-            }
+            if (!courseGroups.has(groupKey)) courseGroups.set(groupKey, []);
             courseGroups.get(groupKey).push({ student, parsed, originalIndex: i });
         }
 
-        // Mark no-URL students with zero counts immediately
+        // Students without URLs get zero counts immediately
         for (const idx of noUrlIndices) {
             updatedStudents[idx] = {
                 ...updatedStudents[idx],
-                missingCount: 0,
-                missingAssignments: [],
-                nextAssignment: null
+                missingCount: 0, missingAssignments: [], nextAssignment: null
             };
         }
 
         const courseGroupEntries = Array.from(courseGroups.entries());
         const totalGroups = courseGroupEntries.length;
-
         console.log(`[Step 3] ${students.length} students grouped into ${totalGroups} course(s) (${noUrlIndices.length} without URL)`);
 
-        // --- Process course groups using a worker pool ---
-        // Maintains a rolling window of MAX_CONCURRENT in-flight API request pairs.
-        // Each worker grabs the next course group as soon as it finishes, keeping
-        // the pipeline saturated regardless of how many courses exist.
-        // With 102 courses and MAX_CONCURRENT=10, there are always ~10 course fetches
-        // in flight simultaneously (same effective parallelism as the old per-student approach).
+        // --- Worker pool: fetch course groups concurrently ---
         const MAX_CONCURRENT = 10;
         let processedStudents = noUrlIndices.length;
         let courseIndex = 0;
 
-        async function processNextCourseGroup() {
+        async function worker() {
             while (courseIndex < courseGroupEntries.length) {
                 checkShutdown();
 
-                // Grab the next course group atomically
                 const idx = courseIndex++;
-                const [groupKey, studentsInCourse] = courseGroupEntries[idx];
+                const [, studentsInCourse] = courseGroupEntries[idx];
                 const { origin, courseId } = studentsInCourse[0].parsed;
                 const studentIds = studentsInCourse.map(s => s.parsed.studentId);
 
@@ -1071,19 +942,16 @@ export async function processStep3(students, renderCallback) {
                     const results = processCourseGroupResults(
                         studentsInCourse, data, referenceDate, nextAssignmentEnabled
                     );
-                    results.forEach((updatedStudent, i) => {
-                        updatedStudents[studentsInCourse[i].originalIndex] = updatedStudent;
+                    results.forEach((updated, i) => {
+                        updatedStudents[studentsInCourse[i].originalIndex] = updated;
                     });
                 } catch (e) {
                     if (e instanceof CanvasAuthShutdownError) throw e;
                     console.error(`[Step 3] Course ${courseId} fetch error:`, e);
-                    // Zero out students in this failed course group
                     for (const { student, originalIndex } of studentsInCourse) {
                         updatedStudents[originalIndex] = {
                             ...student,
-                            missingCount: 0,
-                            missingAssignments: [],
-                            nextAssignment: null
+                            missingCount: 0, missingAssignments: [], nextAssignment: null
                         };
                     }
                 }
@@ -1093,55 +961,28 @@ export async function processStep3(students, renderCallback) {
             }
         }
 
-        // Launch worker pool — all workers share the same courseIndex counter
         const workerCount = Math.min(MAX_CONCURRENT, courseGroupEntries.length);
-        const workers = Array.from({ length: workerCount }, () => processNextCourseGroup());
-        await Promise.all(workers);
+        await Promise.all(Array.from({ length: workerCount }, () => worker()));
 
         await chrome.storage.local.set({ [STORAGE_KEYS.MASTER_ENTRIES]: updatedStudents });
 
-        const durationSeconds = (Date.now() - startTime) / 1000;
-        step3.className = 'queue-item completed';
-        updateStepIcon(step3, 'check');
-        timeSpan.textContent = formatDuration(durationSeconds);
-
-        updateTotalTime();
-
         const totalMissing = updatedStudents.reduce((sum, s) => sum + (s.missingCount || 0), 0);
-        console.log(`[Step 3] Complete in ${formatDuration(durationSeconds)} - ${totalGroups} course(s), ${totalMissing} missing assignments`);
+        console.log(`[Step 3] Complete - ${totalGroups} course(s), ${totalMissing} missing assignments`);
 
-        if (renderCallback) {
-            renderCallback(updatedStudents);
-        }
-
+        if (renderCallback) renderCallback(updatedStudents);
         return updatedStudents;
-
-    } catch (error) {
-        if (error instanceof CanvasAuthShutdownError) {
-            console.log('[Step 3] Stopped by user due to Canvas auth error');
-            updateStepIcon(step3, 'error');
-            step3.style.color = '#ef4444';
-            timeSpan.textContent = 'Stopped by user';
-            throw error;
-        }
-
-        console.error("[Step 3 Error]", error);
-        updateStepIcon(step3, 'error');
-        step3.style.color = '#ef4444';
-        timeSpan.textContent = 'Error';
-        throw error;
-    }
+    });
 }
 
-/**
- * Process Step 4: Send master list with missing assignments to Excel
- */
+
+// -- Step 4: Send to Excel --------------------------------------------------
+
+/** Process Step 4: Send the master list with missing assignments to Excel. */
 export async function processStep4(students) {
     const step4 = document.getElementById('step4');
     if (!step4) return students;
 
     const timeSpan = step4.querySelector('.step-time');
-
     step4.className = 'queue-item active';
     updateStepIcon(step4, 'spinner');
     step4.querySelector('.queue-content').innerHTML = '<i class="fas fa-spinner"></i> Sending List to Excel';
@@ -1149,23 +990,19 @@ export async function processStep4(students) {
     const startTime = Date.now();
 
     try {
-        console.log(`[Step 4] Sending master list with missing assignments to Excel`);
-
         // Dynamically import to avoid circular dependency
         const { sendMasterListWithMissingAssignmentsToExcel } = await import('./file-handler.js');
         const { getExcelTabs, openExcelInstanceModal, getCampusesFromStudents, openCampusSelectionModal } = await import('./modal-manager.js');
 
-        // Check if there are multiple campuses - if so, show campus selection modal
+        // --- Campus selection (if multiple campuses) ---
         let studentsToSend = students;
         const campuses = getCampusesFromStudents(students);
 
         if (campuses.length > 1) {
-            console.log(`[Step 4] Multiple campuses detected (${campuses.length}) - showing selection modal`);
             const selectedCampus = await openCampusSelectionModal(campuses);
 
             if (selectedCampus === null) {
-                // User cancelled - skip sending but don't fail
-                console.log('[Step 4] User cancelled campus selection - skipping send');
+                // User cancelled
                 const durationSeconds = (Date.now() - startTime) / 1000;
                 step4.className = 'queue-item completed';
                 updateStepIcon(step4, 'check');
@@ -1175,46 +1012,36 @@ export async function processStep4(students) {
                 return students;
             }
 
-            // Filter students by selected campus (empty string means all)
             if (selectedCampus !== '') {
                 studentsToSend = students.filter(s => s.campus === selectedCampus);
                 console.log(`[Step 4] Filtered to ${studentsToSend.length} students from campus: ${selectedCampus}`);
-            } else {
-                console.log(`[Step 4] Sending all ${students.length} students from all campuses`);
             }
         }
 
-        // Check how many Excel tabs are open
+        // --- Excel tab selection (if multiple tabs) ---
         const excelTabs = await getExcelTabs();
-
         let targetTabId = null;
 
         if (excelTabs.length === 0) {
-            console.log('[Step 4] No Excel tabs detected - sending to all (will be handled when tabs open)');
-            // Continue with null targetTabId - will attempt to send to any matching tabs
+            // No tabs — will attempt to send when tabs open
         } else if (excelTabs.length > 1) {
-            // Multiple Excel tabs - show selection modal
-            console.log(`[Step 4] Multiple Excel tabs detected (${excelTabs.length}) - showing selection modal`);
             targetTabId = await openExcelInstanceModal(excelTabs);
 
             if (targetTabId === null) {
-                // User cancelled - skip sending but don't fail
-                console.log('[Step 4] User cancelled Excel instance selection - skipping send');
+                // User cancelled
                 const durationSeconds = (Date.now() - startTime) / 1000;
                 step4.className = 'queue-item completed';
                 updateStepIcon(step4, 'check');
                 step4.querySelector('.queue-content').innerHTML = '<i class="fas fa-check"></i> Sending List to Excel';
                 timeSpan.textContent = `${formatDuration(durationSeconds)} (skipped)`;
-                // Update total time counter
                 updateTotalTime();
                 return students;
             }
         } else {
-            // Only one tab - use it directly
             targetTabId = excelTabs[0].id;
-            console.log(`[Step 4] Single Excel tab detected - sending to tab ${targetTabId}`);
         }
 
+        // --- Send ---
         await sendMasterListWithMissingAssignmentsToExcel(studentsToSend, targetTabId);
 
         const durationSeconds = (Date.now() - startTime) / 1000;
@@ -1222,12 +1049,8 @@ export async function processStep4(students) {
         updateStepIcon(step4, 'check');
         step4.querySelector('.queue-content').innerHTML = '<i class="fas fa-check"></i> Sending List to Excel';
         timeSpan.textContent = formatDuration(durationSeconds);
-
-        console.log(`[Step 4] ✓ Complete in ${formatDuration(durationSeconds)}`);
-
-        // Update total time counter (final update)
+        console.log(`[Step 4] Complete in ${formatDuration(durationSeconds)}`);
         updateTotalTime();
-
         return students;
 
     } catch (error) {
@@ -1236,6 +1059,6 @@ export async function processStep4(students) {
         step4.querySelector('.queue-content').innerHTML = '<i class="fas fa-times"></i> Sending List to Excel';
         step4.style.color = '#ef4444';
         timeSpan.textContent = 'Error';
-        return students; // Don't throw, just return students
+        return students;
     }
 }
