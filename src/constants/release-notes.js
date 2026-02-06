@@ -24,15 +24,11 @@ export const RELEASE_NOTES = {
     // The key should match the version in manifest.json
 	'11.2': {
         title: 'Latest Updates',
-        date: 'February 4, 2026',
+        date: 'February 6, 2026',
         updates: [
             'Significantly faster Update Master List process with optimized Canvas API calls',
-            'Grade book checks now group students by course, reducing API calls by up to 97%',
-            'Parallel data fetching for submissions and enrollment data',
-            'Smarter caching with batched writes for faster repeat updates',
-            'Refactored modal system for improved performance and maintainability',
-            'Added automated testing infrastructure with 115 tests',
-            'Improved code organization in the sidepanel'
+            'Improved searching the master list',
+            'Improved code organization and testing infrastructure'
         ]
     },
 	'11.1': {
