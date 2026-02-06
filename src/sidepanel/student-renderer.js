@@ -312,14 +312,14 @@ export function filterFoundList(e) {
     items.forEach(li => {
         const text = li.textContent.toLowerCase();
         let matches = text.includes(term);
-        if (!matches && term.includes(',')) {
-            const parts = term.split(',').map(s => s.trim());
-            const flipped = parts.reverse().join(' ');
-            matches = text.includes(flipped);
-        } else if (!matches && term.includes(' ')) {
-            const parts = term.split(/\s+/);
-            const flipped = parts.slice(-1).concat(parts.slice(0, -1)).join(', ');
-            matches = text.includes(flipped);
+        if (!matches) {
+            const parts = term.includes(',')
+                ? term.split(',').map(s => s.trim())
+                : term.split(/\s+/);
+            if (parts.length >= 2) {
+                const reversed = [...parts].reverse();
+                matches = text.includes(reversed.join(' ')) || text.includes(reversed.join(', '));
+            }
         }
         li.style.display = matches ? 'flex' : 'none';
     });
@@ -433,18 +433,16 @@ export function applyMasterListFilters() {
         const name = li.getAttribute('data-name').toLowerCase();
         const campus = li.getAttribute('data-campus') || '';
 
-        // Support both "Last, First" and "First Last" search formats
+        // Support any name format: "First Last", "Last, First", "Last First"
         let matchesSearch = name.includes(searchTerm);
-        if (!matchesSearch && searchTerm.includes(',')) {
-            // User typed "Last, First" — flip to "First Last"
-            const parts = searchTerm.split(',').map(s => s.trim());
-            const flipped = parts.reverse().join(' ');
-            matchesSearch = name.includes(flipped);
-        } else if (!matchesSearch && searchTerm.includes(' ')) {
-            // User typed "First Last" — flip to "Last, First"
-            const parts = searchTerm.split(/\s+/);
-            const flipped = parts.slice(-1).concat(parts.slice(0, -1)).join(', ');
-            matchesSearch = name.includes(flipped);
+        if (!matchesSearch) {
+            const parts = searchTerm.includes(',')
+                ? searchTerm.split(',').map(s => s.trim())
+                : searchTerm.split(/\s+/);
+            if (parts.length >= 2) {
+                const reversed = [...parts].reverse();
+                matchesSearch = name.includes(reversed.join(' ')) || name.includes(reversed.join(', '));
+            }
         }
         const matchesCampus = !selectedCampus || campus === selectedCampus;
 
