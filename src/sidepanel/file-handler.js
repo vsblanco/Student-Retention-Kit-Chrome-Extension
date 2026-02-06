@@ -4,17 +4,19 @@ import {
     FIELD_ALIASES,
     MASTER_LIST_COLUMNS,
     EXPORT_MISSING_ASSIGNMENTS_COLUMNS,
-    LDA_VISIBLE_COLUMNS,
+    LDA_VISIBLE_COLUMNS
+} from '../constants/index.js';
+import {
     normalizeFieldName,
     convertExcelDate,
     isExcelDateNumber,
     calculateDaysSinceLastAttendance,
     parseDate,
     formatDateToMMDDYY
-} from '../constants/index.js';
+} from '../constants/field-utils.js';
 import { updateStepIcon } from '../utils/ui-helpers.js';
 import { elements } from './ui-manager.js';
-import { formatDuration, updateTotalTime } from './canvas-integration.js';
+import { formatDuration, updateTotalTime } from './canvas-api.js';
 
 /**
  * Sends master list data to Excel via SRK_IMPORT_MASTER_LIST payload

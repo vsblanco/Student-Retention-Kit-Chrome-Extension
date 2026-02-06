@@ -1,5 +1,5 @@
 /**
- * Tests for canvas-integration.js - Canvas API analysis and data processing
+ * Tests for canvas-api.js - Canvas API analysis and data processing
  *
  * These tests verify the core logic for:
  * - Grade extraction from enrollment data
@@ -15,7 +15,7 @@
 
 /**
  * Extracts the current grade from a Canvas user enrollment object.
- * (Extracted from canvas-integration.js)
+ * (Extracted from canvas-api.js)
  */
 function extractCurrentGrade(userObject) {
     if (!userObject || !userObject.enrollments) return '';
@@ -34,7 +34,7 @@ function extractCurrentGrade(userObject) {
 
 /**
  * Analyzes submissions to find missing assignments.
- * (Extracted from canvas-integration.js)
+ * (Extracted from canvas-api.js)
  */
 function analyzeMissingAssignments(submissions, userObject, studentName, courseId, origin, referenceDate = new Date()) {
     const now = referenceDate;
@@ -79,7 +79,7 @@ function analyzeMissingAssignments(submissions, userObject, studentName, courseI
 
 /**
  * Finds the next upcoming unsubmitted assignment.
- * (Extracted from canvas-integration.js)
+ * (Extracted from canvas-api.js)
  */
 function findNextAssignment(submissions, courseId, origin, referenceDate = new Date()) {
     const todayStart = new Date(referenceDate.getFullYear(), referenceDate.getMonth(), referenceDate.getDate());
@@ -131,7 +131,7 @@ function findNextAssignment(submissions, courseId, origin, referenceDate = new D
 
 /**
  * Parses a Canvas gradebook URL.
- * (Extracted from canvas-integration.js)
+ * (Extracted from canvas-api.js)
  */
 function parseGradebookUrl(url) {
     try {
@@ -148,7 +148,7 @@ function parseGradebookUrl(url) {
 
 /**
  * Formats duration in seconds.
- * (Extracted from canvas-integration.js)
+ * (Extracted from canvas-api.js)
  */
 function formatDuration(seconds) {
     if (seconds >= 60) {

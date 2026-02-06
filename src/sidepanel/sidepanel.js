@@ -42,7 +42,7 @@ import {
     hideCampusFilter
 } from './file-handler.js';
 
-import { processStep2, processStep3, processStep4, formatDuration, updateTotalTime } from './canvas-integration.js';
+import { processStep2, processStep3, processStep4, formatDuration, updateTotalTime } from './canvas-api.js';
 
 // Import modal functions from separate files
 import {
