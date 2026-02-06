@@ -78,33 +78,24 @@ async function fetchPaged(url, items = []) {
     try {
         const response = await fetchWithTimeout(url, { method: 'GET', credentials: 'include', headers });
 
-        // Check for Canvas authorization errors (401 or 403)
+        // Check for Canvas authorization errors
         if (response.status === 401 || response.status === 403) {
-            // Try to parse error body to confirm it's an auth error
-            let isAuthError = true;
-            try {
-                const errorBody = await response.clone().json();
-                isAuthError = errorBody.status === 'unauthorized' ||
-                    (errorBody.errors && errorBody.errors.some(e =>
-                        e.message && e.message.toLowerCase().includes('not authorized')
-                    ));
-            } catch (e) {
-                // If we can't parse, assume it's an auth error based on status code
-            }
+            if (response.status === 401) {
+                // 401 = session expired or not logged in — prompt user
+                console.warn('[LOOPER] Canvas session unauthorized (401)');
+                logToDebug('warn', 'Canvas session unauthorized - pausing for user input');
 
-            if (isAuthError) {
-                console.warn('[LOOPER] Canvas authorization error detected');
-                logToDebug('warn', 'Canvas authorization error detected - pausing for user input');
-
-                // Send message to sidepanel to show auth error modal
                 const userChoice = await handleCanvasAuthError();
 
                 if (userChoice === 'shutdown') {
                     throw new Error('CANVAS_AUTH_SHUTDOWN');
                 }
-                // If 'continue', return partial data and skip this request
                 return items;
             }
+
+            // 403 = user lacks permission for this specific course — skip silently
+            console.warn('[LOOPER] Access denied for this course (403) - skipping');
+            return items;
         }
 
         if (!response.ok) {
