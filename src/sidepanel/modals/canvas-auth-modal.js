@@ -25,18 +25,18 @@ export function toggleCanvasAuthNonApi() {
 
 /**
  * Opens the Canvas Auth Error modal and returns a promise that resolves with the user's choice
- * @returns {Promise<'continue'|'shutdown'>} Promise that resolves with 'continue' or 'shutdown'
+ * @returns {Promise<'retry'|'shutdown'>} Promise that resolves with 'retry' or 'shutdown'
  */
 export async function openCanvasAuthErrorModal() {
     return new Promise(async (resolve) => {
         // Prevent multiple modals from stacking
         if (canvasAuthErrorShown) {
-            resolve('continue'); // Default to continue if already shown
+            resolve('retry'); // Default to retry if already shown
             return;
         }
 
         if (!elements.canvasAuthErrorModal) {
-            resolve('continue');
+            resolve('retry');
             return;
         }
 
@@ -55,11 +55,11 @@ export async function openCanvasAuthErrorModal() {
 
 /**
  * Closes the Canvas Auth Error modal
- * @param {'continue'|'shutdown'} choice - The user's choice
+ * @param {'retry'|'shutdown'} choice - The user's choice
  */
-export async function closeCanvasAuthErrorModal(choice = 'continue') {
-    // Save the non-API toggle setting if user chose to continue
-    if (choice === 'continue') {
+export async function closeCanvasAuthErrorModal(choice = 'retry') {
+    // Save the non-API toggle setting if user chose to retry
+    if (choice === 'retry') {
         const isNonApiEnabled = isToggleEnabled(elements.canvasAuthNonApiToggle);
         await storageSet({ [STORAGE_KEYS.NON_API_COURSE_FETCH]: isNonApiEnabled });
         if (isNonApiEnabled) {

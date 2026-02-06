@@ -7,7 +7,8 @@ export const CONFIG = {
         MAX_CONCURRENT_REQUESTS: 5,
         BATCH_SIZE: 30,
         REQUEST_TIMEOUT_MS: 30000,
-        RETRY_DELAY_MS: 1000
+        RETRY_DELAY_MS: 1000,
+        AUTH_ERROR_THRESHOLD: 20 // Consecutive 401 errors before showing auth modal
     },
 
     // Five9 Integration Settings
