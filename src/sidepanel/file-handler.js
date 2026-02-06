@@ -1,17 +1,19 @@
 // File Handler - CSV/Excel import and export functionality
 import {
     STORAGE_KEYS,
-    FIELD_ALIASES,
     MASTER_LIST_COLUMNS,
     EXPORT_MISSING_ASSIGNMENTS_COLUMNS,
-    LDA_VISIBLE_COLUMNS,
+    LDA_VISIBLE_COLUMNS
+} from '../constants/index.js';
+import {
+    FIELD_ALIASES,
     normalizeFieldName,
     convertExcelDate,
     isExcelDateNumber,
     calculateDaysSinceLastAttendance,
     parseDate,
     formatDateToMMDDYY
-} from '../constants/index.js';
+} from '../constants/field-utils.js';
 import { updateStepIcon } from '../utils/ui-helpers.js';
 import { elements } from './ui-manager.js';
 import { formatDuration, updateTotalTime } from './canvas-integration.js';
