@@ -1030,7 +1030,8 @@ export async function processStep4(students) {
     try {
         // Dynamically import to avoid circular dependency
         const { sendMasterListWithMissingAssignmentsToExcel } = await import('./file-handler.js');
-        const { getExcelTabs, openExcelInstanceModal, getCampusesFromStudents, openCampusSelectionModal } = await import('./modal-manager.js');
+        const { getExcelTabs, openExcelInstanceModal } = await import('./modals/excel-instance-modal.js');
+        const { getCampusesFromStudents, openCampusSelectionModal } = await import('./modals/campus-selection-modal.js');
 
         // --- Campus selection (if multiple campuses) ---
         let studentsToSend = students;
