@@ -354,7 +354,7 @@ async function analyzeSubmissionMode(entry, submissions) {
         keyword = now.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }).replace(',', '');
     }
 
-    console.log(`%c [LOOPER] Checking ${entry.name} - Keyword: "${keyword}" | Custom: ${isCustomKeyword} | Submissions: ${submissions.length}`, 'color: #00BCD4;');
+    console.log(`%c [LOOPER] Checking ${entry.name}`, 'color: #00BCD4;');
 
     let found = false;
     let foundDetails = null;
@@ -372,8 +372,6 @@ async function analyzeSubmissionMode(entry, submissions) {
             } else {
                 isMatch = subDateStr === keyword;
             }
-
-            console.log(`  [SUB] "${subDateStr}" ${isCustomKeyword ? 'includes' : '==='} "${keyword}" = ${isMatch} | Assignment: ${sub.assignment?.name || 'Unknown'}`);
 
             if (isMatch) {
                 found = true;
@@ -393,10 +391,9 @@ async function analyzeSubmissionMode(entry, submissions) {
     }
 
     if (found && foundDetails) {
-        console.log('%c [LOOPER] Submission detected!', 'background: #FF9800; color: white; font-weight: bold; padding: 2px 4px;', foundDetails);
+        console.log(`%c [LOOPER] Submission detected! ${foundDetails.name} - ${foundDetails.assignment}`, 'background: #FF9800; color: white; font-weight: bold; padding: 2px 4px;');
         logToDebug('log', `Found submission: ${foundDetails.name} - ${foundDetails.assignment}`);
         if (onFoundCallback) {
-            console.log('%c [LOOPER] Calling onFoundCallback', 'background: #9C27B0; color: white; font-weight: bold; padding: 2px 4px;');
             onFoundCallback(foundDetails);
         } else {
             console.warn('[LOOPER] onFoundCallback is not set!');
@@ -455,15 +452,12 @@ function prepareBatches(entries) {
 
 // NEW: Core Logic extracted to allow re-runs
 async function performLoop() {
-    console.log('%c [LOOPER] performLoop() called', 'background: #673AB7; color: white; font-weight: bold; padding: 4px;');
-
     // Reset state for new cycle
     currentLoopIndex = 0;
     processedCount = 0;
     activeRequests = 0;
 
     await loadSettings();
-    console.log(`[LOOPER] Settings loaded - Mode: ${currentCheckerMode}, Concurrent: ${maxConcurrentRequests}`);
 
     // 1. Fetch Fresh Data
     const data = await storageGet([
@@ -478,7 +472,6 @@ async function performLoop() {
     const filterText = (data[STORAGE_KEYS.LOOPER_DAYS_OUT_FILTER] || 'all').trim().toLowerCase();
     const includeFailing = data[STORAGE_KEYS.SCAN_FILTER_INCLUDE_FAILING] || false;
 
-    console.log(`[LOOPER] Data loaded - Master: ${masterEntries.length} students, Found: ${foundEntries.length}, Filter: "${filterText}", IncludeFailing: ${includeFailing}`);
 
     // 2. Re-build Cache
     foundUrlCache = new Set(foundEntries.map(e => e.url || e.Gradebook).filter(Boolean));
@@ -526,14 +519,10 @@ async function performLoop() {
     if (currentCheckerMode === CHECKER_MODES.SUBMISSION) {
         const initialCount = filteredList.length;
         filteredList = filteredList.filter(entry => !foundUrlCache.has(entry.url || entry.Gradebook));
-        if (initialCount !== filteredList.length) {
-            console.log(`Skipping ${initialCount - filteredList.length} already found students.`);
-        }
     }
 
     if (filteredList.length === 0) {
         if (currentCheckerMode === CHECKER_MODES.SUBMISSION) {
-             console.log("No students to check. Waiting...");
              // Update UI to show 0/0 so user knows it's waiting
              storageSet({
                 [STORAGE_KEYS.LOOP_STATUS]: { current: 0, total: 0 }
@@ -551,9 +540,7 @@ async function performLoop() {
     totalStudents = filteredList.length;
     batchQueue = prepareBatches(filteredList);
 
-    console.log('%c ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'color: #00BCD4;');
-    console.log(`%c [LOOPER] Prepared ${batchQueue.length} batches from ${totalStudents} students`, 'background: #00BCD4; color: white; font-weight: bold; padding: 4px;');
-    console.log('%c ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'color: #00BCD4;');
+    console.log(`%c [LOOPER] Checking ${totalStudents} students in ${batchQueue.length} batches`, 'color: #00BCD4; font-weight: bold;');
 
     // Update UI immediately
     storageSet({
@@ -561,7 +548,6 @@ async function performLoop() {
     });
 
     // 6. Launch
-    console.log(`[LOOPER] Launching ${maxConcurrentRequests} concurrent workers...`);
     for (let i = 0; i < maxConcurrentRequests; i++) {
         next();
     }
@@ -605,12 +591,12 @@ function finishLoop() {
     // Removed old cleanup logic that didn't support refresh
     if (currentCheckerMode === CHECKER_MODES.MISSING) {
         isLooping = false;
-        console.log('Batch API Check Completed.');
+        console.log('%c [LOOPER] Scan complete', 'color: #4CAF50; font-weight: bold;');
         // Remove LOOP_STATUS from storage (flat key, use chrome.storage.local directly)
         chrome.storage.local.remove(STORAGE_KEYS.LOOP_STATUS);
         if (onCompleteCallback) onCompleteCallback();
     } else {
-        console.log('Batch API Check Cycle Complete. Restarting...');
+        console.log('%c [LOOPER] Cycle complete, restarting...', 'color: #00BCD4;');
         setTimeout(() => {
             if (!isLooping) return;
             // Calls performLoop instead of resetting vars to ensure new Found items are filtered out
@@ -629,28 +615,18 @@ export async function startLoop(options = {}) {
         return;
     }
 
-    console.log('%c ═══════════════════════════════════════', 'color: #4CAF50; font-weight: bold;');
-    console.log('%c [LOOPER] START BATCH API MODE', 'background: #4CAF50; color: white; font-weight: bold; font-size: 16px; padding: 4px;');
-    console.log('%c ═══════════════════════════════════════', 'color: #4CAF50; font-weight: bold;');
+    console.log('%c [LOOPER] Started', 'color: #4CAF50; font-weight: bold;');
 
     onCompleteCallback = options.onComplete || null;
     onFoundCallback = options.onFound || null;
     onMissingFoundCallback = options.onMissingFound || null;
-
-    console.log('[LOOPER] Callbacks set:', {
-        hasOnFound: !!onFoundCallback,
-        hasOnComplete: !!onCompleteCallback,
-        hasOnMissingFound: !!onMissingFoundCallback
-    });
 
     isLooping = true;
     performLoop(); // Call the logic function
 }
 
 export function stopLoop() {
-    console.log('%c ═══════════════════════════════════════', 'color: #F44336; font-weight: bold;');
-    console.log('%c [LOOPER] STOP API MODE', 'background: #F44336; color: white; font-weight: bold; font-size: 16px; padding: 4px;');
-    console.log('%c ═══════════════════════════════════════', 'color: #F44336; font-weight: bold;');
+    console.log('%c [LOOPER] Stopped', 'color: #F44336; font-weight: bold;');
 
     isLooping = false;
     activeRequests = 0;
