@@ -311,7 +311,17 @@ export function filterFoundList(e) {
     const items = elements.foundList.querySelectorAll('li');
     items.forEach(li => {
         const text = li.textContent.toLowerCase();
-        li.style.display = text.includes(term) ? 'flex' : 'none';
+        let matches = text.includes(term);
+        if (!matches && term.includes(',')) {
+            const parts = term.split(',').map(s => s.trim());
+            const flipped = parts.reverse().join(' ');
+            matches = text.includes(flipped);
+        } else if (!matches && term.includes(' ')) {
+            const parts = term.split(/\s+/);
+            const flipped = parts.slice(-1).concat(parts.slice(0, -1)).join(', ');
+            matches = text.includes(flipped);
+        }
+        li.style.display = matches ? 'flex' : 'none';
     });
 }
 
@@ -423,7 +433,19 @@ export function applyMasterListFilters() {
         const name = li.getAttribute('data-name').toLowerCase();
         const campus = li.getAttribute('data-campus') || '';
 
-        const matchesSearch = name.includes(searchTerm);
+        // Support both "Last, First" and "First Last" search formats
+        let matchesSearch = name.includes(searchTerm);
+        if (!matchesSearch && searchTerm.includes(',')) {
+            // User typed "Last, First" — flip to "First Last"
+            const parts = searchTerm.split(',').map(s => s.trim());
+            const flipped = parts.reverse().join(' ');
+            matchesSearch = name.includes(flipped);
+        } else if (!matchesSearch && searchTerm.includes(' ')) {
+            // User typed "First Last" — flip to "Last, First"
+            const parts = searchTerm.split(/\s+/);
+            const flipped = parts.slice(-1).concat(parts.slice(0, -1)).join(', ');
+            matchesSearch = name.includes(flipped);
+        }
         const matchesCampus = !selectedCampus || campus === selectedCampus;
 
         const isVisible = matchesSearch && matchesCampus;
