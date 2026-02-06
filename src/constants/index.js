@@ -310,6 +310,28 @@ export const GUIDES = [
 ];
 
 /**
+ * Field aliases for semantic field matching in file imports and incoming payloads.
+ * Maps internal field names to semantically equivalent field names (actual aliases).
+ *
+ * NOTE: You don't need to specify case/space variations (e.g., "StudentNumber" vs "student number")
+ * as these are handled automatically by normalizeFieldName().
+ * Only specify true semantic aliases here (e.g., "Student ID" is an alias for "StudentNumber").
+ */
+export const FIELD_ALIASES = {
+    name: ['studentname', 'student'],
+    phone: ['primaryphone', 'phonenumber', 'mobile', 'cell', 'cellphone', 'contact', 'telephone', 'otherphone'],
+    grade: ['gradelevel', 'level'],
+    StudentNumber: ['studentid', 'sisid'],
+    SyStudentId: ['studentsis'],
+    daysOut: ['daysinactive', 'days'],
+    url: ['gradebook', 'gradeBookUrl', 'canvasUrl', 'studentUrl'],
+	studentEmail: ['email', 'studentsemail', 'studentemails', 'studentsemails'],
+	personalEmail: ['otheremail', 'studentspersonalemail', 'personalstudentemail', 'othermemails'],
+	lda: ['lastdayofattendance', 'lastattendance', 'lastdateofattendance', 'lastdayattended'],
+	campus: ['location', 'site', 'school', 'campusname']
+};
+
+/**
  * Excel Export Column Configurations
  * Master List columns used for both CSV/Excel export and Excel import payload.
  * Modify this array to customize what columns appear in exports and imports.

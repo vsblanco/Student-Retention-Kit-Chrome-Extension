@@ -1,12 +1,12 @@
 // File Handler - CSV/Excel import and export functionality
 import {
     STORAGE_KEYS,
+    FIELD_ALIASES,
     MASTER_LIST_COLUMNS,
     EXPORT_MISSING_ASSIGNMENTS_COLUMNS,
     LDA_VISIBLE_COLUMNS
 } from '../constants/index.js';
 import {
-    FIELD_ALIASES,
     normalizeFieldName,
     convertExcelDate,
     isExcelDateNumber,
