@@ -174,7 +174,7 @@ export function cacheDomElements() {
 
     // Canvas Auth Error Modal
     elements.canvasAuthErrorModal = document.getElementById('canvasAuthErrorModal');
-    elements.canvasAuthContinueBtn = document.getElementById('canvasAuthContinueBtn');
+    elements.canvasAuthRetryBtn = document.getElementById('canvasAuthRetryBtn');
     elements.canvasAuthShutdownBtn = document.getElementById('canvasAuthShutdownBtn');
     elements.canvasAuthNonApiToggle = document.getElementById('canvasAuthNonApiToggle');
 

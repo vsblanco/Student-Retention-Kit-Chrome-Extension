@@ -22,6 +22,7 @@ let processedCount = 0;
 // Canvas Auth Error handling
 let isPausedForAuthError = false;
 let authErrorResolve = null;
+let consecutiveAuthErrors = 0;
 
 const BATCH_SIZE = CONFIG.LOOPER.BATCH_SIZE;
 const REQUEST_TIMEOUT_MS = CONFIG.LOOPER.REQUEST_TIMEOUT_MS; 
@@ -81,14 +82,21 @@ async function fetchPaged(url, items = []) {
         // Check for Canvas authorization errors
         if (response.status === 401 || response.status === 403) {
             if (response.status === 401) {
-                // 401 = session expired or not logged in — prompt user
-                console.warn('[LOOPER] Canvas session unauthorized (401)');
-                logToDebug('warn', 'Canvas session unauthorized - pausing for user input');
+                consecutiveAuthErrors++;
 
-                const userChoice = await handleCanvasAuthError();
+                // Only show modal after hitting the threshold
+                if (consecutiveAuthErrors >= CONFIG.LOOPER.AUTH_ERROR_THRESHOLD) {
+                    console.warn(`[LOOPER] ${consecutiveAuthErrors} consecutive 401 errors — prompting user`);
+                    logToDebug('warn', `${consecutiveAuthErrors} consecutive unauthorized errors - pausing for user input`);
 
-                if (userChoice === 'shutdown') {
-                    throw new Error('CANVAS_AUTH_SHUTDOWN');
+                    const userChoice = await handleCanvasAuthError();
+                    consecutiveAuthErrors = 0;
+
+                    if (userChoice === 'shutdown') {
+                        throw new Error('CANVAS_AUTH_SHUTDOWN');
+                    }
+                } else {
+                    console.warn(`[LOOPER] 401 Unauthorized (${consecutiveAuthErrors}/${CONFIG.LOOPER.AUTH_ERROR_THRESHOLD}) - skipping`);
                 }
                 return items;
             }
@@ -98,6 +106,9 @@ async function fetchPaged(url, items = []) {
             error.statusCode = 403;
             throw error;
         }
+
+        // Successful response — reset consecutive error counter
+        consecutiveAuthErrors = 0;
 
         if (!response.ok) {
             if (items.length > 0) return items;
@@ -622,6 +633,7 @@ export async function startLoop(options = {}) {
     onMissingFoundCallback = options.onMissingFound || null;
 
     isLooping = true;
+    consecutiveAuthErrors = 0;
     performLoop(); // Call the logic function
 }
 

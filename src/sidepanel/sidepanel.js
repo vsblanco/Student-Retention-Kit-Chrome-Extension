@@ -784,8 +784,8 @@ function setupEventListeners() {
     }
 
     // Canvas Auth Error Modal
-    if (elements.canvasAuthContinueBtn) {
-        elements.canvasAuthContinueBtn.addEventListener('click', () => closeCanvasAuthErrorModal('continue'));
+    if (elements.canvasAuthRetryBtn) {
+        elements.canvasAuthRetryBtn.addEventListener('click', () => closeCanvasAuthErrorModal('retry'));
     }
     if (elements.canvasAuthShutdownBtn) {
         elements.canvasAuthShutdownBtn.addEventListener('click', () => closeCanvasAuthErrorModal('shutdown'));
@@ -1554,10 +1554,10 @@ chrome.runtime.onMessage.addListener(async (msg, sender, sendResponse) => {
 
         // Show the auth error modal and wait for user response
         openCanvasAuthErrorModal().then(choice => {
-            // Send the user's choice back to the looper
+            // Send the user's choice back to the looper (looper understands 'continue' not 'retry')
             chrome.runtime.sendMessage({
                 type: MESSAGE_TYPES.CANVAS_AUTH_RESPONSE,
-                choice: choice
+                choice: choice === 'retry' ? 'continue' : choice
             }).catch(err => {
                 console.warn('[Sidepanel] Could not send auth response:', err);
             });

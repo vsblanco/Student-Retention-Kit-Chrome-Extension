@@ -41,6 +41,14 @@ export class CanvasAuthShutdownError extends Error {
     }
 }
 
+/** Custom error thrown when the user clicks "Retry" in the auth error modal. */
+class CanvasAuthRetryError extends Error {
+    constructor() {
+        super('Canvas authentication retry requested by user');
+        this.name = 'CanvasAuthRetryError';
+    }
+}
+
 /** Throws CanvasAuthShutdownError if the user previously requested shutdown. */
 function checkShutdown() {
     if (shutdownRequested) {
@@ -50,14 +58,14 @@ function checkShutdown() {
 
 /**
  * Shows the auth error modal (once per session) and returns the user's choice.
+ * Throws CanvasAuthShutdownError on shutdown, CanvasAuthRetryError on retry.
  * @param {string} context - What was being fetched when the error occurred (for logging).
- * @returns {Promise<'continue'|'shutdown'>}
  */
 async function handleCanvasAuthError(context) {
     console.warn(`[Canvas] Authorization error during ${context}`);
 
-    if (shutdownRequested) return 'shutdown';
-    if (authErrorShownInSession) return 'continue';
+    if (shutdownRequested) throw new CanvasAuthShutdownError();
+    if (authErrorShownInSession) throw new CanvasAuthRetryError();
 
     authErrorShownInSession = true;
     const choice = await openCanvasAuthErrorModal();
@@ -65,8 +73,10 @@ async function handleCanvasAuthError(context) {
 
     if (choice === 'shutdown') {
         shutdownRequested = true;
+        throw new CanvasAuthShutdownError();
     }
-    return choice;
+    // 'retry' — throw retry error so the step restarts
+    throw new CanvasAuthRetryError();
 }
 
 
@@ -132,6 +142,12 @@ async function withStepUI(stepId, work) {
             throw error;
         }
 
+        if (error instanceof CanvasAuthRetryError) {
+            console.log(`[${stepId}] Retrying after Canvas auth error`);
+            timeSpan.textContent = 'Retrying...';
+            throw error;
+        }
+
         console.error(`[${stepId} Error]`, error);
         updateStepIcon(stepEl, 'error');
         stepEl.style.color = '#ef4444';
@@ -191,9 +207,7 @@ async function fetchPaged(url, items = []) {
         const response = await fetch(url, { method: 'GET', credentials: 'include', headers });
 
         if (isCanvasAuthError(response)) {
-            const choice = await handleCanvasAuthError('fetching paged data');
-            if (choice === 'shutdown') throw new CanvasAuthShutdownError();
-            return items;
+            await handleCanvasAuthError('fetching paged data');
         }
 
         if (!response.ok) {
@@ -210,7 +224,7 @@ async function fetchPaged(url, items = []) {
         }
         return allItems;
     } catch (e) {
-        if (e instanceof CanvasAuthShutdownError) throw e;
+        if (e instanceof CanvasAuthShutdownError || e instanceof CanvasAuthRetryError) throw e;
         console.warn('Fetch error:', e);
         return items;
     }
@@ -608,9 +622,7 @@ export async function fetchCanvasDetails(student, cacheEnabled = true, useNonApi
             const userResp = await fetch(userUrl, { headers: { 'Accept': 'application/json' } });
 
             if (isCanvasAuthError(userResp)) {
-                const choice = await handleCanvasAuthError('fetching user data');
-                if (choice === 'shutdown') throw new CanvasAuthShutdownError();
-                return student;
+                await handleCanvasAuthError('fetching user data');
             }
             if (!userResp.ok) {
                 console.warn(`Failed to fetch user data for ${student.SyStudentId}: ${userResp.status}`);
@@ -628,9 +640,7 @@ export async function fetchCanvasDetails(student, cacheEnabled = true, useNonApi
                     const coursesResp = await fetch(coursesUrl, { headers: { 'Accept': 'application/json' } });
 
                     if (isCanvasAuthError(coursesResp)) {
-                        const choice = await handleCanvasAuthError('fetching courses');
-                        if (choice === 'shutdown') throw new CanvasAuthShutdownError();
-                        courses = [];
+                        await handleCanvasAuthError('fetching courses');
                     } else if (coursesResp.ok) {
                         courses = await coursesResp.json();
                     } else {
@@ -729,9 +739,9 @@ async function processBatches({ students, updatedStudents, studentIndexMap, proc
         const batch = students.slice(i, i + batchSize);
         const settledResults = await Promise.allSettled(batch.map(processFn));
 
-        // Propagate shutdown errors
+        // Propagate shutdown/retry errors
         for (const result of settledResults) {
-            if (result.status === 'rejected' && result.reason instanceof CanvasAuthShutdownError) {
+            if (result.status === 'rejected' && (result.reason instanceof CanvasAuthShutdownError || result.reason instanceof CanvasAuthRetryError)) {
                 throw result.reason;
             }
         }
@@ -768,8 +778,21 @@ async function processBatches({ students, updatedStudents, studentIndexMap, proc
  * with batched API calls and batched cache writes.
  */
 export async function processStep2(students, renderCallback) {
-    resetAuthErrorState();
+    while (true) {
+        resetAuthErrorState();
+        try {
+            return await _processStep2(students, renderCallback);
+        } catch (e) {
+            if (e instanceof CanvasAuthRetryError) {
+                console.log('[Step 2] Retrying with updated settings...');
+                continue;
+            }
+            throw e;
+        }
+    }
+}
 
+async function _processStep2(students, renderCallback) {
     return withStepUI('step2', async ({ timeSpan }) => {
         console.log(`[Step 2] Pinging Canvas API: ${CANVAS_DOMAIN}`);
 
@@ -872,6 +895,21 @@ export async function processStep2(students, renderCallback) {
  * in-flight simultaneously for maximum throughput.
  */
 export async function processStep3(students, renderCallback) {
+    while (true) {
+        resetAuthErrorState();
+        try {
+            return await _processStep3(students, renderCallback);
+        } catch (e) {
+            if (e instanceof CanvasAuthRetryError) {
+                console.log('[Step 3] Retrying with updated settings...');
+                continue;
+            }
+            throw e;
+        }
+    }
+}
+
+async function _processStep3(students, renderCallback) {
     return withStepUI('step3', async ({ timeSpan }) => {
         const settings = await storageGet([
             STORAGE_KEYS.USE_SPECIFIC_DATE,
@@ -946,7 +984,7 @@ export async function processStep3(students, renderCallback) {
                         updatedStudents[studentsInCourse[i].originalIndex] = updated;
                     });
                 } catch (e) {
-                    if (e instanceof CanvasAuthShutdownError) throw e;
+                    if (e instanceof CanvasAuthShutdownError || e instanceof CanvasAuthRetryError) throw e;
                     console.error(`[Step 3] Course ${courseId} fetch error:`, e);
                     for (const { student, originalIndex } of studentsInCourse) {
                         updatedStudents[originalIndex] = {
