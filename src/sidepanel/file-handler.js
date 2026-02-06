@@ -16,7 +16,7 @@ import {
 } from '../constants/field-utils.js';
 import { updateStepIcon } from '../utils/ui-helpers.js';
 import { elements } from './ui-manager.js';
-import { formatDuration, updateTotalTime } from './canvas-integration.js';
+import { formatDuration, updateTotalTime } from './canvas-api.js';
 
 /**
  * Sends master list data to Excel via SRK_IMPORT_MASTER_LIST payload
