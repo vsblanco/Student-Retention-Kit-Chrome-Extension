@@ -94,8 +94,9 @@ async function fetchPaged(url, items = []) {
             }
 
             // 403 = user lacks permission for this specific course — skip silently
-            console.warn('[LOOPER] Access denied for this course (403) - skipping');
-            return items;
+            const error = new Error('CANVAS_ACCESS_DENIED');
+            error.statusCode = 403;
+            throw error;
         }
 
         if (!response.ok) {
@@ -174,11 +175,17 @@ async function fetchBatchData(batch) {
     let usersData = [];
     let error = null;
 
+    const studentNames = batch.map(e => e.name || 'Unknown').join(', ');
+
     try {
         submissionsData = await fetchPaged(submissionsEndpoint);
     } catch (e) {
         if (e.message === 'CANVAS_AUTH_SHUTDOWN') {
             return { batch, error: 'CANVAS_AUTH_SHUTDOWN', shutdown: true };
+        }
+        if (e.message === 'CANVAS_ACCESS_DENIED') {
+            console.warn(`[LOOPER] 403 Access Denied — Course ${courseId} | Students: ${studentNames}\n  URL: ${submissionsEndpoint}`);
+            return { batch, error: e.message };
         }
         console.error(`Submissions fetch failed for course ${courseId}:`, e);
         return { batch, error: e.message };
@@ -190,7 +197,11 @@ async function fetchBatchData(batch) {
         if (e.message === 'CANVAS_AUTH_SHUTDOWN') {
             return { batch, error: 'CANVAS_AUTH_SHUTDOWN', shutdown: true };
         }
-        console.warn(`Users/Grades fetch failed for course ${courseId} (continuing with blank grades):`, e);
+        if (e.message === 'CANVAS_ACCESS_DENIED') {
+            console.warn(`[LOOPER] 403 Access Denied (users) — Course ${courseId} | Students: ${studentNames}\n  URL: ${usersEndpoint}`);
+        } else {
+            console.warn(`Users/Grades fetch failed for course ${courseId} (continuing with blank grades):`, e);
+        }
     }
 
     return { batch, submissionsData, usersData };
