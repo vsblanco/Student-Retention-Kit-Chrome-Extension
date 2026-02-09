@@ -9,7 +9,6 @@ import {
 import {
     normalizeFieldName,
     convertExcelDate,
-    isExcelDateNumber,
     calculateDaysSinceLastAttendance,
     parseDate,
     formatDateToMMDDYY
