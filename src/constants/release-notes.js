@@ -28,7 +28,8 @@ export const RELEASE_NOTES = {
         updates: [
             'Significantly faster Update Master List process with optimized Canvas API calls',
             'Improved searching the master list',
-            'Improved code organization and testing infrastructure'
+            'Improved code organization and testing infrastructure',
+			'Hotfix the update master list process with new courses not fetching correctly'
         ]
     },
 	'11.1': {
@@ -122,3 +123,4 @@ export function getLatestReleaseNotes() {
         notes: RELEASE_NOTES[latestVersion]
     };
 }
+
