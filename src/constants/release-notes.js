@@ -24,7 +24,7 @@ export const RELEASE_NOTES = {
     // The key should match the version in manifest.json
 	'11.2': {
         title: 'Latest Updates',
-        date: 'February 6, 2026',
+        date: 'February 9, 2026',
         updates: [
             'Significantly faster Update Master List process with optimized Canvas API calls',
             'Improved searching the master list',
@@ -123,4 +123,5 @@ export function getLatestReleaseNotes() {
         notes: RELEASE_NOTES[latestVersion]
     };
 }
+
 
