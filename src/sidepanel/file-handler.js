@@ -636,9 +636,6 @@ export function handleFileImport(file, onSuccess) {
                     elements.lastUpdatedText.textContent = lastUpdated;
                 }
 
-                // Send master list to Excel
-                await sendMasterListToExcel(students);
-
                 if (onSuccess) {
                     onSuccess(students);
                 }
