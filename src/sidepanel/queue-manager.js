@@ -90,7 +90,8 @@ export class QueueManager {
             // Show student view modal when auto-switch is disabled
             const campusList = await storageGetValue(STORAGE_KEYS.CAMPUS_LIST, []);
             const hasMultipleCampuses = Array.isArray(campusList) && campusList.length > 1;
-            openStudentViewModal(entry, hasMultipleCampuses);
+            const campusPrefix = await storageGetValue(STORAGE_KEYS.CAMPUS_PREFIX, '');
+            openStudentViewModal(entry, hasMultipleCampuses, campusPrefix);
         }
     }
 

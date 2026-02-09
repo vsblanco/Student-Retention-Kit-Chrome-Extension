@@ -1,5 +1,6 @@
 // Campus Selection Modal - Allows selecting which campus data to send
 import { elements } from '../ui-manager.js';
+import { trimCommonPrefix } from '../../constants/field-utils.js';
 
 // Campus Selection Modal state
 let campusSelectionResolve = null;
@@ -60,15 +61,19 @@ export function openCampusSelectionModal(campuses, customMessage = null) {
         });
         elements.campusSelectionList.appendChild(allButton);
 
+        // Trim common prefix for cleaner display names
+        const { trimmedNames } = trimCommonPrefix(campuses);
+
         // Create a button for each campus
         campuses.forEach(campus => {
+            const displayName = trimmedNames.get(campus) || campus;
             const button = document.createElement('button');
             button.className = 'btn-secondary';
             button.style.cssText = 'width: 100%; text-align: left; padding: 12px 15px; display: flex; align-items: center; gap: 10px;';
 
             button.innerHTML = `
                 <i class="fas fa-building" style="color: #6366f1; font-size: 1.2em;"></i>
-                <span style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${campus}</span>
+                <span style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${displayName}</span>
             `;
             button.title = campus;
 

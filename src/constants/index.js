@@ -163,6 +163,7 @@ export const STORAGE_KEYS = {
     FOUND_ENTRIES: 'foundEntries',
     MASTER_ENTRIES: 'masterEntries',
     CAMPUS_LIST: 'campusList',
+    CAMPUS_PREFIX: 'campusPrefix',
     CANVAS_API_CACHE: 'canvasApiCache',
 
     // === OTHER (flat for backwards compatibility or misc) ===

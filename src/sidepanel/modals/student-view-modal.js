@@ -18,8 +18,9 @@ export function getCurrentStudentViewStudent() {
  * Opens the student view modal with student details
  * @param {Object} student - The student data object
  * @param {boolean} hasMultipleCampuses - Whether there are multiple campuses in the list
+ * @param {string} [campusPrefix=''] - Common prefix to trim from campus names for display
  */
-export function openStudentViewModal(student, hasMultipleCampuses = false) {
+export function openStudentViewModal(student, hasMultipleCampuses = false, campusPrefix = '') {
     if (!elements.studentViewModal || !student) return;
 
     // Store the current student for access by email button
@@ -79,7 +80,12 @@ export function openStudentViewModal(student, hasMultipleCampuses = false) {
         const campus = student.campus || student.Campus || '';
         if (hasMultipleCampuses && campus) {
             elements.studentViewCampus.style.display = 'block';
-            if (campusSpan) campusSpan.textContent = campus;
+            // Trim common prefix for cleaner display
+            let displayCampus = campus;
+            if (campusPrefix && campus.startsWith(campusPrefix)) {
+                displayCampus = campus.substring(campusPrefix.length).replace(/^[\s\-–—:]+/, '').trim() || campus;
+            }
+            if (campusSpan) campusSpan.textContent = displayCampus;
         } else {
             elements.studentViewCampus.style.display = 'none';
         }
