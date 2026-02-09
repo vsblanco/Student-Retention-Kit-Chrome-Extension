@@ -616,7 +616,7 @@ async function loadPipelineSettings() {
     const cacheEnabled = cacheSettings[STORAGE_KEYS.CANVAS_CACHE_ENABLED] !== undefined
         ? cacheSettings[STORAGE_KEYS.CANVAS_CACHE_ENABLED]
         : true;
-    const useNonApiFetch = nonApiSettings[STORAGE_KEYS.NON_API_COURSE_FETCH] || false;
+    const useNonApiFetch = nonApiSettings[STORAGE_KEYS.NON_API_COURSE_FETCH] !== undefined ? nonApiSettings[STORAGE_KEYS.NON_API_COURSE_FETCH] : true;
 
     const useSpecificDate = timeMachineSettings[STORAGE_KEYS.USE_SPECIFIC_DATE] || false;
     const specificDateStr = timeMachineSettings[STORAGE_KEYS.SPECIFIC_SUBMISSION_DATE];
