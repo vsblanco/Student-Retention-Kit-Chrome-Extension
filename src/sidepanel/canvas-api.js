@@ -725,15 +725,34 @@ export async function fetchCanvasDetails(student, cacheEnabled = true, useNonApi
             const now = courseReferenceDate || new Date();
             const validCourses = courses.filter(c => c.name && !c.name.toUpperCase().includes('CAPV'));
 
-            // Try to find a course active on the reference date
+            // Priority 1: Active enrollment + in date range
             let activeCourse = validCourses.find(c => {
-                if (!c.start_at || !c.end_at) return false;
+                const hasActive = c.enrollments && c.enrollments.some(e => e.enrollment_state === 'active');
+                if (!hasActive) return false;
+                if (!c.start_at || !c.end_at) return true; // active enrollment without dates — trust it
                 const start = new Date(c.start_at);
                 const end = new Date(c.end_at);
                 return now >= start && now <= end;
             });
 
-            // Fall back to most recently started course
+            // Priority 2: Active enrollment (any dates)
+            if (!activeCourse) {
+                activeCourse = validCourses.find(c =>
+                    c.enrollments && c.enrollments.some(e => e.enrollment_state === 'active')
+                );
+            }
+
+            // Priority 3: In date range (any enrollment state)
+            if (!activeCourse) {
+                activeCourse = validCourses.find(c => {
+                    if (!c.start_at || !c.end_at) return false;
+                    const start = new Date(c.start_at);
+                    const end = new Date(c.end_at);
+                    return now >= start && now <= end;
+                });
+            }
+
+            // Priority 4: Most recently started course
             if (!activeCourse && validCourses.length > 0) {
                 validCourses.sort((a, b) => {
                     const dateA = a.start_at ? new Date(a.start_at) : new Date(0);
