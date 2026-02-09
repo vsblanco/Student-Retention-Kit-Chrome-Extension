@@ -119,6 +119,8 @@ import {
     toggleCanvasAuthNonApi
 } from './modals/canvas-auth-modal.js';
 
+import { closeCanvasLoginModal } from './modals/canvas-login-modal.js';
+
 import {
     shouldShowLatestUpdatesModal,
     openLatestUpdatesModal,
@@ -792,6 +794,11 @@ function setupEventListeners() {
     }
     if (elements.canvasAuthNonApiToggle) {
         elements.canvasAuthNonApiToggle.addEventListener('click', toggleCanvasAuthNonApi);
+    }
+
+    // Canvas Login Modal
+    if (elements.canvasLoginResumeBtn) {
+        elements.canvasLoginResumeBtn.addEventListener('click', () => closeCanvasLoginModal());
     }
 
     // Modal outside click handlers

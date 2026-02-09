@@ -178,6 +178,11 @@ export function cacheDomElements() {
     elements.canvasAuthShutdownBtn = document.getElementById('canvasAuthShutdownBtn');
     elements.canvasAuthNonApiToggle = document.getElementById('canvasAuthNonApiToggle');
 
+    // Canvas Login Modal
+    elements.canvasLoginModal = document.getElementById('canvasLoginModal');
+    elements.canvasLoginResumeBtn = document.getElementById('canvasLoginResumeBtn');
+    elements.canvasLoginLink = document.getElementById('canvasLoginLink');
+
     // Student View Modal
     elements.studentViewModal = document.getElementById('studentViewModal');
     elements.studentViewMain = document.getElementById('studentViewMain');

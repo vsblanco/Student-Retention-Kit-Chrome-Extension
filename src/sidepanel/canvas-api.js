@@ -11,6 +11,7 @@
 import { STORAGE_KEYS, CANVAS_DOMAIN, LEGACY_CANVAS_SUBDOMAINS, GENERIC_AVATAR_URL, normalizeCanvasUrl } from '../constants/index.js';
 import { getCachedData, getCache, stageCacheData, flushPendingCacheWrites } from '../utils/canvasCache.js';
 import { openCanvasAuthErrorModal, isCanvasAuthError } from './modals/canvas-auth-modal.js';
+import { ensureCanvasLogin } from './modals/canvas-login-modal.js';
 import { storageGet } from '../utils/storage.js';
 import { updateStepIcon } from '../utils/ui-helpers.js';
 
@@ -860,6 +861,9 @@ export async function processStep2(students, renderCallback) {
 
 async function _processStep2(students, renderCallback) {
     return withStepUI('step2', async ({ timeSpan }) => {
+        // Pre-check: ensure user is logged into Canvas before making any API calls
+        await ensureCanvasLogin(getCanvasDomain());
+
         console.log(`[Step 2] Pinging Canvas API: ${getCanvasDomain()}`);
 
         const { cacheEnabled, useNonApiFetch, courseReferenceDate } = await loadPipelineSettings();
