@@ -22,6 +22,13 @@
 export const RELEASE_NOTES = {
     // Add new version entries here (newest first)
     // The key should match the version in manifest.json
+	'12.0': {
+        title: 'Latest Updates',
+        date: 'February 9, 2026',
+        updates: [
+            'Campus names now auto-trim the common prefix for cleaner display (e.g. "Northbridge - South Miami" shows as "South Miami")'
+        ]
+    },
 	'11.2': {
         title: 'Latest Updates',
         date: 'February 9, 2026',
