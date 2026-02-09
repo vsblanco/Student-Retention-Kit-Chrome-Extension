@@ -8,7 +8,7 @@
 //   5. Data Analysis (missing assignments, next assignment, grade extraction)
 //   6. Step Orchestrators (processStep2, processStep3, processStep4)
 
-import { STORAGE_KEYS, CANVAS_DOMAIN, GENERIC_AVATAR_URL, normalizeCanvasUrl } from '../constants/index.js';
+import { STORAGE_KEYS, CANVAS_DOMAIN, CANVAS_SUBDOMAIN, LEGACY_CANVAS_SUBDOMAINS, GENERIC_AVATAR_URL, normalizeCanvasUrl } from '../constants/index.js';
 import { getCachedData, setCachedData, hasCachedData, getCache, stageCacheData, flushPendingCacheWrites } from '../utils/canvasCache.js';
 import { openCanvasAuthErrorModal, isCanvasAuthError, isCanvasAuthErrorBody } from './modals/canvas-auth-modal.js';
 import { storageGet } from '../utils/storage.js';
@@ -16,16 +16,63 @@ import { updateStepIcon } from '../utils/ui-helpers.js';
 
 
 // ============================================================================
-// 2. AUTH & SHUTDOWN STATE
+// 2. AUTH & SHUTDOWN STATE + DOMAIN FALLBACK
 // ============================================================================
 
 let authErrorShownInSession = false;
 let shutdownRequested = false;
 
-/** Resets auth error state — call when starting a new pipeline run. */
+// Domain fallback state — handles branding transition issues
+const FALLBACK_DOMAIN = LEGACY_CANVAS_SUBDOMAINS.length > 0
+    ? `https://${LEGACY_CANVAS_SUBDOMAINS[0]}.instructure.com`
+    : null;
+const FALLBACK_THRESHOLD = 5;
+let domainFallbackCount = 0;
+let useFallbackDomain = false;
+
+/** Returns the current Canvas domain, using fallback if activated. */
+function getCanvasDomain() {
+    return (useFallbackDomain && FALLBACK_DOMAIN) ? FALLBACK_DOMAIN : CANVAS_DOMAIN;
+}
+
+/**
+ * Fetches a Canvas API URL with automatic legacy domain fallback.
+ * If the primary domain fails with a non-auth error, retries with the legacy domain.
+ * After FALLBACK_THRESHOLD consecutive fallbacks, locks to the legacy domain.
+ */
+async function fetchWithFallback(url, options = {}) {
+    const response = await fetch(url, options);
+
+    if (response.ok || isCanvasAuthError(response) || !FALLBACK_DOMAIN) {
+        if (response.ok) domainFallbackCount = 0;
+        return response;
+    }
+
+    // Primary domain failed — try legacy domain
+    const fallbackUrl = url.replace(CANVAS_DOMAIN, FALLBACK_DOMAIN);
+    if (fallbackUrl === url) return response; // URL doesn't use primary domain
+
+    console.warn(`[Canvas] Primary domain failed (${response.status}), trying legacy: ${FALLBACK_DOMAIN}`);
+    const fallbackResp = await fetch(fallbackUrl, options);
+
+    if (fallbackResp.ok) {
+        domainFallbackCount++;
+        if (domainFallbackCount >= FALLBACK_THRESHOLD && !useFallbackDomain) {
+            useFallbackDomain = true;
+            console.warn(`[Canvas] ${FALLBACK_THRESHOLD} consecutive fallbacks — using ${FALLBACK_DOMAIN} for remaining requests`);
+        }
+        return fallbackResp;
+    }
+
+    return response; // Both failed, return original error
+}
+
+/** Resets auth error state and domain fallback — call when starting a new pipeline run. */
 export function resetAuthErrorState() {
     authErrorShownInSession = false;
     shutdownRequested = false;
+    domainFallbackCount = 0;
+    useFallbackDomain = false;
 }
 
 /** @returns {boolean} True if the user requested shutdown via the auth error modal. */
@@ -247,11 +294,11 @@ function getNextPageUrl(linkHeader) {
  * @returns {Promise<Array>} Array of course objects matching the API shape
  */
 async function fetchCoursesFromHtml(canvasUserId) {
-    const profileUrl = `${CANVAS_DOMAIN}/users/${canvasUserId}`;
+    const profileUrl = `${getCanvasDomain()}/users/${canvasUserId}`;
     console.log(`[Non-API] Fetching courses from HTML: ${profileUrl}`);
 
     try {
-        const response = await fetch(profileUrl, {
+        const response = await fetchWithFallback(profileUrl, {
             headers: { 'Accept': 'text/html' },
             credentials: 'include'
         });
@@ -618,8 +665,8 @@ export async function fetchCanvasDetails(student, cacheEnabled = true, useNonApi
             courses = cachedData.courses;
         } else {
             // Fetch user profile
-            const userUrl = `${CANVAS_DOMAIN}/api/v1/users/sis_user_id:${student.SyStudentId}`;
-            const userResp = await fetch(userUrl, { headers: { 'Accept': 'application/json' } });
+            const userUrl = `${getCanvasDomain()}/api/v1/users/sis_user_id:${student.SyStudentId}`;
+            const userResp = await fetchWithFallback(userUrl, { headers: { 'Accept': 'application/json' } });
 
             if (isCanvasAuthError(userResp)) {
                 await handleCanvasAuthError('fetching user data');
@@ -636,8 +683,8 @@ export async function fetchCanvasDetails(student, cacheEnabled = true, useNonApi
                 if (useNonApiFetch) {
                     courses = await fetchCoursesFromHtml(canvasUserId);
                 } else {
-                    const coursesUrl = `${CANVAS_DOMAIN}/api/v1/users/${canvasUserId}/courses?include[]=enrollments&per_page=100`;
-                    const coursesResp = await fetch(coursesUrl, { headers: { 'Accept': 'application/json' } });
+                    const coursesUrl = `${getCanvasDomain()}/api/v1/users/${canvasUserId}/courses?include[]=enrollments&per_page=100`;
+                    const coursesResp = await fetchWithFallback(coursesUrl, { headers: { 'Accept': 'application/json' } });
 
                     if (isCanvasAuthError(coursesResp)) {
                         await handleCanvasAuthError('fetching courses');
@@ -697,7 +744,7 @@ export async function fetchCanvasDetails(student, cacheEnabled = true, useNonApi
             }
 
             if (activeCourse) {
-                student.url = `${CANVAS_DOMAIN}/courses/${activeCourse.id}/grades/${canvasUserId}`;
+                student.url = `${getCanvasDomain()}/courses/${activeCourse.id}/grades/${canvasUserId}`;
 
                 if (activeCourse.enrollments && activeCourse.enrollments.length > 0) {
                     const enrollment = activeCourse.enrollments.find(e => e.type === 'StudentEnrollment') || activeCourse.enrollments[0];
@@ -794,7 +841,7 @@ export async function processStep2(students, renderCallback) {
 
 async function _processStep2(students, renderCallback) {
     return withStepUI('step2', async ({ timeSpan }) => {
-        console.log(`[Step 2] Pinging Canvas API: ${CANVAS_DOMAIN}`);
+        console.log(`[Step 2] Pinging Canvas API: ${getCanvasDomain()}`);
 
         const { cacheEnabled, useNonApiFetch, courseReferenceDate } = await loadPipelineSettings();
 
