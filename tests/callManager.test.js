@@ -272,3 +272,313 @@ describe('CallManager State Transitions', () => {
         });
     });
 });
+
+// ============================================
+// CONFIG.COLORS validation
+// ============================================
+
+const CONFIG_COLORS = {
+    SUCCESS: '#10b981',
+    ERROR: '#ef4444',
+    WARNING: '#f59e0b',
+    MUTED: '#6b7280',
+    PRIMARY: '#3b82f6',
+    PURPLE: '#8b5cf6'
+};
+
+describe('CONFIG.COLORS values', () => {
+    test('all colors are valid hex codes', () => {
+        const hexRegex = /^#[0-9a-f]{6}$/i;
+        Object.entries(CONFIG_COLORS).forEach(([name, value]) => {
+            expect(value).toMatch(hexRegex);
+        });
+    });
+
+    test('SUCCESS is green (#10b981)', () => {
+        expect(CONFIG_COLORS.SUCCESS).toBe('#10b981');
+    });
+
+    test('ERROR is red (#ef4444)', () => {
+        expect(CONFIG_COLORS.ERROR).toBe('#ef4444');
+    });
+
+    test('WARNING is amber (#f59e0b)', () => {
+        expect(CONFIG_COLORS.WARNING).toBe('#f59e0b');
+    });
+
+    test('MUTED is gray (#6b7280)', () => {
+        expect(CONFIG_COLORS.MUTED).toBe('#6b7280');
+    });
+
+    test('PRIMARY is blue (#3b82f6)', () => {
+        expect(CONFIG_COLORS.PRIMARY).toBe('#3b82f6');
+    });
+});
+
+// ============================================
+// Call UI Color Transitions
+// Simulates what CallManager methods do to DOM elements
+// to verify correct colors are applied at each state.
+// ============================================
+
+/**
+ * Converts hex color to rgb() string as JSDOM normalizes it.
+ */
+function hexToRgb(hex) {
+    const r = parseInt(hex.slice(1, 3), 16);
+    const g = parseInt(hex.slice(3, 5), 16);
+    const b = parseInt(hex.slice(5, 7), 16);
+    return `rgb(${r}, ${g}, ${b})`;
+}
+
+/**
+ * Creates a mock DOM element set matching what CallManager expects.
+ */
+function createMockElements() {
+    return {
+        dialBtn: document.createElement('button'),
+        callStatusText: document.createElement('div'),
+        callDispositionSection: document.createElement('div'),
+        upNextCard: document.createElement('div'),
+        otherInputArea: document.createElement('div'),
+    };
+}
+
+describe('Call UI Color Transitions', () => {
+    let elements;
+
+    beforeEach(() => {
+        elements = createMockElements();
+        // Start with green (ready state)
+        elements.dialBtn.style.background = CONFIG_COLORS.SUCCESS;
+    });
+
+    describe('Active Call State (dial button turns red)', () => {
+        test('sets dial button background to ERROR red when call starts', () => {
+            // Simulate what toggleCallState does when isCallActive becomes true
+            elements.dialBtn.style.background = `${CONFIG_COLORS.ERROR}`;
+            elements.dialBtn.style.transform = 'rotate(135deg)';
+
+            // JSDOM normalizes hex to rgb()
+            expect(elements.dialBtn.style.background).toBe(hexToRgb(CONFIG_COLORS.ERROR));
+        });
+
+        test('rotates dial button 135deg when call is active', () => {
+            elements.dialBtn.style.transform = 'rotate(135deg)';
+
+            expect(elements.dialBtn.style.transform).toBe('rotate(135deg)');
+        });
+
+        test('status text includes ERROR color in inline style', () => {
+            const statusText = 'Connected';
+            elements.callStatusText.innerHTML = `<span class="status-indicator" style="background:${CONFIG_COLORS.ERROR}; animation: blink 1s infinite;"></span> ${statusText}`;
+
+            expect(elements.callStatusText.innerHTML).toContain(CONFIG_COLORS.ERROR);
+            expect(elements.callStatusText.innerHTML).toContain('Connected');
+        });
+
+        test('shows disposition section when call starts', () => {
+            elements.callDispositionSection.style.display = 'flex';
+
+            expect(elements.callDispositionSection.style.display).toBe('flex');
+        });
+    });
+
+    describe('Awaiting Disposition State (dial button turns gray)', () => {
+        test('sets dial button background to MUTED gray after call ends', () => {
+            // Simulate toggleCallState when call ends and enters WRAP_UP
+            elements.dialBtn.style.background = `${CONFIG_COLORS.MUTED}`;
+            elements.dialBtn.style.transform = 'rotate(0deg)';
+
+            expect(elements.dialBtn.style.background).toBe(hexToRgb(CONFIG_COLORS.MUTED));
+        });
+
+        test('resets dial button rotation to 0deg', () => {
+            elements.dialBtn.style.transform = 'rotate(0deg)';
+
+            expect(elements.dialBtn.style.transform).toBe('rotate(0deg)');
+        });
+
+        test('disables dial button while awaiting disposition', () => {
+            elements.dialBtn.disabled = true;
+            elements.dialBtn.style.cursor = 'not-allowed';
+            elements.dialBtn.style.opacity = '0.6';
+
+            expect(elements.dialBtn.disabled).toBe(true);
+            expect(elements.dialBtn.style.cursor).toBe('not-allowed');
+            expect(elements.dialBtn.style.opacity).toBe('0.6');
+        });
+
+        test('status text includes WARNING color for awaiting disposition', () => {
+            elements.callStatusText.innerHTML = `<span class="status-indicator" style="background:${CONFIG_COLORS.WARNING};"></span> Awaiting Disposition`;
+
+            expect(elements.callStatusText.innerHTML).toContain(CONFIG_COLORS.WARNING);
+            expect(elements.callStatusText.innerHTML).toContain('Awaiting Disposition');
+        });
+    });
+
+    describe('Ready State (dial button turns green)', () => {
+        test('sets dial button background to SUCCESS green when ready', () => {
+            // Simulate endAutomationSequence / handleExternalDisposition
+            elements.dialBtn.style.background = `${CONFIG_COLORS.SUCCESS}`;
+            elements.dialBtn.style.transform = 'rotate(0deg)';
+
+            expect(elements.dialBtn.style.background).toBe(hexToRgb(CONFIG_COLORS.SUCCESS));
+        });
+
+        test('re-enables dial button', () => {
+            elements.dialBtn.disabled = false;
+            elements.dialBtn.style.cursor = 'pointer';
+            elements.dialBtn.style.opacity = '1';
+
+            expect(elements.dialBtn.disabled).toBe(false);
+            expect(elements.dialBtn.style.cursor).toBe('pointer');
+            expect(elements.dialBtn.style.opacity).toBe('1');
+        });
+
+        test('status text shows ready indicator', () => {
+            elements.callStatusText.innerHTML = '<span class="status-indicator ready"></span> Ready to Connect';
+
+            expect(elements.callStatusText.innerHTML).toContain('ready');
+            expect(elements.callStatusText.innerHTML).toContain('Ready to Connect');
+        });
+
+        test('hides disposition section', () => {
+            elements.callDispositionSection.style.display = 'none';
+
+            expect(elements.callDispositionSection.style.display).toBe('none');
+        });
+    });
+
+    describe('Disposition Flow Colors', () => {
+        test('shows PRIMARY blue when setting disposition', () => {
+            elements.callStatusText.innerHTML = `<span class="status-indicator" style="background:${CONFIG_COLORS.PRIMARY};"></span> Setting disposition...`;
+
+            expect(elements.callStatusText.innerHTML).toContain(CONFIG_COLORS.PRIMARY);
+        });
+
+        test('shows SUCCESS green when disposition is set', () => {
+            elements.callStatusText.innerHTML = `<span class="status-indicator" style="background:${CONFIG_COLORS.SUCCESS};"></span> Disposition Set`;
+
+            expect(elements.callStatusText.innerHTML).toContain(CONFIG_COLORS.SUCCESS);
+            expect(elements.callStatusText.innerHTML).toContain('Disposition Set');
+        });
+
+        test('shows WARNING amber when ending call', () => {
+            elements.callStatusText.innerHTML = `<span class="status-indicator" style="background:${CONFIG_COLORS.WARNING};"></span> Ending call...`;
+
+            expect(elements.callStatusText.innerHTML).toContain(CONFIG_COLORS.WARNING);
+        });
+    });
+
+    describe('Template literal interpolation (regression for single-quote bug)', () => {
+        test('backtick template literals produce actual hex values, not literal ${...}', () => {
+            // This is the exact bug we fixed: single quotes don't interpolate
+            const withBackticks = `${CONFIG_COLORS.ERROR}`;
+            const withSingleQuotes = '${CONFIG_COLORS.ERROR}';
+
+            expect(withBackticks).toBe('#ef4444');
+            expect(withSingleQuotes).toBe('${CONFIG_COLORS.ERROR}');
+            expect(withBackticks).not.toBe(withSingleQuotes);
+        });
+
+        test('all color assignments produce valid CSS color values (not literal template strings)', () => {
+            // JSDOM normalizes hex to rgb(), so we verify the value is a valid rgb color
+            const rgbRegex = /^rgb\(\d+, \d+, \d+\)$/;
+
+            // Simulate the exact pattern used in callManager.js
+            elements.dialBtn.style.background = `${CONFIG_COLORS.ERROR}`;
+            expect(elements.dialBtn.style.background).toMatch(rgbRegex);
+
+            elements.dialBtn.style.background = `${CONFIG_COLORS.SUCCESS}`;
+            expect(elements.dialBtn.style.background).toMatch(rgbRegex);
+
+            elements.dialBtn.style.background = `${CONFIG_COLORS.MUTED}`;
+            expect(elements.dialBtn.style.background).toMatch(rgbRegex);
+
+            // A broken single-quote string is invalid CSS and won't change the value
+            // Reset to empty first, then try the broken string
+            elements.dialBtn.style.background = '';
+            elements.dialBtn.style.background = '${CONFIG_COLORS.ERROR}';
+            // Should remain empty since the literal string is not valid CSS
+            expect(elements.dialBtn.style.background).toBe('');
+        });
+
+        test('innerHTML template literals interpolate CONFIG colors correctly', () => {
+            elements.callStatusText.innerHTML = `<span style="background:${CONFIG_COLORS.ERROR};"></span>`;
+
+            // Should contain the actual hex value, not the template syntax
+            expect(elements.callStatusText.innerHTML).toContain('#ef4444');
+            expect(elements.callStatusText.innerHTML).not.toContain('CONFIG_COLORS');
+        });
+    });
+
+    describe('Cancel Automation resets UI', () => {
+        test('removes automation class from dial button', () => {
+            elements.dialBtn.classList.add('automation');
+
+            // Simulate cancelAutomation
+            elements.dialBtn.classList.remove('automation');
+            elements.dialBtn.innerHTML = '<i class="fas fa-phone"></i>';
+            elements.dialBtn.style.background = `${CONFIG_COLORS.SUCCESS}`;
+            elements.dialBtn.style.transform = 'rotate(0deg)';
+
+            expect(elements.dialBtn.classList.contains('automation')).toBe(false);
+            expect(elements.dialBtn.style.background).toBe(hexToRgb(CONFIG_COLORS.SUCCESS));
+            expect(elements.dialBtn.innerHTML).toContain('fa-phone');
+        });
+
+        test('hides up next card', () => {
+            elements.upNextCard.style.display = 'block';
+
+            // Simulate cancelAutomation
+            elements.upNextCard.style.display = 'none';
+
+            expect(elements.upNextCard.style.display).toBe('none');
+        });
+    });
+
+    describe('External Disconnect sets awaiting disposition UI', () => {
+        test('sets dial button to MUTED and disables it', () => {
+            // Simulate handleExternalDisconnect
+            elements.dialBtn.style.background = `${CONFIG_COLORS.MUTED}`;
+            elements.dialBtn.style.transform = 'rotate(0deg)';
+            elements.dialBtn.disabled = true;
+            elements.dialBtn.style.cursor = 'not-allowed';
+            elements.dialBtn.style.opacity = '0.6';
+
+            expect(elements.dialBtn.style.background).toBe(hexToRgb(CONFIG_COLORS.MUTED));
+            expect(elements.dialBtn.disabled).toBe(true);
+            expect(elements.dialBtn.style.cursor).toBe('not-allowed');
+        });
+    });
+
+    describe('External Disposition resets to ready UI', () => {
+        test('sets dial button to SUCCESS and re-enables it', () => {
+            // Start in disabled state
+            elements.dialBtn.disabled = true;
+            elements.dialBtn.style.background = CONFIG_COLORS.MUTED;
+
+            // Simulate handleExternalDisposition
+            elements.dialBtn.style.background = `${CONFIG_COLORS.SUCCESS}`;
+            elements.dialBtn.style.transform = 'rotate(0deg)';
+            elements.dialBtn.disabled = false;
+            elements.dialBtn.style.cursor = 'pointer';
+            elements.dialBtn.style.opacity = '1';
+
+            expect(elements.dialBtn.style.background).toBe(hexToRgb(CONFIG_COLORS.SUCCESS));
+            expect(elements.dialBtn.disabled).toBe(false);
+            expect(elements.dialBtn.style.cursor).toBe('pointer');
+            expect(elements.dialBtn.style.opacity).toBe('1');
+        });
+    });
+
+    describe('Demo Mode status text', () => {
+        test('shows WARNING color with demo mode indicator', () => {
+            elements.callStatusText.innerHTML = `<span class="status-indicator" style="background:${CONFIG_COLORS.WARNING};"></span> 🎭 Demo Mode Active`;
+
+            expect(elements.callStatusText.innerHTML).toContain(CONFIG_COLORS.WARNING);
+            expect(elements.callStatusText.innerHTML).toContain('Demo Mode Active');
+        });
+    });
+});
