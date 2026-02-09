@@ -134,7 +134,7 @@ export async function openConnectionsModal(connectionType) {
     const canvasCacheEnabled = result[STORAGE_KEYS.CANVAS_CACHE_ENABLED] !== undefined ? result[STORAGE_KEYS.CANVAS_CACHE_ENABLED] : true;
     updateCanvasCacheModalUI(canvasCacheEnabled);
 
-    const nonApiCourseFetch = result[STORAGE_KEYS.NON_API_COURSE_FETCH] !== undefined ? result[STORAGE_KEYS.NON_API_COURSE_FETCH] : false;
+    const nonApiCourseFetch = result[STORAGE_KEYS.NON_API_COURSE_FETCH] !== undefined ? result[STORAGE_KEYS.NON_API_COURSE_FETCH] : true;
     updateNonApiCourseFetchUI(nonApiCourseFetch);
 
     const nextAssignmentEnabled = result[STORAGE_KEYS.NEXT_ASSIGNMENT_ENABLED] !== undefined ? result[STORAGE_KEYS.NEXT_ASSIGNMENT_ENABLED] : false;

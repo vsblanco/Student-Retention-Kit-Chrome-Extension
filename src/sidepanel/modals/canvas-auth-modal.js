@@ -45,7 +45,7 @@ export async function openCanvasAuthErrorModal() {
 
         // Load current non-API setting and update toggle UI
         const settings = await storageGet([STORAGE_KEYS.NON_API_COURSE_FETCH]);
-        const nonApiFetch = settings[STORAGE_KEYS.NON_API_COURSE_FETCH] || false;
+        const nonApiFetch = settings[STORAGE_KEYS.NON_API_COURSE_FETCH] !== undefined ? settings[STORAGE_KEYS.NON_API_COURSE_FETCH] : true;
         updateCanvasAuthNonApiToggleUI(nonApiFetch);
 
         // Show modal
