@@ -462,6 +462,11 @@ export default class CallManager {
         if (currentStudent && this.uiCallbacks.cancelAutomation) {
             this.uiCallbacks.cancelAutomation(currentStudent);
         }
+
+        // Focus Five9 tab for disposition (only in non-demo mode)
+        if (!this.debugMode) {
+            this.focusFive9Tab();
+        }
     }
 
     /**
