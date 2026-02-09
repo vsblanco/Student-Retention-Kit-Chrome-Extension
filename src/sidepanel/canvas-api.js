@@ -8,9 +8,9 @@
 //   5. Data Analysis (missing assignments, next assignment, grade extraction)
 //   6. Step Orchestrators (processStep2, processStep3, processStep4)
 
-import { STORAGE_KEYS, CANVAS_DOMAIN, CANVAS_SUBDOMAIN, LEGACY_CANVAS_SUBDOMAINS, GENERIC_AVATAR_URL, normalizeCanvasUrl } from '../constants/index.js';
-import { getCachedData, setCachedData, hasCachedData, getCache, stageCacheData, flushPendingCacheWrites } from '../utils/canvasCache.js';
-import { openCanvasAuthErrorModal, isCanvasAuthError, isCanvasAuthErrorBody } from './modals/canvas-auth-modal.js';
+import { STORAGE_KEYS, CANVAS_DOMAIN, LEGACY_CANVAS_SUBDOMAINS, GENERIC_AVATAR_URL, normalizeCanvasUrl } from '../constants/index.js';
+import { getCachedData, getCache, stageCacheData, flushPendingCacheWrites } from '../utils/canvasCache.js';
+import { openCanvasAuthErrorModal, isCanvasAuthError } from './modals/canvas-auth-modal.js';
 import { storageGet } from '../utils/storage.js';
 import { updateStepIcon } from '../utils/ui-helpers.js';
 
