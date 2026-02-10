@@ -140,6 +140,74 @@ export function parseDate(dateValue) {
 }
 
 /**
+ * Detects the longest common prefix among an array of strings and returns
+ * trimmed display names with the prefix removed.
+ *
+ * The prefix is trimmed back to a complete word boundary so partial words
+ * are never stripped. After removal, any leading separators (-, –, —, :)
+ * and whitespace are also stripped from each name.
+ *
+ * @param {string[]} names - Array of names to process
+ * @returns {{ trimmedNames: Map<string, string>, prefix: string }}
+ *   trimmedNames maps each original name to its display name;
+ *   prefix is the detected common prefix (empty string if none found)
+ *
+ * @example
+ *   trimCommonPrefix([
+ *     'Northbridge - South Miami',
+ *     'Northbridge Hialeah - South Florida',
+ *     'Northbridge - Kissimmee'
+ *   ])
+ *   // prefix: 'Northbridge'
+ *   // trimmedNames: Map {
+ *   //   'Northbridge - South Miami' => 'South Miami',
+ *   //   'Northbridge Hialeah - South Florida' => 'Hialeah - South Florida',
+ *   //   'Northbridge - Kissimmee' => 'Kissimmee'
+ *   // }
+ */
+export function trimCommonPrefix(names) {
+    const identity = new Map(names?.map(n => [n, n]) || []);
+    if (!names || names.length <= 1) {
+        return { trimmedNames: identity, prefix: '' };
+    }
+
+    // Find longest common prefix character by character
+    let prefix = names[0];
+    for (let i = 1; i < names.length; i++) {
+        while (prefix && !names[i].startsWith(prefix)) {
+            prefix = prefix.slice(0, -1);
+        }
+    }
+
+    // Strip trailing separators and whitespace to get a clean word prefix
+    prefix = prefix.replace(/[\s\-–—:]+$/, '');
+
+    // Require at least 3 meaningful characters
+    if (prefix.length < 3) {
+        return { trimmedNames: identity, prefix: '' };
+    }
+
+    // Ensure prefix ends at a word boundary — don't cut mid-word
+    const cutsMidWord = names.some(name => {
+        if (name.length <= prefix.length) return false;
+        return /[a-zA-Z0-9]/.test(name[prefix.length]);
+    });
+    if (cutsMidWord) {
+        return { trimmedNames: identity, prefix: '' };
+    }
+
+    const trimmedNames = new Map();
+    for (const name of names) {
+        let trimmed = name.substring(prefix.length);
+        // Strip leading separators and whitespace
+        trimmed = trimmed.replace(/^[\s\-–—:]+/, '').trim();
+        trimmedNames.set(name, trimmed || name);
+    }
+
+    return { trimmedNames, prefix };
+}
+
+/**
  * Calculates the number of days between two dates.
  * Returns the absolute difference in days, rounded down.
  *

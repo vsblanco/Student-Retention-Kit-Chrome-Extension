@@ -11,7 +11,8 @@ import {
     convertExcelDate,
     calculateDaysSinceLastAttendance,
     parseDate,
-    formatDateToMMDDYY
+    formatDateToMMDDYY,
+    trimCommonPrefix
 } from '../constants/field-utils.js';
 import { updateStepIcon } from '../utils/ui-helpers.js';
 import { elements } from './ui-manager.js';
@@ -522,15 +523,21 @@ export function updateCampusFilter(students) {
         return;
     }
 
-    // Store campus list in storage for persistence
-    chrome.storage.local.set({ [STORAGE_KEYS.CAMPUS_LIST]: campuses });
+    // Detect and trim common prefix for cleaner display names
+    const { trimmedNames, prefix } = trimCommonPrefix(campuses);
 
-    // Populate dropdown options
+    // Store campus list and detected prefix in storage for persistence
+    chrome.storage.local.set({
+        [STORAGE_KEYS.CAMPUS_LIST]: campuses,
+        [STORAGE_KEYS.CAMPUS_PREFIX]: prefix
+    });
+
+    // Populate dropdown options (value = original name, display = trimmed name)
     select.innerHTML = '<option value="">All Campuses</option>';
     campuses.forEach(campus => {
         const option = document.createElement('option');
         option.value = campus;
-        option.textContent = campus;
+        option.textContent = trimmedNames.get(campus) || campus;
         select.appendChild(option);
     });
 
@@ -553,8 +560,8 @@ export function hideCampusFilter() {
         select.value = '';
     }
 
-    // Clear stored campus list
-    chrome.storage.local.remove(STORAGE_KEYS.CAMPUS_LIST);
+    // Clear stored campus list and prefix
+    chrome.storage.local.remove([STORAGE_KEYS.CAMPUS_LIST, STORAGE_KEYS.CAMPUS_PREFIX]);
 }
 
 /**
