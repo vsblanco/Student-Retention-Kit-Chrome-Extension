@@ -318,6 +318,120 @@ function findColumnIndex(normalizedHeaders, rawHeaders, fieldName) {
 }
 
 /**
+ * Detects if the imported file is an Academic report (vs Eduk Master).
+ * Academic reports contain course-level columns like CourseCode, CourseDescrip, InstructorName.
+ *
+ * @param {Array} normalizedHeaders - Array of pre-normalized header strings
+ * @returns {boolean} True if the file appears to be an Academic report
+ */
+function detectAcademicReport(normalizedHeaders) {
+    const academicIndicators = ['coursecode', 'coursedescrip', 'adcourseid', 'instructorname', 'section'];
+    const matchCount = academicIndicators.filter(indicator => normalizedHeaders.includes(indicator)).length;
+    // Require at least 2 matching indicators to avoid false positives
+    return matchCount >= 2;
+}
+
+/**
+ * Selects the "current class" row from multiple rows for the same student.
+ * Priority: active course (started but not ended) > latest end date > latest start date.
+ *
+ * @param {Array} rows - Array of student entry objects (same SyStudentId)
+ * @param {Date} referenceDate - Reference date for determining "current"
+ * @returns {Object} The selected student entry representing the current class
+ */
+function selectCurrentClassRow(rows, referenceDate) {
+    const now = referenceDate || new Date();
+
+    const scored = rows.map(row => {
+        let score = 0;
+
+        const endDate = parseDate(row.courseEndDate);
+        const startDate = parseDate(row.courseStartDate);
+
+        // Highest priority: course currently active (started and not yet ended)
+        if (startDate && endDate && startDate <= now && endDate >= now) {
+            score += 100000;
+        }
+
+        // Prefer courses with later end dates
+        if (endDate) {
+            score += endDate.getTime() / 1e10;
+        }
+
+        // Tiebreaker: prefer courses with later start dates
+        if (startDate) {
+            score += startDate.getTime() / 1e13;
+        }
+
+        return { row, score };
+    });
+
+    scored.sort((a, b) => b.score - a.score);
+    return scored[0].row;
+}
+
+/**
+ * Deduplicates Academic report rows by SyStudentId.
+ * Academic reports contain one row per course per student, so the same student
+ * appears multiple times. This groups rows by SyStudentId and selects the
+ * "current class" row to represent each student.
+ *
+ * Also derives the grade field from finalGrade/midTermGrade if not already set.
+ *
+ * @param {Array} students - Array of parsed student entries (may contain duplicates)
+ * @param {Date} referenceDate - Reference date for current-class selection
+ * @returns {Array} Deduplicated array of student entries
+ */
+function deduplicateAcademicStudents(students, referenceDate) {
+    const grouped = new Map();
+
+    for (const student of students) {
+        const id = student.SyStudentId;
+        if (!id) {
+            // No SyStudentId - can't deduplicate, keep as-is with a unique key
+            const fallbackKey = `__no_id_${grouped.size}`;
+            grouped.set(fallbackKey, [student]);
+            continue;
+        }
+        if (!grouped.has(id)) {
+            grouped.set(id, []);
+        }
+        grouped.get(id).push(student);
+    }
+
+    const deduplicated = [];
+
+    for (const [id, rows] of grouped) {
+        let selected;
+        if (rows.length === 1) {
+            selected = rows[0];
+        } else {
+            selected = selectCurrentClassRow(rows, referenceDate);
+        }
+
+        // Derive grade from finalGrade or midTermGrade if grade is not set
+        if (!selected.grade || selected.grade === '') {
+            if (selected.finalGrade && selected.finalGrade !== '') {
+                const gradeNum = Number(selected.finalGrade);
+                if (!isNaN(gradeNum) && Number.isInteger(gradeNum)) {
+                    selected.grade = String(gradeNum);
+                }
+            } else if (selected.midTermGrade && selected.midTermGrade !== '') {
+                const gradeNum = Number(selected.midTermGrade);
+                if (!isNaN(gradeNum) && Number.isInteger(gradeNum)) {
+                    selected.grade = String(gradeNum);
+                }
+            }
+        }
+
+        deduplicated.push(selected);
+    }
+
+    console.log(`Academic report: ${students.length} rows deduplicated to ${deduplicated.length} unique students by SyStudentId`);
+    return deduplicated;
+}
+
+/**
  * Unified parser for both CSV and Excel files using SheetJS
  * @param {String|ArrayBuffer} data - File content
  * @param {Boolean} isCSV - True if parsing CSV, false for Excel
@@ -410,7 +524,7 @@ export function parseFileWithSheetJS(data, isCSV, fileModifiedTime = null) {
         }
 
         // Parse data rows
-        const students = [];
+        let students = [];
         for (let i = headerRowIndex + 1; i < rows.length; i++) {
             const row = rows[i];
             if (!row || row.length === 0) continue;
@@ -489,6 +603,13 @@ export function parseFileWithSheetJS(data, isCSV, fileModifiedTime = null) {
             entry.assignments = [];
 
             students.push(entry);
+        }
+
+        // Detect Academic report and deduplicate by SyStudentId
+        // Academic reports have multiple rows per student (one per course)
+        const isAcademicReport = detectAcademicReport(normalizedHeaders);
+        if (isAcademicReport && students.length > 0) {
+            students = deduplicateAcademicStudents(students, referenceDate);
         }
 
         return { students, referenceDate };
