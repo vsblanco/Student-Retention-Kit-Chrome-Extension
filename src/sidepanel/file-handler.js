@@ -376,8 +376,6 @@ function selectCurrentClassRow(rows, referenceDate) {
  * appears multiple times. This groups rows by SyStudentId and selects the
  * "current class" row to represent each student.
  *
- * Also derives the grade field from finalGrade/midTermGrade if not already set.
- *
  * @param {Array} students - Array of parsed student entries (may contain duplicates)
  * @param {Date} referenceDate - Reference date for current-class selection
  * @returns {Array} Deduplicated array of student entries
@@ -407,21 +405,6 @@ function deduplicateAcademicStudents(students, referenceDate) {
             selected = rows[0];
         } else {
             selected = selectCurrentClassRow(rows, referenceDate);
-        }
-
-        // Derive grade from finalGrade or midTermGrade if grade is not set
-        if (!selected.grade || selected.grade === '') {
-            if (selected.finalGrade && selected.finalGrade !== '') {
-                const gradeNum = Number(selected.finalGrade);
-                if (!isNaN(gradeNum) && Number.isInteger(gradeNum)) {
-                    selected.grade = String(gradeNum);
-                }
-            } else if (selected.midTermGrade && selected.midTermGrade !== '') {
-                const gradeNum = Number(selected.midTermGrade);
-                if (!isNaN(gradeNum) && Number.isInteger(gradeNum)) {
-                    selected.grade = String(gradeNum);
-                }
-            }
         }
 
         deduplicated.push(selected);
