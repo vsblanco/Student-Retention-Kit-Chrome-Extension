@@ -322,7 +322,7 @@ export const FIELD_ALIASES = {
     name: ['studentname', 'student'],
     phone: ['primaryphone', 'phonenumber', 'mobile', 'cell', 'cellphone', 'contact', 'telephone', 'otherphone'],
     grade: ['gradelevel', 'level'],
-    StudentNumber: ['studentid', 'sisid'],
+    StudentNumber: ['studentid', 'sisid', 'printid'],
     SyStudentId: ['studentsis'],
     daysOut: ['daysinactive', 'days'],
     url: ['gradebook', 'gradeBookUrl', 'canvasUrl', 'studentUrl'],
@@ -333,8 +333,7 @@ export const FIELD_ALIASES = {
     // Academic report aliases
     programVersion: ['progverdescrip'],
     amRep: ['admrep'],
-    adSAPStatus: ['sapstatus', 'sapdescripterm'],
-    finalGrade: ['finalnumericgrade']
+    adSAPStatus: ['sapstatus', 'sapdescripterm']
 };
 
 /**
@@ -373,7 +372,6 @@ export const MASTER_LIST_COLUMNS = [
     { header: 'Photo', field: 'photo', hidden: true, width: 4 },
     { header: 'AdSAPStatus', field: 'adSAPStatus', width: 8 },
     // Academic report columns
-    { header: 'Print ID', field: 'printId', width: 13, hidden: true },
     { header: 'Instructor', field: 'instructorName', width: 20 },
     { header: 'Instructor Email', field: 'instructorEmail', width: 25, hidden: true },
     { header: 'Course Code', field: 'courseCode', width: 12 },
@@ -381,7 +379,6 @@ export const MASTER_LIST_COLUMNS = [
     { header: 'Course Start', field: 'courseStartDate', width: 12, hidden: true },
     { header: 'Course End', field: 'courseEndDate', width: 12, hidden: true },
     { header: 'Last Course Grade', field: 'lastCourseGrade', width: 10 },
-    { header: 'Final Grade', field: 'finalGrade', width: 10, hidden: true },
     { header: 'Current GPA', field: 'curGpa', width: 8 },
     { header: 'Cumulative GPA', field: 'cumGpa', width: 10 },
     { header: 'Enroll GPA', field: 'enrollGpa', width: 8, hidden: true },

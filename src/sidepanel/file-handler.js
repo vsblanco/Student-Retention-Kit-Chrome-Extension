@@ -380,7 +380,7 @@ function rankCourseRows(rows, referenceDate) {
  */
 function getLastCourseGrade(rankedRows) {
     for (let i = 1; i < rankedRows.length; i++) {
-        const grade = rankedRows[i].finalGrade;
+        const grade = rankedRows[i]._rawFinalGrade;
         if (grade && grade !== '') {
             return String(grade);
         }
@@ -533,6 +533,10 @@ export function parseFileWithSheetJS(data, isCSV, fileModifiedTime = null) {
             return { students: [], referenceDate: null };
         }
 
+        // Locate FinalNumericGrade column for internal use (Last Course Grade derivation)
+        // This is not in MASTER_LIST_COLUMNS but needed during Academic report deduplication
+        const finalGradeColIndex = normalizedHeaders.indexOf('finalnumericgrade');
+
         // Parse data rows
         let students = [];
         for (let i = headerRowIndex + 1; i < rows.length; i++) {
@@ -607,6 +611,14 @@ export function parseFileWithSheetJS(data, isCSV, fileModifiedTime = null) {
                 entry.daysOut = parseInt(entry.daysOut) || 0;
             }
 
+            // Store raw FinalNumericGrade for Last Course Grade derivation (internal only)
+            if (finalGradeColIndex !== -1 && finalGradeColIndex < row.length) {
+                const rawFinal = row[finalGradeColIndex];
+                if (rawFinal !== null && rawFinal !== undefined && rawFinal !== '') {
+                    entry._rawFinalGrade = String(rawFinal);
+                }
+            }
+
             // Initialize fields required by the extension
             entry.missingCount = 0;
             if (!entry.url) entry.url = null; // Only set to null if not imported from file
@@ -620,6 +632,17 @@ export function parseFileWithSheetJS(data, isCSV, fileModifiedTime = null) {
         const isAcademicReport = detectAcademicReport(normalizedHeaders);
         if (isAcademicReport && students.length > 0) {
             students = deduplicateAcademicStudents(students, referenceDate);
+        }
+
+        // Trim common campus name prefix for cleaner display
+        const campusValues = [...new Set(students.map(s => s.campus).filter(Boolean))];
+        if (campusValues.length > 1) {
+            const { trimmedNames } = trimCommonPrefix(campusValues);
+            for (const student of students) {
+                if (student.campus) {
+                    student.campus = trimmedNames.get(student.campus) || student.campus;
+                }
+            }
         }
 
         return { students, referenceDate };
