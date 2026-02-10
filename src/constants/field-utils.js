@@ -250,3 +250,20 @@ export function calculateDaysSinceLastAttendance(ldaValue, referenceDate) {
     // Calculate days between LDA and reference date
     return daysBetween(ldaDate, refDate);
 }
+
+/**
+ * Converts a numeric grade to a letter grade.
+ * A: 90-100, B: 80-89, C: 70-79, D: 60-69, F: below 60
+ *
+ * @param {string|number} grade - The numeric grade value
+ * @returns {string} The letter grade (A, B, C, D, F) or empty string if invalid
+ */
+export function numericToLetterGrade(grade) {
+    const num = Number(grade);
+    if (isNaN(num)) return '';
+    if (num >= 90) return 'A';
+    if (num >= 80) return 'B';
+    if (num >= 70) return 'C';
+    if (num >= 60) return 'D';
+    return 'F';
+}

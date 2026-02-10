@@ -378,10 +378,10 @@ export const MASTER_LIST_COLUMNS = [
     { header: 'Course', field: 'courseDescrip', width: 25 },
     { header: 'Course Start', field: 'courseStartDate', width: 12, hidden: true },
     { header: 'Course End', field: 'courseEndDate', width: 12, hidden: true },
+    { header: 'Letter Grade', field: 'letterGrade', width: 8 },
     { header: 'Last Course Grade', field: 'lastCourseGrade', width: 10 },
+    { header: 'Last Course Letter Grade', field: 'lastCourseLetterGrade', width: 10 },
     { header: 'Enroll GPA', field: 'enrollGpa', width: 8 },
-    { header: 'Enroll Minutes Attended', field: 'enrollMinutesAttended', width: 12 },
-    { header: 'Enroll Minutes Absent', field: 'enrollMinutesAbsent', width: 12 },
     { header: 'Enrollment Status', field: 'currEnrollStatus', width: 15 },
     { header: 'Campus', field: 'campus', width: 15 }
 ];
@@ -458,10 +458,10 @@ export const SHEET_DEFINITIONS = {
             'Instructor',
             'Course Code',
             'Course',
+            'Letter Grade',
             'Last Course Grade',
+            'Last Course Letter Grade',
             'Enroll GPA',
-            'Enroll Minutes Attended',
-            'Enroll Minutes Absent',
             'Enrollment Status'
         ]
     },

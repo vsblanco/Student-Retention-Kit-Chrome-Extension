@@ -12,7 +12,8 @@ import {
     calculateDaysSinceLastAttendance,
     parseDate,
     formatDateToMMDDYY,
-    trimCommonPrefix
+    trimCommonPrefix,
+    numericToLetterGrade
 } from '../constants/field-utils.js';
 import { updateStepIcon } from '../utils/ui-helpers.js';
 import { elements } from './ui-manager.js';
@@ -431,6 +432,7 @@ function deduplicateAcademicStudents(students, referenceDate) {
             const prevGrade = getLastCourseGrade(ranked);
             if (prevGrade) {
                 selected.lastCourseGrade = prevGrade;
+                selected.lastCourseLetterGrade = numericToLetterGrade(prevGrade);
             }
         }
 
@@ -632,6 +634,14 @@ export function parseFileWithSheetJS(data, isCSV, fileModifiedTime = null) {
         const isAcademicReport = detectAcademicReport(normalizedHeaders);
         if (isAcademicReport && students.length > 0) {
             students = deduplicateAcademicStudents(students, referenceDate);
+        }
+
+        // Compute letter grades from any available numeric grades
+        for (const student of students) {
+            const gradeValue = student.grade || student.currentGrade;
+            if (gradeValue) {
+                student.letterGrade = numericToLetterGrade(gradeValue);
+            }
         }
 
         // Trim common campus name prefix for cleaner display
