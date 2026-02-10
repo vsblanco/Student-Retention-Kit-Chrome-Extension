@@ -332,14 +332,14 @@ function detectAcademicReport(normalizedHeaders) {
 }
 
 /**
- * Selects the "current class" row from multiple rows for the same student.
+ * Ranks course rows by relevance, most current first.
  * Priority: active course (started but not ended) > latest end date > latest start date.
  *
  * @param {Array} rows - Array of student entry objects (same SyStudentId)
  * @param {Date} referenceDate - Reference date for determining "current"
- * @returns {Object} The selected student entry representing the current class
+ * @returns {Array} Rows sorted from most current to least current
  */
-function selectCurrentClassRow(rows, referenceDate) {
+function rankCourseRows(rows, referenceDate) {
     const now = referenceDate || new Date();
 
     const scored = rows.map(row => {
@@ -367,7 +367,25 @@ function selectCurrentClassRow(rows, referenceDate) {
     });
 
     scored.sort((a, b) => b.score - a.score);
-    return scored[0].row;
+    return scored.map(s => s.row);
+}
+
+/**
+ * Finds the final grade from the previous (non-current) course.
+ * Looks through ranked rows starting from the second one and returns
+ * the first non-empty FinalNumericGrade found.
+ *
+ * @param {Array} rankedRows - Rows sorted by rankCourseRows (index 0 = current)
+ * @returns {string|null} The previous course's final grade, or null if not found
+ */
+function getLastCourseGrade(rankedRows) {
+    for (let i = 1; i < rankedRows.length; i++) {
+        const grade = rankedRows[i].finalGrade;
+        if (grade && grade !== '') {
+            return String(grade);
+        }
+    }
+    return null;
 }
 
 /**
@@ -375,6 +393,8 @@ function selectCurrentClassRow(rows, referenceDate) {
  * Academic reports contain one row per course per student, so the same student
  * appears multiple times. This groups rows by SyStudentId and selects the
  * "current class" row to represent each student.
+ *
+ * Also derives a lastCourseGrade from the previous course's final grade.
  *
  * @param {Array} students - Array of parsed student entries (may contain duplicates)
  * @param {Date} referenceDate - Reference date for current-class selection
@@ -404,7 +424,14 @@ function deduplicateAcademicStudents(students, referenceDate) {
         if (rows.length === 1) {
             selected = rows[0];
         } else {
-            selected = selectCurrentClassRow(rows, referenceDate);
+            const ranked = rankCourseRows(rows, referenceDate);
+            selected = ranked[0];
+
+            // Grab the final grade from the previous course for comparison
+            const prevGrade = getLastCourseGrade(ranked);
+            if (prevGrade) {
+                selected.lastCourseGrade = prevGrade;
+            }
         }
 
         deduplicated.push(selected);
