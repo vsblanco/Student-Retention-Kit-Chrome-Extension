@@ -24,8 +24,12 @@ export const RELEASE_NOTES = {
     // The key should match the version in manifest.json
 	'12.0': {
         title: 'Latest Updates',
-        date: 'February 9, 2026',
+        date: 'February 10, 2026',
         updates: [
+            'Added Academic report support — auto-detects the report type and deduplicates students by SyStudentId',
+            'Automatically selects the current class row when a student has multiple courses',
+            'New columns: Instructor, Course Code, Course, Current GPA, Cumulative GPA, Enrollment Status, Enroll Minutes Attended/Absent',
+            'Last Course Grade column pulls the final grade from the previous course for comparison',
             'Campus names now auto-trim the common prefix for cleaner display (e.g. "Northbridge - South Miami" shows as "South Miami")'
         ]
     },
