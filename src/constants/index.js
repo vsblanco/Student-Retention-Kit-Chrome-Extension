@@ -322,20 +322,18 @@ export const FIELD_ALIASES = {
     name: ['studentname', 'student'],
     phone: ['primaryphone', 'phonenumber', 'mobile', 'cell', 'cellphone', 'contact', 'telephone', 'otherphone'],
     grade: ['gradelevel', 'level'],
-    StudentNumber: ['studentid', 'sisid', 'printid'],
+    StudentNumber: ['studentid', 'sisid'],
     SyStudentId: ['studentsis'],
-    daysOut: ['daysinactive', 'days', 'dayssincelda'],
+    daysOut: ['daysinactive', 'days'],
     url: ['gradebook', 'gradeBookUrl', 'canvasUrl', 'studentUrl'],
 	studentEmail: ['email', 'studentsemail', 'studentemails', 'studentsemails'],
 	personalEmail: ['otheremail', 'studentspersonalemail', 'personalstudentemail', 'othermemails'],
 	lda: ['lastdayofattendance', 'lastattendance', 'lastdateofattendance', 'lastdayattended'],
 	campus: ['location', 'site', 'school', 'campusname'],
     // Academic report aliases
-    programVersion: ['progverdescrip', 'progvercode'],
+    programVersion: ['progverdescrip'],
     amRep: ['admrep'],
     adSAPStatus: ['sapstatus', 'sapdescripterm'],
-    address: ['addr1'],
-    midTermGrade: ['midtermnumericgrade'],
     finalGrade: ['finalnumericgrade']
 };
 
@@ -375,24 +373,21 @@ export const MASTER_LIST_COLUMNS = [
     { header: 'Photo', field: 'photo', hidden: true, width: 4 },
     { header: 'AdSAPStatus', field: 'adSAPStatus', width: 8 },
     // Academic report columns
+    { header: 'Print ID', field: 'printId', width: 13, hidden: true },
     { header: 'Instructor', field: 'instructorName', width: 20 },
     { header: 'Instructor Email', field: 'instructorEmail', width: 25, hidden: true },
     { header: 'Course Code', field: 'courseCode', width: 12 },
     { header: 'Course', field: 'courseDescrip', width: 25 },
     { header: 'Course Start', field: 'courseStartDate', width: 12, hidden: true },
     { header: 'Course End', field: 'courseEndDate', width: 12, hidden: true },
-    { header: 'Mid-Term Grade', field: 'midTermGrade', width: 10, hidden: true },
+    { header: 'Last Course Grade', field: 'lastCourseGrade', width: 10 },
     { header: 'Final Grade', field: 'finalGrade', width: 10, hidden: true },
     { header: 'Current GPA', field: 'curGpa', width: 8 },
     { header: 'Cumulative GPA', field: 'cumGpa', width: 10 },
     { header: 'Enroll GPA', field: 'enrollGpa', width: 8, hidden: true },
-    { header: 'Credits Attempted', field: 'creditsAttempt', width: 10, hidden: true },
-    { header: 'Credits Earned', field: 'creditsEarned', width: 10, hidden: true },
-    { header: 'Advisor', field: 'advisorName', width: 20 },
-    { header: 'Degree', field: 'degreeDescrip', width: 20, hidden: true },
+    { header: 'Enroll Minutes Attended', field: 'enrollMinutesAttended', width: 12 },
+    { header: 'Enroll Minutes Absent', field: 'enrollMinutesAbsent', width: 12 },
     { header: 'Enrollment Status', field: 'currEnrollStatus', width: 15 },
-    { header: 'Student Type', field: 'studentType', width: 12, hidden: true },
-    { header: 'Address', field: 'address', width: 25, hidden: true },
     { header: 'Campus', field: 'campus', width: 15 }
 ];
 
@@ -468,9 +463,11 @@ export const SHEET_DEFINITIONS = {
             'Instructor',
             'Course Code',
             'Course',
+            'Last Course Grade',
             'Current GPA',
             'Cumulative GPA',
-            'Advisor',
+            'Enroll Minutes Attended',
+            'Enroll Minutes Absent',
             'Enrollment Status'
         ]
     },
