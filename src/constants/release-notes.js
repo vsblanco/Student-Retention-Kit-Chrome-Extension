@@ -28,9 +28,10 @@ export const RELEASE_NOTES = {
         updates: [
             'Added Academic report support — auto-detects the report type and deduplicates students by SyStudentId',
             'Automatically selects the current class row when a student has multiple courses',
-            'New columns: Instructor, Course Code, Course, Current GPA, Cumulative GPA, Enrollment Status, Enroll Minutes Attended/Absent',
+            'New columns: Instructor, Course Code, Course, Enroll GPA, Enrollment Status',
+            'Letter Grade and Last Course Letter Grade columns auto-convert numeric grades to A/B/C/D/F',
             'Last Course Grade column pulls the final grade from the previous course for comparison',
-            'Campus names now auto-trim the common prefix for cleaner display (e.g. "Northbridge - South Miami" shows as "South Miami")'
+            'Campus names now auto-trim the prefix for cleaner display (e.g. "Northbridge - South Miami" shows as "South Miami")'
         ]
     },
 	'11.2': {

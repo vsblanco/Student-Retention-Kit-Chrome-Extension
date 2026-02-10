@@ -12,7 +12,8 @@ import {
     calculateDaysSinceLastAttendance,
     parseDate,
     formatDateToMMDDYY,
-    trimCommonPrefix
+    trimCommonPrefix,
+    numericToLetterGrade
 } from '../constants/field-utils.js';
 import { updateStepIcon } from '../utils/ui-helpers.js';
 import { elements } from './ui-manager.js';
@@ -431,6 +432,7 @@ function deduplicateAcademicStudents(students, referenceDate) {
             const prevGrade = getLastCourseGrade(ranked);
             if (prevGrade) {
                 selected.lastCourseGrade = prevGrade;
+                selected.lastCourseLetterGrade = numericToLetterGrade(prevGrade);
             }
         }
 
@@ -634,13 +636,38 @@ export function parseFileWithSheetJS(data, isCSV, fileModifiedTime = null) {
             students = deduplicateAcademicStudents(students, referenceDate);
         }
 
+        // Compute letter grades from any available numeric grades
+        for (const student of students) {
+            const gradeValue = student.grade || student.currentGrade;
+            if (gradeValue) {
+                student.letterGrade = numericToLetterGrade(gradeValue);
+            }
+        }
+
         // Trim common campus name prefix for cleaner display
         const campusValues = [...new Set(students.map(s => s.campus).filter(Boolean))];
         if (campusValues.length > 1) {
-            const { trimmedNames } = trimCommonPrefix(campusValues);
-            for (const student of students) {
-                if (student.campus) {
-                    student.campus = trimmedNames.get(student.campus) || student.campus;
+            // Multiple campuses - detect and trim common prefix
+            const { trimmedNames, prefix } = trimCommonPrefix(campusValues);
+            if (prefix) {
+                for (const student of students) {
+                    if (student.campus) {
+                        student.campus = trimmedNames.get(student.campus) || student.campus;
+                    }
+                }
+            }
+        } else if (campusValues.length === 1) {
+            // Single campus - trim prefix before separator (e.g. "Northbridge - South Miami" → "South Miami")
+            const campus = campusValues[0];
+            const sepMatch = campus.match(/\s[-–—:]\s/);
+            if (sepMatch) {
+                const trimmed = campus.substring(sepMatch.index + sepMatch[0].length).trim();
+                if (trimmed) {
+                    for (const student of students) {
+                        if (student.campus === campus) {
+                            student.campus = trimmed;
+                        }
+                    }
                 }
             }
         }

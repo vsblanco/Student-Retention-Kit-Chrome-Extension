@@ -9,6 +9,7 @@
 //   6. Step Orchestrators (processStep2, processStep3, processStep4)
 
 import { STORAGE_KEYS, CANVAS_DOMAIN, LEGACY_CANVAS_SUBDOMAINS, GENERIC_AVATAR_URL, normalizeCanvasUrl } from '../constants/index.js';
+import { numericToLetterGrade } from '../constants/field-utils.js';
 import { getCachedData, getCache, stageCacheData, flushPendingCacheWrites } from '../utils/canvasCache.js';
 import { openCanvasAuthErrorModal, isCanvasAuthError } from './modals/canvas-auth-modal.js';
 import { ensureCanvasLogin } from './modals/canvas-login-modal.js';
@@ -591,6 +592,7 @@ function processCourseGroupResults(studentsInCourse, courseGroupData, referenceD
             missingCount: result.count,
             missingAssignments: result.assignments,
             currentGrade: result.currentGrade,
+            letterGrade: numericToLetterGrade(result.currentGrade),
             nextAssignment
         };
     });
