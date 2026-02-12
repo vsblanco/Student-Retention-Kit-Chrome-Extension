@@ -951,7 +951,7 @@ async function _processStep2(students, renderCallback) {
 
         console.log(`[Step 2] Complete - ${students.length} students processed`);
 
-        if (renderCallback) renderCallback(updatedStudents);
+        if (renderCallback) await renderCallback(updatedStudents);
         return updatedStudents;
     });
 }
