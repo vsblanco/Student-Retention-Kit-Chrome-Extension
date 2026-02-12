@@ -879,7 +879,7 @@ export function resetQueueUI() {
 /**
  * Restores default queue UI for CSV import
  */
-export function restoreDefaultQueueUI() {
+export async function restoreDefaultQueueUI() {
     const s1 = document.getElementById('step1');
     const s2 = document.getElementById('step2');
     const s3 = document.getElementById('step3');
@@ -892,7 +892,11 @@ export function restoreDefaultQueueUI() {
     if (s2) { s2.style.display = ''; }
     if (s3) { s3.style.display = ''; }
     if (s4) {
-        s4.style.display = '';
+        const settings = await chrome.storage.local.get([STORAGE_KEYS.SEND_MASTER_LIST_TO_EXCEL]);
+        const sendEnabled = settings[STORAGE_KEYS.SEND_MASTER_LIST_TO_EXCEL] !== undefined
+            ? settings[STORAGE_KEYS.SEND_MASTER_LIST_TO_EXCEL]
+            : true;
+        s4.style.display = sendEnabled ? '' : 'none';
         s4.querySelector('.queue-content').innerHTML = '<i class="far fa-circle"></i> Sending List to Excel';
     }
 }

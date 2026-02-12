@@ -1330,7 +1330,7 @@ async function handleUpdateMasterList() {
         resetQueueUI();
 
         // Direct CSV upload
-        restoreDefaultQueueUI();
+        await restoreDefaultQueueUI();
 
         const step1 = document.getElementById('step1');
         if (step1) {
