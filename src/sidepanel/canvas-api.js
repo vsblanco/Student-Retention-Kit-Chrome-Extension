@@ -1094,6 +1094,13 @@ async function _processStep3(students, renderCallback) {
 
 /** Process Step 4: Send the master list with missing assignments to Excel. */
 export async function processStep4(students) {
+    // Skip entirely when sending to Excel is disabled
+    const settings = await storageGet([STORAGE_KEYS.SEND_MASTER_LIST_TO_EXCEL]);
+    const sendEnabled = settings[STORAGE_KEYS.SEND_MASTER_LIST_TO_EXCEL] !== undefined
+        ? settings[STORAGE_KEYS.SEND_MASTER_LIST_TO_EXCEL]
+        : true;
+    if (!sendEnabled) return students;
+
     const step4 = document.getElementById('step4');
     if (!step4) return students;
 
