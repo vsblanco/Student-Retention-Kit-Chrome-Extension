@@ -81,12 +81,16 @@ export async function closeCanvasAuthErrorModal(choice = 'retry') {
 }
 
 /**
- * Checks if an error response indicates a Canvas authorization error
+ * Checks if an error response indicates a Canvas authorization error.
+ * Only 401 (Unauthorized) is treated as an auth/session error.
+ * 403 (Forbidden) indicates a permissions issue on a specific resource
+ * (e.g. course ended, enrollment changed) and should not trigger the
+ * auth retry flow.
  * @param {Response} response - The fetch response object
  * @returns {boolean} True if it's an authorization error
  */
 export function isCanvasAuthError(response) {
-    return response && (response.status === 401 || response.status === 403);
+    return response && response.status === 401;
 }
 
 /**
