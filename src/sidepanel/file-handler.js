@@ -606,11 +606,14 @@ export function parseFileWithSheetJS(data, isCSV, fileModifiedTime = null) {
             }
 
             // Calculate daysOut based on LDA if available, otherwise use imported value
-            const ldaValue = entry.lda;
-            if (ldaValue && referenceDate) {
-                entry.daysOut = calculateDaysSinceLastAttendance(ldaValue, referenceDate);
-            } else {
-                entry.daysOut = parseInt(entry.daysOut) || 0;
+            // Only set daysOut if lda or daysOut was actually in the report
+            if (columnMapping.lda !== undefined || columnMapping.daysOut !== undefined) {
+                const ldaValue = entry.lda;
+                if (ldaValue && referenceDate) {
+                    entry.daysOut = calculateDaysSinceLastAttendance(ldaValue, referenceDate);
+                } else {
+                    entry.daysOut = parseInt(entry.daysOut) || 0;
+                }
             }
 
             // Store raw FinalNumericGrade for Last Course Grade derivation (internal only)
@@ -620,11 +623,6 @@ export function parseFileWithSheetJS(data, isCSV, fileModifiedTime = null) {
                     entry._rawFinalGrade = String(rawFinal);
                 }
             }
-
-            // Initialize fields required by the extension
-            entry.missingCount = 0;
-            if (!entry.url) entry.url = null; // Only set to null if not imported from file
-            entry.assignments = [];
 
             students.push(entry);
         }
