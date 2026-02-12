@@ -42,13 +42,19 @@ export async function sendMasterListToExcel(students, targetTabId = null) {
     }
 
     try {
-        // Extract headers from MASTER_LIST_COLUMNS
-        const headers = MASTER_LIST_COLUMNS.map(col => col.header);
+        // Only send columns where at least one student has data
+        const activeColumns = MASTER_LIST_COLUMNS.filter(col => {
+            return students.some(student => {
+                const value = getFieldValue(student, col.field, col.fallback);
+                return value !== null && value !== undefined && value !== '';
+            });
+        });
 
-        // Transform students into data rows using MASTER_LIST_COLUMNS definitions
+        const headers = activeColumns.map(col => col.header);
+
+        // Transform students into data rows using only active columns
         const data = students.map(student => {
-            return MASTER_LIST_COLUMNS.map(col => {
-                // Use getFieldValue which now uses alias-based matching
+            return activeColumns.map(col => {
                 let value = getFieldValue(student, col.field, col.fallback);
 
                 // Format LDA dates to MM-DD-YY format
@@ -114,13 +120,19 @@ export async function sendMasterListWithMissingAssignmentsToExcel(students, targ
     }
 
     try {
-        // Extract headers from MASTER_LIST_COLUMNS
-        const headers = MASTER_LIST_COLUMNS.map(col => col.header);
+        // Only send columns where at least one student has data
+        const activeColumns = MASTER_LIST_COLUMNS.filter(col => {
+            return students.some(student => {
+                const value = getFieldValue(student, col.field, col.fallback);
+                return value !== null && value !== undefined && value !== '';
+            });
+        });
 
-        // Transform students into data rows using MASTER_LIST_COLUMNS definitions
+        const headers = activeColumns.map(col => col.header);
+
+        // Transform students into data rows using only active columns
         const data = students.map(student => {
-            return MASTER_LIST_COLUMNS.map(col => {
-                // Use getFieldValue which now uses alias-based matching
+            return activeColumns.map(col => {
                 let value = getFieldValue(student, col.field, col.fallback);
 
                 // Format LDA dates to MM-DD-YY format
