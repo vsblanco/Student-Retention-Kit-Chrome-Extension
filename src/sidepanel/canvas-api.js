@@ -983,6 +983,11 @@ export async function processStep3(students, renderCallback) {
 
 async function _processStep3(students, renderCallback) {
     return withStepUI('step3', async ({ timeSpan }) => {
+        // Pre-check: ensure user is logged into Canvas before making any API calls.
+        // This is critical when Step 3 runs standalone (e.g. "Check Grade Book Again")
+        // without Step 2 having already verified the session.
+        await ensureCanvasLogin(getCanvasDomain());
+
         const settings = await storageGet([
             STORAGE_KEYS.USE_SPECIFIC_DATE,
             STORAGE_KEYS.SPECIFIC_SUBMISSION_DATE,
